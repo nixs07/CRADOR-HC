@@ -62,9 +62,11 @@ la de Consulta Externa.
 | `28_prescripcion_formulario.png` | 4. Prescripción con dos medicamentos (filas agregadas) antes de guardar |
 | `28_prescripcion.png` | 4. Prescripción guardada (dosis y cantidad total calculadas) |
 | `29_ordenes.png` | 5. Órdenes médicas: texto libre y órdenes de laboratorio e imagen |
-| `30_procedimientos.png` | 6. Procedimiento realizado |
-| `31_notas.png` | 7. Nota de enfermería y administración de un medicamento prescrito |
+| `30_procedimientos.png` | 6. Procedimientos: uno suelto y otro que atiende el ítem de la orden |
+| `31_notas.png` | 7. Nota de enfermería, administración de un medicamento prescrito y material usado |
 | `32_evolucion.png` | 8. Evolución (SOAP) |
 | `33_egreso.png` | 9. Egreso en Observación con la confirmación marcada |
 | `34_egreso_cerrado.png` | Admisión cerrada: egreso en modo consulta |
 | `35_ce_cerrada.png` | Consulta Externa: "Cerrar atención" |
+| `36_traslado.png` | Observación: traslado de cama desde el encabezado (HOSP09 → HOSP10) con el historial |
+| `37_remision_incapacidad.png` | 9. Egreso: remisión e incapacidad registradas antes del egreso |

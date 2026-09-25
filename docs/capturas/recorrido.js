@@ -162,6 +162,12 @@ async function buscarDocumento(p, modulo, tipo, doc) {
   await p.fill('#CodiProc', '939403'); await p.selectOption('#CodiFina', '2');
   await p.fill('#IndiAdic', 'NEBULIZACION CON SSN, SIN COMPLICACIONES (datos inventados)');
   await guardar('#procedimientos button[type=submit]', 'procedimiento guardado');
+  // Procedimiento que atiende un item de la orden (hemograma): llena NumeOrde/Item y suma CantReal
+  await pestana('procedimientos');
+  const pend = await p.$eval('#OrdenItem', s => [...s.options].find(o => o.value).value);
+  await p.selectOption('#OrdenItem', pend); await p.selectOption('#CodiFina', '1');
+  await p.fill('#IndiAdic', 'TOMA DE MUESTRA PARA HEMOGRAMA');
+  await guardar('#procedimientos button[type=submit]', 'procedimiento de la orden guardado');
   await foto(p, '30_procedimientos');
 
   await pestana('notas');
@@ -171,6 +177,10 @@ async function buscarDocumento(p, modulo, tipo, doc) {
   const med = await p.$eval('#MediPres', s => [...s.options].find(o => o.value).value);
   await p.selectOption('#MediPres', med); await p.fill('#CantMedi', '1'); await p.fill('#MediObse', 'SIN REACCIONES');
   await guardar('#notas form:has(input[name=accion][value=medicamento]) button[type=submit]', 'medicamento aplicado');
+  await pestana('notas');
+  await p.fill('#CodiMate', 'MQ0002'); await p.selectOption('#UnidMate', '01'); await p.fill('#CantMate', '1');
+  await p.fill('#MateObse', 'CANALIZACION VENA ANTEBRAZO IZQUIERDO');
+  await guardar('#notas form:has(input[name=accion][value=material]) button[type=submit]', 'material registrado');
   await foto(p, '31_notas');
 
   await pestana('evolucion');
@@ -197,19 +207,38 @@ async function buscarDocumento(p, modulo, tipo, doc) {
   await c.screenshot({ path: `${OUT}/24_movil_menu.png` }); console.log('FOTO', `${OUT}/24_movil_menu.png`);
   await c.close();
 
+  // --- Observacion: traslado de cama, remision e incapacidad antes del egreso ---
+  await p.goto(B + 'atencion.php?id=' + adm.obs + '&tab=signos');
+  await p.click('#traslado > summary');
+  await p.selectOption('#CamaDest', 'HOSP10');
+  await guardar('#traslado button[type=submit]', 'traslado de cama');
+  await p.click('#traslado > summary');
+  await foto(p, '36_traslado');
+  await p.goto(B + 'atencion.php?id=' + adm.obs + '&tab=egreso');
+  await p.click('text=Remisión a otra institución');
+  await p.selectOption('#RemiMoti', '2'); await p.selectOption('#ModaSoli', '2');
+  await p.fill('#InstDest', 'HOSPITAL DE PRUEBA NIVEL II (inventado)');
+  await p.fill('#MotiRemiTexto', 'PACIENTE REQUIERE VALORACION POR MEDICINA INTERNA. Datos inventados.');
+  await p.fill('#NombAcep', 'MEDICO DE PRUEBA RECEPTOR'); await p.check('input[name=Ambulanc]'); await p.fill('#PlacAmbu', 'OXX000');
+  await guardar('#egreso form:has(input[name=accion][value=remision]) button[type=submit]', 'remision guardada');
+  await p.click('text=Incapacidad');
+  await p.fill('#DiasIncaPaci', '3'); await p.fill('#ObseInca', 'REPOSO EN CASA (inventado)');
+  await guardar('#egreso form:has(input[name=accion][value=incapacidad]) button[type=submit]', 'incapacidad guardada');
+  await foto(p, '37_remision_incapacidad');
+
   // --- Egreso en Observación (cierra la admisión y libera la cama) y cierre en Consulta Externa ---
   await p.goto(B + 'atencion.php?id=' + adm.obs + '&tab=egreso');
   await p.fill('#ObseSali', 'SALE EN BUENAS CONDICIONES (datos inventados)');
   // Sin marcar la confirmacion: el servidor tambien la exige (se quita el "required" del navegador para probarlo)
   await p.$eval('input[name=ConfEgre]', c => c.removeAttribute('required'));
-  await p.click('#egreso button[type=submit]'); await p.waitForLoadState(); await estado(p, 'egreso sin confirmar');
+  await p.click('#egreso form:has(input[name=accion][value=egreso]) button[type=submit]'); await p.waitForLoadState(); await estado(p, 'egreso sin confirmar');
   await p.check('input[name=ConfEgre]');
   await foto(p, '33_egreso');
-  await p.click('#egreso button[type=submit]'); await p.waitForLoadState(); await estado(p, 'egreso guardado');
+  await p.click('#egreso form:has(input[name=accion][value=egreso]) button[type=submit]'); await p.waitForLoadState(); await estado(p, 'egreso guardado');
   await foto(p, '34_egreso_cerrado');
   await p.goto(B + 'atencion.php?id=' + adm.ce + '&tab=egreso');
   await p.check('input[name=ConfEgre]');
-  await p.click('#egreso button[type=submit]'); await p.waitForLoadState(); await estado(p, 'atencion CE cerrada');
+  await p.click('#egreso form:has(input[name=accion][value=egreso]) button[type=submit]'); await p.waitForLoadState(); await estado(p, 'atencion CE cerrada');
   await foto(p, '35_ce_cerrada');
   await p.goto(B + 'atencion.php?modulo=urg&historias=1');
 

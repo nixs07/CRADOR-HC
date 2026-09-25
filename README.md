@@ -64,7 +64,8 @@ Abrir <http://localhost:8080>. Guía completa: [`docs/INSTALACION.md`](docs/INST
   4. Prescripción (EncaPres/DetaPres), 5. Órdenes médicas (texto libre EncaData/DetaData y órdenes EncaOrde/DetaOrde),
   6. Procedimientos (HojaProc), 7. Notas de enfermería (HojaEnfe) y administración de medicamentos (HojaMedi),
   8. Evolución (EvolInte) y 9. Egreso (SaliInte y cierre). Supuestos en `docs/REGLAS.md`.
-- **Fase 2 — siguientes bloques:** traslado de cama, materiales, remisión e incapacidad.
+- **Fase 2 — bloque 3 (hecho):** traslado de cama (TrasCama, Observación), materiales (HojaMate), remisión (Remision)
+  e incapacidad (IncaPaci) en el egreso, y procedimientos ligados al ítem de la orden que atienden.
   procedimientos, fórmula y medicamentos, materiales, notas de enfermería, evolución, traslado de cama y egreso.
 - **Fase 3:** carga a SIHOS por el administrador (`cont_carga_sihos`).
 
