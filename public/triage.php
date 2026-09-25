@@ -43,47 +43,51 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 vista_inicio('Triage');
+$usuario = usuario_actual();
 ?>
-<p class="migas"><a href="<?= e($volver) ?>">← Volver a la admisión</a></p>
+<p class="migas"><a href="<?= e($volver) ?>"><?= icono('arrow-left') ?>Volver a la historia</a></p>
 <?php encabezado_admision($a); ?>
-<h1>Triage</h1>
+<?php pestanas_historia($a, 'triage', count(signos_de_admision($a['ConsAdmi']))); ?>
 <?= errores_resumen($e) ?>
 
-<form method="post" class="formulario" data-signos data-una-vez>
+<form method="post" class="formulario formulario-historia" data-signos data-una-vez>
     <?= csrf_campo() ?>
     <fieldset>
-        <legend>Valoración</legend>
-        <div class="rejilla">
+        <legend>Triage <small class="legend-nota">Profesional: <?= e($usuario['Nombre']) ?></small></legend>
+        <div class="rejilla rejilla-fecha">
             <div><label for="FechTria">Fecha</label>
                 <input type="date" id="FechTria" name="FechTria" value="<?= v($t, 'FechTria') ?>" max="<?= date('Y-m-d') ?>" class="<?= ce($e, 'FechTria') ?>" required><?= me($e, 'FechTria') ?></div>
             <div><label for="HoraTria">Hora</label>
                 <input type="time" id="HoraTria" name="HoraTria" value="<?= e(substr($t['HoraTria'] ?? '', 0, 5)) ?>" class="<?= ce($e, 'HoraTria') ?>" required><?= me($e, 'HoraTria') ?></div>
+        </div>
+
+        <label for="MotiCons">Motivo de consulta (palabras del paciente) <span class="obligatorio" aria-hidden="true">*</span></label>
+        <textarea id="MotiCons" name="MotiCons" rows="2" maxlength="5000" class="<?= ce($e, 'MotiCons') ?>" required><?= v($t, 'MotiCons') ?></textarea><?= me($e, 'MotiCons') ?>
+
+        <div class="subgrupo">
+            <h3><?= icono('heart-pulse') ?>Signos vitales</h3>
+            <?php campos_signos($s, $e); ?>
+        </div>
+
+        <label for="HallClin">Hallazgos clínicos <span class="obligatorio" aria-hidden="true">*</span></label>
+        <textarea id="HallClin" name="HallClin" rows="4" maxlength="5000" class="<?= ce($e, 'HallClin') ?>" required><?= v($t, 'HallClin') ?></textarea><?= me($e, 'HallClin') ?>
+
+        <div class="rejilla">
+            <div><label for="CodiDiag">Impresión diagnóstica (CIE-10)</label>
+                <input type="text" id="CodiDiag" name="CodiDiag" value="<?= v($t, 'CodiDiag') ?>" maxlength="8" data-diagnostico autocomplete="off" class="<?= ce($e, 'CodiDiag') ?>" placeholder="Código o nombre">
+                <div class="nota-campo" id="CodiDiag-nombre"><?= e(diagnostico_nombre($t['CodiDiag'] ?? '') ?? '') ?></div><?= me($e, 'CodiDiag') ?></div>
             <div><label for="ClasTria">Clasificación</label>
                 <select id="ClasTria" name="ClasTria" class="<?= ce($e, 'ClasTria') ?>" required><?= opciones_arreglo(lista('ClasTria'), $t['ClasTria'] ?? '') ?></select><?= me($e, 'ClasTria') ?></div>
             <div><label for="CondTria">Conducta</label>
                 <select id="CondTria" name="CondTria" class="<?= ce($e, 'CondTria') ?>" required><?= opciones('CondTria', $t['CondTria'] ?? '') ?></select><?= me($e, 'CondTria') ?></div>
         </div>
-        <label for="MotiCons">Motivo de consulta (palabras del paciente) *</label>
-        <textarea id="MotiCons" name="MotiCons" rows="2" maxlength="5000" class="<?= ce($e, 'MotiCons') ?>" required><?= v($t, 'MotiCons') ?></textarea><?= me($e, 'MotiCons') ?>
-        <label for="HallClin">Hallazgos clínicos *</label>
-        <textarea id="HallClin" name="HallClin" rows="4" maxlength="5000" class="<?= ce($e, 'HallClin') ?>" required><?= v($t, 'HallClin') ?></textarea><?= me($e, 'HallClin') ?>
-        <div class="rejilla">
-            <div><label for="CodiDiag">Diagnóstico (CIE-10)</label>
-                <input type="text" id="CodiDiag" name="CodiDiag" value="<?= v($t, 'CodiDiag') ?>" maxlength="8" data-diagnostico autocomplete="off" class="<?= ce($e, 'CodiDiag') ?>" placeholder="Código o nombre">
-                <div class="nota-campo" id="CodiDiag-nombre"><?= e(diagnostico_nombre($t['CodiDiag'] ?? '') ?? '') ?></div><?= me($e, 'CodiDiag') ?></div>
-        </div>
         <label for="Conducta">Observaciones de la conducta</label>
         <textarea id="Conducta" name="Conducta" rows="2" maxlength="5000"><?= v($t, 'Conducta') ?></textarea>
     </fieldset>
 
-    <fieldset>
-        <legend>Signos vitales</legend>
-        <?php campos_signos($s, $e); ?>
-    </fieldset>
-
     <div class="acciones">
-        <button type="submit" class="boton boton-primario">Guardar triage</button>
-        <a href="<?= e($volver) ?>" class="boton boton-claro">Cancelar</a>
+        <button type="submit" class="boton boton-primario"><?= icono('save') ?>Guardar triage</button>
+        <a href="<?= e($volver) ?>" class="boton boton-claro"><?= icono('arrow-left') ?>Volver</a>
     </div>
 </form>
 <script src="js/formularios.js"></script>

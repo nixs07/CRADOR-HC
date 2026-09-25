@@ -12,13 +12,14 @@ $q = is_string($_GET['q'] ?? null) ? mb_substr(trim($_GET['q']), 0, 60) : '';
 $resultados = $q !== '' ? pacientes_buscar($q) : [];
 
 vista_inicio('Pacientes');
+$modulo = modulo_actual();
 $urlCrear = 'paciente_nuevo.php' . (preg_match('/^[0-9A-Za-z]+$/', $q) ? '?NumeUsua=' . urlencode($q) : '');
 ?>
 <div class="cabecera-pagina">
     <div>
-        <div class="antetitulo"><?= icono('users') ?>Admisión</div>
-        <h1>Pacientes</h1>
-        <p>Busque por número de documento o por nombres y apellidos. Si el paciente no aparece, créelo.</p>
+        <div class="antetitulo"><?= icono($modulo ? MODULOS_ICONO[$modulo] : 'users') ?><?= e($modulo ? MODULOS_DETALLE[$modulo]['nombre'] : 'Pacientes') ?></div>
+        <h1><?= $modulo ? 'Nueva admisión' : 'Pacientes' ?></h1>
+        <p>Busque al paciente por número de documento o por nombres y apellidos. Si no aparece, créelo.</p>
     </div>
     <div class="acciones">
         <a href="<?= e($urlCrear) ?>" class="boton boton-claro"><?= icono('user-plus') ?>Crear paciente</a>
@@ -59,7 +60,7 @@ $urlCrear = 'paciente_nuevo.php' . (preg_match('/^[0-9A-Za-z]+$/', $q) ? '?NumeU
                             <a href="admision.php?id=<?= e(urlencode($abierta['ConsAdmi'])) ?>" class="boton boton-claro boton-chico"><?= icono('file-text') ?>Admisión abierta <?= e($abierta['ConsAdmi']) ?></a>
                         <?php else: ?>
                             <?php foreach (MODULOS_DETALLE as $clave => $m): ?>
-                                <a href="admision_nueva.php?modulo=<?= e($clave) ?>&amp;<?= e($doc) ?>" class="boton boton-claro boton-chico"><?= icono(MODULOS_ICONO[$clave]) ?><?= e($m['nombre']) ?></a>
+                                <a href="admision_nueva.php?modulo=<?= e($clave) ?>&amp;<?= e($doc) ?>" class="boton <?= $clave === $modulo ? 'boton-primario' : 'boton-claro' ?> boton-chico"><?= icono(MODULOS_ICONO[$clave]) ?><?= e($m['nombre']) ?></a>
                             <?php endforeach; ?>
                         <?php endif; ?>
                     </td>

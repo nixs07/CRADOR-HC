@@ -380,7 +380,7 @@ function admision_o_404(?string $cons): array
     $a = is_string($cons) ? admision_obtener($cons) : null;
     if (!$a) {
         flash('error', 'La admisión no existe.');
-        redirigir('index.php');
+        redirigir(pagina_inicio());
     }
     return $a;
 }
@@ -397,11 +397,12 @@ function admisiones_abiertas(array $mod): array
     $marcas = implode(',', array_fill(0, count($mod['servicios']), '?'));
     $st = db()->prepare("SELECT a.ConsAdmi, a.TipoDocu, a.NumeUsua, a.ValoEdad, a.UnidEdad, a.FechIngr, a.HoraIngr,
                                 a.ServEgre, a.CamaActu, a.ClasTria, a.DiagIngr, a.UsuaDigi,
-                                p.NombUsua, p.NombUsu1, p.Ape1Usua, p.Ape2Usua, p.SexoUsua, c.NombAdmi,
+                                p.NombUsua, p.NombUsu1, p.Ape1Usua, p.Ape2Usua, p.SexoUsua, c.NombAdmi, s.NombServ,
                                 (SELECT COUNT(*) FROM SignVita v WHERE v.CodiInst = a.CodiInst AND v.ConsAdmi = a.ConsAdmi) AS signos
                            FROM Admision a
                            LEFT JOIN Paciente p ON p.TipoDocu = a.TipoDocu AND p.NumeUsua = a.NumeUsua
                            LEFT JOIN CodiAdmi c ON c.CodiAdmi = a.CodiAdmi
+                           LEFT JOIN CodiServ s ON s.CodiServ = a.ServEgre
                           WHERE a.CodiInst = ? AND a.ServEgre IN ($marcas) AND a.Cerrado = 2 AND a.Anulado = 2
                           ORDER BY IFNULL(a.ClasTria, 9), a.FechIngr, a.HoraIngr");
     $st->execute(array_merge([CODI_INST], $mod['servicios']));

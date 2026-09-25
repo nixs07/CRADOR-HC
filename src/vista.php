@@ -38,7 +38,7 @@ function vista_inicio(string $titulo): void
 {
     $u = usuario_actual();
     $pagina = basename($_SERVER['SCRIPT_NAME'] ?? '');
-    $moduloActual = $_GET['modulo'] ?? '';
+    $modulo = $u ? modulo_actual() : null;
     // Enlace activo del menu
     $activo = function (bool $cond): string {
         return $cond ? ' class="activo" aria-current="page"' : '';
@@ -69,15 +69,18 @@ function vista_inicio(string $titulo): void
         <button type="button" class="boton-icono lateral-cerrar" data-menu-cerrar aria-label="Cerrar menú"><?= icono('x') ?></button>
     </div>
     <nav class="menu">
-        <div class="menu-grupo">Atención</div>
-        <a href="index.php"<?= $activo($pagina === 'index.php') ?>><?= icono('layout-dashboard') ?><span>Tablero</span></a>
-        <a href="pacientes.php"<?= $activo(in_array($pagina, ['pacientes.php', 'paciente_nuevo.php', 'admision_nueva.php'], true)) ?>><?= icono('users') ?><span>Pacientes</span></a>
+        <?php if ($modulo): ?>
+            <div class="menu-grupo">Atención</div>
+            <a href="admisiones.php?modulo=<?= e($modulo) ?>"<?= $activo(in_array($pagina, ['admisiones.php', 'admision.php', 'triage.php', 'signos.php'], true)) ?>><?= icono('clipboard-list') ?><span>Historias abiertas</span></a>
+            <a href="pacientes.php"<?= $activo(in_array($pagina, ['pacientes.php', 'paciente_nuevo.php', 'admision_nueva.php'], true)) ?>><?= icono('user-plus') ?><span>Nueva admisión</span></a>
+        <?php endif; ?>
 
-        <div class="menu-grupo">Módulos</div>
-        <?php foreach (MODULOS_DETALLE as $clave => $m): ?>
-            <a href="admisiones.php?modulo=<?= e($clave) ?>"<?= $activo($pagina === 'admisiones.php' && $moduloActual === $clave) ?>>
-                <?= icono(MODULOS_ICONO[$clave] ?? 'clipboard-list') ?><span><?= e($m['nombre']) ?></span></a>
-        <?php endforeach; ?>
+        <div class="menu-grupo">General</div>
+        <a href="modulo.php"<?= $activo($pagina === 'modulo.php') ?>><?= icono('hospital') ?><span><?= $modulo ? 'Cambiar de módulo' : 'Elegir módulo' ?></span></a>
+        <?php if (!$modulo): ?>
+            <a href="pacientes.php"<?= $activo(in_array($pagina, ['pacientes.php', 'paciente_nuevo.php', 'admision_nueva.php'], true)) ?>><?= icono('users') ?><span>Pacientes</span></a>
+        <?php endif; ?>
+        <a href="index.php"<?= $activo($pagina === 'index.php') ?>><?= icono('layout-dashboard') ?><span>Tablero general</span></a>
 
         <?php if (es_admin()): ?>
             <div class="menu-grupo">Administración</div>
@@ -102,7 +105,18 @@ function vista_inicio(string $titulo): void
         <button type="button" class="boton-icono boton-menu" data-menu-abrir aria-controls="menu-lateral" aria-expanded="false" aria-label="Abrir menú">
             <?= icono('menu') ?>
         </button>
-        <a href="index.php" class="superior-marca"><img src="img/logo.png" alt="" width="28" height="30"><strong>CRADOR-HC</strong></a>
+        <a href="<?= e(pagina_inicio()) ?>" class="superior-marca" aria-label="Inicio"><img src="img/logo.png" alt="" width="28" height="30"></a>
+        <div class="superior-modulo">
+            <?php if ($modulo): ?>
+                <span class="tarjeta-icono icono-<?= e($modulo) ?>"><?= icono(MODULOS_ICONO[$modulo]) ?></span>
+                <div>
+                    <strong><?= e(MODULOS_DETALLE[$modulo]['nombre']) ?></strong>
+                    <a href="modulo.php">Cambiar módulo</a>
+                </div>
+            <?php else: ?>
+                <div><strong>CRADOR-HC</strong><a href="modulo.php">Elegir módulo</a></div>
+            <?php endif; ?>
+        </div>
         <div class="superior-contexto">
             <span class="chip chip-contingencia"><?= icono('wifi-off') ?>Registro de contingencia</span>
             <span class="superior-fecha"><?= icono('calendar') ?><?= e(date('d/m/Y')) ?></span>
@@ -133,7 +147,7 @@ function vista_fin(): void
     </main>
     <footer class="pie">CRADOR-HC · Registro clínico de contingencia. Los datos se cargan a SIHOS cuando el sistema vuelva.</footer>
 </div>
-<script src="js/menu.js"></script>
+<script src="js/interfaz.js"></script>
 </body>
 </html>
 <?php

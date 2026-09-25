@@ -51,3 +51,20 @@ function ip_cliente(): string
 {
     return substr($_SERVER['REMOTE_ADDR'] ?? 'cli', 0, 45);
 }
+
+/** Tiempo transcurrido desde una fecha y hora, corto como en SIHOS: "36m", "2h 31m", "3d 4h". */
+function duracion_desde(string $fecha, string $hora): string
+{
+    $t = strtotime($fecha . ' ' . $hora);
+    if (!$t) {
+        return '—';
+    }
+    $min = max(0, intdiv(time() - $t, 60));
+    if ($min < 60) {
+        return $min . 'm';
+    }
+    if ($min < 1440) {
+        return intdiv($min, 60) . 'h ' . ($min % 60) . 'm';
+    }
+    return intdiv($min, 1440) . 'd ' . intdiv($min % 1440, 60) . 'h';
+}

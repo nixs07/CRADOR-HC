@@ -35,27 +35,31 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 vista_inicio('Signos vitales');
+$usuario = usuario_actual();
 ?>
-<p class="migas"><a href="<?= e($volver) ?>">← Volver a la admisión</a></p>
+<p class="migas"><a href="<?= e($volver) ?>"><?= icono('arrow-left') ?>Volver a la historia</a></p>
 <?php encabezado_admision($a); ?>
-<h1>Signos vitales</h1>
+<?php pestanas_historia($a, 'signos', count(signos_de_admision($a['ConsAdmi']))); ?>
 <?= errores_resumen($e) ?>
 
-<form method="post" class="formulario" data-signos data-una-vez>
+<form method="post" class="formulario formulario-historia" data-signos data-una-vez>
     <?= csrf_campo() ?>
     <fieldset>
-        <legend>Toma</legend>
-        <div class="rejilla">
+        <legend>Nueva toma de signos vitales <small class="legend-nota">Profesional: <?= e($usuario['Nombre']) ?></small></legend>
+        <p class="ayuda">Peso y talla se proponen con los de la última toma.</p>
+        <div class="rejilla rejilla-fecha">
             <div><label for="FechToma">Fecha</label>
                 <input type="date" id="FechToma" name="FechToma" value="<?= v($s, 'FechToma') ?>" max="<?= date('Y-m-d') ?>" class="<?= ce($e, 'FechToma') ?>" required><?= me($e, 'FechToma') ?></div>
             <div><label for="HoraToma">Hora</label>
                 <input type="time" id="HoraToma" name="HoraToma" value="<?= e(substr((string) ($s['HoraToma'] ?? ''), 0, 5)) ?>" class="<?= ce($e, 'HoraToma') ?>" required><?= me($e, 'HoraToma') ?></div>
         </div>
-        <?php campos_signos($s, $e); ?>
+        <div class="subgrupo">
+            <?php campos_signos($s, $e); ?>
+        </div>
     </fieldset>
     <div class="acciones">
-        <button type="submit" class="boton boton-primario">Guardar signos</button>
-        <a href="<?= e($volver) ?>" class="boton boton-claro">Cancelar</a>
+        <button type="submit" class="boton boton-primario"><?= icono('save') ?>Guardar signos</button>
+        <a href="<?= e($volver) ?>" class="boton boton-claro"><?= icono('arrow-left') ?>Volver</a>
     </div>
 </form>
 <script src="js/formularios.js"></script>

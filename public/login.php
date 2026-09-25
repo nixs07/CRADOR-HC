@@ -2,7 +2,7 @@
 require __DIR__ . '/../src/inicio.php';
 
 if (usuario_actual()) {
-    redirigir('index.php');
+    redirigir(pagina_inicio());
 }
 
 $error = null;
@@ -12,7 +12,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $login = (string) ($_POST['login'] ?? '');
     $error = intentar_ingreso($login, (string) ($_POST['clave'] ?? ''));
     if ($error === null) {
-        redirigir('index.php');
+        redirigir(pagina_inicio());
     }
 }
 

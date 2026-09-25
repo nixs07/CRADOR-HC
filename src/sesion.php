@@ -64,7 +64,7 @@ function requiere_admin(): array
     if (!es_admin()) {
         http_response_code(403);
         flash('error', 'Solo el administrador puede entrar a esa opción.');
-        redirigir('index.php');
+        redirigir(pagina_inicio());
     }
     return $u;
 }
@@ -107,7 +107,7 @@ function intentar_ingreso(string $login, string $clave): ?string
 
     // Ingreso correcto: nuevo id de sesion (evita fijacion de sesion)
     session_regenerate_id(true);
-    unset($_SESSION['csrf'], $_SESSION['sihos_estado']);
+    unset($_SESSION['csrf'], $_SESSION['sihos_estado'], $_SESSION['modulo']);
     $_SESSION['usuario'] = [
         'Login'    => $fila['Login'],
         'Nombre'   => $fila['Nombre'],
@@ -164,4 +164,36 @@ function csrf_verificar(): void
         http_response_code(400);
         exit('Solicitud no válida (token de seguridad vencido). Vuelva atrás, recargue la página e intente de nuevo.');
     }
+}
+
+// ---------------------------------------------------------------------
+// Modulo de trabajo (como en SIHOS: el profesional entra a un modulo)
+// ---------------------------------------------------------------------
+
+/** Modulo elegido en esta sesion: 'urg', 'obs', 'ce' o null. */
+function modulo_actual(): ?string
+{
+    $m = $_SESSION['modulo'] ?? null;
+    return isset(MODULOS_DETALLE[$m]) ? $m : null;
+}
+
+/** Guarda el modulo de trabajo en la sesion. */
+function modulo_elegir(?string $clave): void
+{
+    if (isset(MODULOS_DETALLE[$clave])) {
+        $_SESSION['modulo'] = $clave;
+    }
+}
+
+/**
+ * Pagina de inicio segun el usuario: el administrador va al tablero; el profesional
+ * va a las historias abiertas de su modulo, o a elegir modulo si aun no tiene.
+ */
+function pagina_inicio(): string
+{
+    if (es_admin()) {
+        return 'index.php';
+    }
+    $m = modulo_actual();
+    return $m ? 'admisiones.php?modulo=' . $m : 'modulo.php';
 }

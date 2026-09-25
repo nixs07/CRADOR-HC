@@ -196,7 +196,7 @@ h3 { font-size: 15px; font-weight: 600; margin: 0 0 8px; }
 .superior .boton-menu, .superior .superior-marca { display: none; }
 .superior-marca { align-items: center; gap: 8px; text-decoration: none; color: var(--texto); font-size: 16px; }
 .superior-marca img { width: 28px; height: auto; }
-.superior-contexto { display: flex; align-items: center; gap: 14px; flex: 1; min-width: 0; }
+.superior-contexto { display: flex; align-items: center; justify-content: flex-end; gap: 14px; flex: 1; min-width: 0; }
 .superior-fecha { display: inline-flex; align-items: center; gap: 6px; font-size: 13.5px; color: var(--texto-suave); font-weight: 500; }
 .superior-fecha .icono { width: 16px; height: 16px; }
 .superior-usuario { display: flex; align-items: center; gap: 12px; }
@@ -514,7 +514,6 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--a
     background: linear-gradient(var(--azul), var(--verde));
 }
 .rejilla { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 0 18px; }
-.rejilla-signos { grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); }
 .calculado {
     display: flex; flex-direction: column; justify-content: center;
     margin-top: 16px; padding: 8px 14px;
@@ -688,7 +687,9 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--a
     .triage-caja strong { font-size: 24px; }
     .triage-caja span { font-size: 11px; }
     .formulario fieldset { padding: 2px 16px 18px; }
-    .rejilla-signos { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .rejilla-fecha { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .legend-nota { display: none; }
+    .rejilla-signos { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
     .formulario > .acciones .boton { flex: 1; }
     .encabezado-paciente { padding: 16px 16px 16px 20px; }
     .ep-admision { text-align: left; align-items: flex-start; }
@@ -743,3 +744,182 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--a
 .enlace-falso { color: var(--azul-texto); font-weight: 600; display: inline-flex; align-items: center; gap: 2px; }
 .cabecera-pagina + .triage-resumen { margin-bottom: 20px; }
 h2 > .icono { width: 20px; height: 20px; color: var(--azul-texto); vertical-align: -3px; }
+
+/* ---------------------------------------------------------------------
+ * 12. Seleccion de modulo
+ * ------------------------------------------------------------------- */
+.cabecera-centrada { justify-content: center; text-align: center; margin: 12px auto 32px; max-width: 720px; }
+.cabecera-centrada h1 { font-size: 30px; }
+.modulos { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 20px; max-width: 1080px; margin: 0 auto; }
+.modulo {
+    position: relative; display: flex; flex-direction: column; gap: 6px;
+    padding: 28px 26px 22px; min-height: 280px;
+    background: var(--superficie); color: var(--texto); text-decoration: none;
+    border: 1px solid var(--borde); border-radius: 18px; box-shadow: var(--sombra);
+    transition: border-color 0.15s, box-shadow 0.15s, transform 0.15s;
+}
+.modulo::before {
+    content: ""; position: absolute; inset: 0 0 auto 0; height: 5px; border-radius: 18px 18px 0 0;
+    background: var(--color-modulo, var(--azul));
+}
+.modulo:hover { color: var(--texto); border-color: var(--color-modulo, var(--azul)); box-shadow: 0 10px 28px rgba(16, 42, 67, 0.12); transform: translateY(-2px); }
+.modulo-urg { --color-modulo: var(--t1); --fondo-modulo: var(--t1-fondo); --texto-modulo: var(--t1-texto); }
+.modulo-obs { --color-modulo: var(--azul); --fondo-modulo: var(--azul-suave); --texto-modulo: var(--azul-texto); }
+.modulo-ce  { --color-modulo: var(--verde); --fondo-modulo: var(--verde-suave); --texto-modulo: var(--verde-texto); }
+.modulo-icono {
+    width: 64px; height: 64px; border-radius: 18px; margin-bottom: 14px;
+    display: inline-flex; align-items: center; justify-content: center;
+    background: var(--fondo-modulo); color: var(--texto-modulo);
+}
+.modulo-icono .icono { width: 34px; height: 34px; stroke-width: 1.8; }
+.modulo-nombre { font-size: 21px; font-weight: 700; letter-spacing: -0.015em; line-height: 1.25; }
+.modulo-texto { color: var(--texto-suave); font-size: 14px; }
+.modulo-conteo { margin-top: auto; padding-top: 18px; color: var(--texto-2); font-size: 14px; }
+.modulo-conteo strong { font-size: 30px; color: var(--texto); letter-spacing: -0.02em; margin-right: 4px; }
+.modulo-ir {
+    display: inline-flex; align-items: center; gap: 4px; margin-top: 10px; padding-top: 14px;
+    border-top: 1px solid var(--borde); font-weight: 700; color: var(--texto-modulo);
+}
+.modulo-ir .icono { width: 18px; height: 18px; }
+.modulo-actual { border-color: var(--color-modulo); }
+.modulo-marca {
+    position: absolute; top: 22px; right: 20px;
+    font-size: 11.5px; font-weight: 700; padding: 3px 10px; border-radius: 999px;
+    background: var(--fondo-modulo); color: var(--texto-modulo);
+}
+
+/* Modulo actual en la barra superior y en la lateral */
+.superior-modulo { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.superior-modulo .tarjeta-icono { width: 38px; height: 38px; border-radius: 10px; }
+.superior-modulo .tarjeta-icono .icono { width: 20px; height: 20px; }
+.superior-modulo strong { display: block; font-size: 17px; line-height: 1.2; letter-spacing: -0.01em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.superior-modulo small { display: block; color: var(--texto-suave); }
+.superior-modulo a { font-size: 13px; font-weight: 600; text-decoration: none; }
+.superior-modulo a:hover { text-decoration: underline; }
+.lateral-modulo {
+    margin: 4px 12px 0; padding: 12px 14px; border-radius: var(--radio);
+    background: var(--superficie-2); border: 1px solid var(--borde);
+    display: flex; align-items: center; gap: 12px;
+}
+.lateral-modulo .tarjeta-icono { width: 36px; height: 36px; border-radius: 10px; }
+.lateral-modulo small { display: block; font-size: 11px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--texto-suave); }
+.lateral-modulo strong { display: block; font-size: 14.5px; line-height: 1.25; }
+
+@media (max-width: 1023px) {
+    .modulos { grid-template-columns: 1fr; max-width: 560px; gap: 14px; }
+    .modulo { min-height: 0; display: grid; grid-template-columns: auto 1fr; column-gap: 16px; padding: 22px 20px 18px; }
+    .modulo-icono { grid-row: span 2; width: 56px; height: 56px; margin: 0; }
+    .modulo-conteo, .modulo-ir { grid-column: 1 / -1; }
+    .modulo-conteo { padding-top: 10px; }
+    .superior-modulo small { display: none; }
+}
+@media (max-width: 767px) {
+    .cabecera-centrada h1 { font-size: 23px; }
+    .cabecera-centrada { margin: 4px auto 20px; }
+    .modulo-marca { top: 14px; right: 14px; }
+    .superior-modulo .tarjeta-icono { display: none; }
+    .superior-modulo strong { font-size: 15px; }
+}
+
+/* Historias abiertas */
+.bloque { display: block; }
+tr[data-href] { cursor: pointer; }
+.duracion { display: inline-flex; align-items: center; gap: 5px; font-variant-numeric: tabular-nums; font-weight: 600; }
+.duracion .icono { width: 14px; height: 14px; color: var(--texto-suave); }
+.etiqueta-curso { background: var(--azul-suave); color: var(--azul-texto); }
+.etiqueta-abierta { background: var(--ok-fondo); color: var(--ok); }
+.etiqueta-cerrada { background: var(--superficie-3); color: var(--texto-2); }
+.filtros .filtro-servicio { width: auto; min-width: 220px; min-height: 44px; }
+.cabecera-pagina + .buscador, .triage-resumen + .buscador { margin-top: 0; }
+.triage-resumen { margin-bottom: 20px; }
+@media (max-width: 767px) {
+    .filtros .filtro-servicio { width: 100%; }
+}
+.tabla-historias th, .tabla-historias td { padding-left: 12px; padding-right: 12px; }
+.tabla-historias th:first-child, .tabla-historias td:first-child { padding-left: 18px; }
+
+/* ---------------------------------------------------------------------
+ * 13. Historia: encabezado de la admision, pestanas numeradas y formularios
+ * ------------------------------------------------------------------- */
+.encabezado-admision {
+    background: var(--superficie); border: 1px solid var(--borde); border-radius: var(--radio-lg);
+    box-shadow: var(--sombra); margin-bottom: 18px; position: relative; overflow: hidden;
+}
+.encabezado-admision::before {
+    content: ""; position: absolute; inset: 0 auto 0 0; width: 5px;
+    background: linear-gradient(var(--azul), var(--verde));
+}
+.ea-cabeza {
+    display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 14px 24px;
+    padding: 16px 22px; border-bottom: 1px solid var(--borde);
+}
+.ea-admision { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; text-align: right; }
+.ea-numero small { display: block; font-size: 11px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--texto-suave); }
+.ea-numero strong { font-size: 18px; font-variant-numeric: tabular-nums; letter-spacing: 0.01em; }
+.ea-chips { display: flex; gap: 6px; flex-wrap: wrap; }
+.ea-datos {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 12px 20px;
+    margin: 0; padding: 14px 22px 16px;
+}
+.ea-datos dt { font-size: 11px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; color: var(--texto-suave); }
+.ea-datos dd { margin: 2px 0 0; font-size: 14px; font-weight: 500; }
+.ea-ancho { grid-column: span 2; }
+.ea-mas { border-top: 1px solid var(--borde); }
+.ea-mas summary {
+    display: flex; align-items: center; gap: 8px; cursor: pointer; list-style: none;
+    padding: 10px 22px; font-size: 13.5px; font-weight: 600; color: var(--azul-texto);
+}
+.ea-mas summary::-webkit-details-marker { display: none; }
+.ea-mas summary::after { content: "▾"; margin-left: 4px; transition: transform 0.15s; }
+.ea-mas[open] summary::after { transform: rotate(180deg); }
+.ea-mas summary .icono { width: 16px; height: 16px; }
+.ea-mas .ea-datos { padding-top: 4px; }
+
+.pestana-numero {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 22px; height: 22px; border-radius: 50%; flex: none;
+    font-size: 12px; font-weight: 700; background: var(--superficie-3); color: var(--texto-2);
+}
+.pestanas a.actual .pestana-numero { background: var(--azul-texto); color: #fff; }
+.pestana-proxima small {
+    font-size: 10.5px; font-weight: 700; letter-spacing: 0.03em; text-transform: uppercase;
+    background: var(--superficie-3); color: #7b8898; padding: 1px 7px; border-radius: 999px;
+}
+.pestana-proxima .pestana-numero { background: transparent; border: 1px solid var(--borde); color: #8b98a8; }
+.pestanas a { border: 1px solid transparent; }
+.pestanas a.actual { border-color: var(--azul-borde); }
+
+.legend-nota { margin-left: auto; font-size: 12.5px; font-weight: 500; color: var(--texto-suave); }
+.obligatorio { color: var(--error); }
+.rejilla-fecha { grid-template-columns: repeat(2, minmax(0, 220px)); }
+.subgrupo {
+    margin-top: 18px; padding: 14px 16px 16px;
+    background: var(--superficie-2); border: 1px solid var(--borde); border-radius: var(--radio);
+}
+.subgrupo h3 { display: flex; align-items: center; gap: 8px; font-size: 14px; margin: 0 0 4px; color: var(--texto); }
+.subgrupo h3 .icono { width: 18px; height: 18px; color: var(--t1); }
+.rejilla-signos {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); gap: 12px;
+    align-items: end;
+}
+.rejilla-signos label { margin: 10px 0 5px; font-size: 12.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rejilla-signos input { text-align: right; font-variant-numeric: tabular-nums; }
+.rejilla-signos .calculado { margin-top: 0; min-height: 42px; padding: 4px 12px; }
+.rejilla-signos .calculado strong { font-size: 18px; line-height: 1.2; }
+.rejilla-signos .calculado span { font-size: 11px; }
+.formulario-historia fieldset { border-top-left-radius: 0; }
+.formulario-historia > .acciones { justify-content: flex-start; }
+/* Las pestanas van en una sola fila; las que no caben se ven desplazando (con desvanecido a la derecha) */
+.pestanas { -webkit-mask-image: linear-gradient(90deg, #000 88%, transparent); mask-image: linear-gradient(90deg, #000 88%, transparent); padding-right: 48px; }
+.tabla-signos th, .tabla-signos td { padding-left: 10px; padding-right: 10px; }
+.ep-datos span { white-space: nowrap; }
+
+@media (max-width: 767px) {
+    .ea-cabeza { padding: 16px 16px 14px 20px; }
+    .ea-admision { align-items: flex-start; text-align: left; flex-direction: row; flex-wrap: wrap; gap: 8px 12px; }
+    .ea-numero strong { font-size: 16px; }
+    .ea-datos { grid-template-columns: repeat(2, minmax(0, 1fr)); padding: 12px 16px 14px 20px; gap: 10px 14px; }
+    .ea-mas summary { padding-left: 20px; }
+    .ep-persona { align-items: flex-start; }
+    .pestanas { padding-right: 32px; }
+}
