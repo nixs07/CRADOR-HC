@@ -15,6 +15,7 @@
 -- fechas relativas al dia en que se carga (CURDATE()).
 -- Tablero esperado: Urgencias 3, Observacion 2, Consulta Externa 3 abiertas,
 -- 6 admisiones del dia, 4 pendientes por cargar a SIHOS (1 con error, 1 cargada).
+-- Pacientes 99000006, 99000007 y 99000008 no tienen admision: sirven para probar "Nueva admision".
 -- =====================================================================
 
 SET NAMES utf8;
@@ -98,7 +99,11 @@ REPLACE INTO Paciente (TipoDocu, NumeUsua, NombUsua, NombUsu1, Ape1Usua, Ape2Usu
  ('CC', '99000002', 'MARIA',  'LUISA',  'PRUEBA',  'DOS',    'EPSP02', 1, 'C', 'PRU-002', '1992-11-23', 'F', '86', '865', 'U', 'CALLE FALSA 2', '3000000002', CURDATE(), 'PRUEBA'),
  ('TI', '99000003', 'PEDRO',  '',       'PRUEBA',  'TRES',   'EPSP01', 2, 'D', 'PRU-001', '2012-02-01', 'M', '86', '865', 'R', 'VEREDA FALSA',  '3000000003', CURDATE(), 'PRUEBA'),
  ('CC', '99000004', 'ANA',    'SOFIA',  'PRUEBA',  'CUATRO', 'EPSP01', 2, 'D', 'PRU-001', '1975-08-30', 'F', '86', '865', 'U', 'CALLE FALSA 4', '3000000004', CURDATE(), 'PRUEBA'),
- ('RC', '99000005', 'LUCAS',  '',       'PRUEBA',  'CINCO',  'EPSP02', 1, 'B', 'PRU-002', '2023-03-15', 'M', '86', '865', 'U', 'CALLE FALSA 5', '3000000005', CURDATE(), 'PRUEBA');
+ ('RC', '99000005', 'LUCAS',  '',       'PRUEBA',  'CINCO',  'EPSP02', 1, 'B', 'PRU-002', '2023-03-15', 'M', '86', '865', 'U', 'CALLE FALSA 5', '3000000005', CURDATE(), 'PRUEBA'),
+ -- Pacientes SIN admision: para probar "Nueva admision" en cualquier modulo
+ ('CC', '99000006', 'ROSA',   'ELENA',  'PRUEBA',  'SEIS',   'EPSP01', 2, 'D', 'PRU-001', '1968-01-17', 'F', '86', '865', 'U', 'CALLE FALSA 6', '3000000006', CURDATE(), 'PRUEBA'),
+ ('CC', '99000007', 'ANDRES', '',       'PRUEBA',  'SIETE',  'EPSP02', 1, 'C', 'PRU-002', '2001-06-05', 'M', '86', '865', 'U', 'CALLE FALSA 7', '3000000007', CURDATE(), 'PRUEBA'),
+ ('TI', '99000008', 'VALERIA', '',      'PRUEBA',  'OCHO',   'EPSP01', 2, 'D', 'PRU-001', '2014-10-09', 'F', '86', '865', 'R', 'VEREDA FALSA 8', '3000000008', CURDATE(), 'PRUEBA');
 
 -- --- Admisiones (ConsAdmi con prefijo PRUEBA para distinguirlas) ---------
 DELETE FROM Admision WHERE ConsAdmi LIKE 'PRUEBA%';

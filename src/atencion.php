@@ -580,7 +580,7 @@ function signos_guardar(array $a, array $s, string $login): int
 
 function signos_de_admision(string $cons): array
 {
-    $st = db()->prepare('SELECT * FROM SignVita WHERE CodiInst = ? AND ConsAdmi = ? ORDER BY FechToma DESC, HoraToma DESC');
+    $st = db()->prepare('SELECT * FROM SignVita WHERE CodiInst = ? AND ConsAdmi = ? ORDER BY FechToma DESC, HoraToma DESC, ConsSign DESC');
     $st->execute([CODI_INST, $cons]);
     return $st->fetchAll();
 }
