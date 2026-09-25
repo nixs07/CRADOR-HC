@@ -28,6 +28,36 @@ Cada admisión entra completa o no entra (transacción por admisión). La base d
 `EncaData` + `DetaData` con `TipoObje = 7` = "Orden médica" en texto libre (`DetaData.Texto`).
 `CodiItem` 131 en Urgencias (CodiModu 6), 130 en Observación (CodiModu 8).
 
+## Qué catálogo valida cada campo
+
+Todo campo con código se escoge de su catálogo (nunca texto libre), para que al cargar a SIHOS no entren códigos
+que no existan (RIPS, reportes y facturación dependen de eso).
+
+| Pantalla | Campo | Catálogo |
+| --- | --- | --- |
+| Paciente | TipoDocu, SexoUsua, EstaCivi, NiveEsco, PertEtni, TipoDisc | TipoDocu, CodiSexo, EstaCivi, CodiEsco, PertEtni, TipoDisc |
+| Paciente | ResiDepa, ResiMuni, ResiComu, ResiZona, ResiBarr, CodiPais | CodiDepa, CodiMuni, CodiComu, CodiZona, CodiBarr, CodiPais |
+| Admisión | CodiAdmi, NumeCont | CodiAdmi, Contrato (solo vigentes) |
+| Admisión | TipoUsua, TipoAfil, CodiEstr | TipoUsua, TipoAfil, CodiEstr / AdmiEstr |
+| Admisión | ViaIngre (**no** ViaAcces, que es vía de acceso quirúrgica) | ViaIngre |
+| Admisión | CausExte, CondUsua, TipoAten, GrupoAte | CausExte, CondUsua, TipoAten, GrupAten |
+| Admisión | CodiServ, CentCost, CodiCama, CodiCons | CodiServ, CeCoServ, CodiCama, CodiCons |
+| Admisión | TipoAcom, Parentes | TipoAcom, Parentes |
+| Triage | ClasTria, CondTria | ClasTria, CondTria |
+| Diagnósticos | CodiDiag, CodiRel1..4 / DiagPrin... | CausMorb |
+| Diagnósticos | TipoDiag | TipoDiag |
+| Consulta | FinaCons | FinaCons |
+| Órdenes y procedimientos | CodiProc, CodiFina | CodiProc, FinaProc |
+| Prescripción y medicamentos | CodiSumi / CodiMedi, CodiVia, UnidMedi, TiemFrec | CodiSumi, ViaAdmi, UnidMedi, CodiTiem |
+| Materiales | CodiMate, UnidMate | CodiSumi, CodiUnid |
+| Notas de enfermería | TipoNota | TipoNota |
+| Egreso | CausSali, DestSali, EstaSali, TipoEgre | CausSali, DestSali, EstaSali, TipoEgre |
+| Remisión | MotiRemi, ModaSoli | MotiRemi, ModaSoli |
+| Incapacidad | tipo | TipoInca |
+| Profesional | UsuaDigi, CodiEspe | Usuarios, CodiEspe |
+
+Los nombres exactos de las columnas de cada catálogo están en `sql/02_catalogos.sql` y `sql/03_catalogos_listas.sql`.
+
 ## Liquidación
 
 No se liquida. Las columnas `NumeLiqu`, `ConsDeFa`, `CantFact` quedan en 0; facturación liquida en SIHOS.

@@ -23,7 +23,8 @@ Las tablas tienen **exactamente los mismos nombres y columnas que SIHOS** (ver `
 | Carpeta | Contenido |
 | --- | --- |
 | `sql/01_tablas_clinicas.sql` | 23 tablas clínicas de la admisión (Admision, Triage, SignVita, RipsCons...) |
-| `sql/02_catalogos.sql` | 24 catálogos que se copian de SIHOS (Paciente, Contrato, CodiAdmi, CausMorb, CodiProc...) |
+| `sql/02_catalogos.sql` | 24 catálogos principales que se copian de SIHOS (Paciente, Contrato, CodiAdmi, CausMorb, CodiProc...) |
+| `sql/03_catalogos_listas.sql` | 37 catálogos de listas desplegables (TipoDocu, ViaIngre, ViaAdmi, UnidMedi, CausSali, DestSali...) |
 | `docs/` | Plan, decisiones y reglas de negocio |
 
 ## Stack
