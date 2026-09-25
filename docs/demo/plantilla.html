@@ -1,0 +1,196 @@
+<title>Demo CRADOR-HC</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap">
+<style>
+/*CSS*/
+body { background: #fff; }
+#demo-raiz { display: contents; }
+#demo-sprite { position: absolute; width: 0; height: 0; overflow: hidden; }
+.demo-aviso {
+  position: fixed; left: 50%; transform: translateX(-50%); z-index: 9999;
+  bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+  display: flex; gap: 10px; align-items: center; flex-wrap: wrap; justify-content: center;
+  max-width: calc(100% - 32px); padding: 8px 14px; border-radius: 999px;
+  background: #13212e; color: #fff; font: 600 13px/1.3 "Plus Jakarta Sans", system-ui, sans-serif;
+  box-shadow: 0 6px 24px rgba(0,0,0,.18);
+}
+.demo-aviso button {
+  font: inherit; color: #13212e; background: #fff; border: 0; border-radius: 999px; padding: 4px 10px; cursor: pointer;
+}
+.demo-toast {
+  position: fixed; left: 50%; transform: translateX(-50%); z-index: 10000;
+  bottom: calc(64px + env(safe-area-inset-bottom, 0px));
+  max-width: min(520px, calc(100% - 32px)); padding: 12px 16px; border-radius: 12px;
+  background: #fff; color: #13212e; border: 1px solid #cfe3ef; box-shadow: 0 8px 28px rgba(0,0,0,.16);
+  font: 500 14px/1.45 "Plus Jakarta Sans", system-ui, sans-serif;
+}
+</style>
+
+<div id="demo-sprite"><!--SPRITE--></div>
+<div id="demo-raiz"></div>
+
+<script>
+/*DATOS*/
+
+// Admisión abierta de cada documento de prueba (para el botón Buscar del encabezado)
+var ABIERTAS = {
+  '99100001': ['urg', 'C26092500001'], '99000001': ['urg', 'PRUEBA000001'], '99000002': ['urg', 'PRUEBA000002'],
+  '99000003': ['urg', 'PRUEBA000003'], '99000004': ['obs', 'PRUEBA000005'], '99000005': ['ce', 'PRUEBA000007']
+};
+
+var DEMO = {
+  base: 'https://demo.crador/',
+  actual: 'login.php',
+  admin: false,
+  modulo: 'urg',
+  hash: '',
+  get url() { return this.base + this.actual; },
+  set url(v) { ir(v); },
+  reemplazar: function (u) {
+    try { var x = new URL(u, this.url); this.actual = x.pathname.replace(/^\//, '') + x.search; } catch (e) {}
+  }
+};
+
+function aviso(texto) {
+  var viejo = document.querySelector('.demo-toast');
+  if (viejo) viejo.remove();
+  var t = document.createElement('div');
+  t.className = 'demo-toast';
+  t.setAttribute('role', 'status');
+  t.textContent = texto;
+  document.body.appendChild(t);
+  setTimeout(function () { t.remove(); }, 5200);
+}
+
+// Traduce una dirección de la app a una pantalla guardada en la demo
+function resolver(href) {
+  var u = new URL(href, DEMO.url);
+  var ruta = u.pathname.replace(/^\//, '');
+  var q = u.searchParams;
+  var tab = q.get('tab');
+  var m = q.get('modulo') || DEMO.modulo;
+  if (ruta === '' || ruta === 'logout.php') return { clave: 'login.php' };
+  if (ruta === 'login.php') return { clave: 'login.php' };
+  if (ruta === 'index.php') return { clave: DEMO.admin ? 'admin:index.php' : 'modulo.php' };
+  if (ruta === 'catalogos.php') return { clave: DEMO.admin ? 'admin:catalogos.php' : 'modulo.php' };
+  if (ruta === 'modulo.php') return { clave: 'modulo.php' };
+  if (ruta === 'paciente_nuevo.php') return { clave: 'paciente_nuevo.php' };
+  if (ruta === 'pacientes.php') return { clave: q.get('q') ? 'pacientes.php?q=PRUEBA' : 'pacientes.php' };
+  if (['admision.php', 'triage.php', 'signos.php'].indexOf(ruta) >= 0 && q.get('id')) {
+    for (var k in DATOS.paginas) { if (k.indexOf('&id=' + q.get('id')) > 0) return { clave: k, tab: tab }; }
+  }
+  if (ruta === 'admisiones.php' || ruta === 'admision_nueva.php') return { clave: 'atencion.php?modulo=' + m };
+  if (ruta === 'atencion.php') {
+    var id = q.get('id'), doc = q.get('NumeUsua');
+    if (id) return { clave: 'atencion.php?modulo=' + m + '&id=' + id, tab: tab };
+    if (doc) {
+      if (ABIERTAS[doc]) return { clave: 'atencion.php?modulo=' + ABIERTAS[doc][0] + '&id=' + ABIERTAS[doc][1] };
+      if (doc === '99000007') return { clave: 'atencion.php?modulo=' + m + '&TipoDocu=CC&NumeUsua=99000007' };
+      return { nota: 'En la demo solo están los pacientes de prueba. Pruebe con el documento 99000007 (sin admisión) o 99000001 (con historia abierta).' };
+    }
+    if (q.get('nueva')) return { clave: 'atencion.php?modulo=' + m + '&nueva=1' };
+    return { clave: 'atencion.php?modulo=' + m };
+  }
+  return { nota: 'Esta opción no está incluida en la demo.' };
+}
+
+function ir(href) {
+  var r = resolver(href);
+  if (!r.clave || !DATOS.paginas[r.clave]) { aviso(r.nota || 'Esta pantalla no está incluida en la demo.'); return; }
+  var mm = /modulo=(\w+)/.exec(r.clave);
+  if (mm) DEMO.modulo = mm[1];
+  DEMO.actual = r.clave.replace(/^admin:/, '');
+  pintar(r.clave, r.tab);
+}
+
+function pintar(clave, tab) {
+  var p = DATOS.paginas[clave];
+  document.title = p.title.replace('CRADOR-HC', 'Demo CRADOR-HC');
+  document.body.className = p.cls;
+  try { if (localStorage.getItem('menuColapsado') === '1') document.body.classList.add('menu-colapsado'); } catch (e) {}
+  var raiz = document.getElementById('demo-raiz');
+  raiz.innerHTML = p.html;
+  var barra = document.createElement('div');
+  barra.className = 'demo-aviso';
+  barra.innerHTML = '<span>Demo con datos inventados: no guarda nada</span><button type="button" id="demo-inicio">Volver al ingreso</button>';
+  raiz.appendChild(barra);
+  document.getElementById('demo-inicio').addEventListener('click', function () { DEMO.admin = false; ir('login.php'); });
+  correrScripts();
+  if (tab) {
+    var a = document.querySelector('a[data-tab="' + tab + '"]');
+    if (a) a.click();
+  }
+  window.scrollTo(0, 0);
+}
+
+// Listas dependientes y buscadores: respuestas guardadas de la app
+var fetchReal = window.fetch;
+window.fetch = function (url) {
+  if (typeof url === 'string' && url.indexOf('api.php') >= 0) {
+    var u = new URL(url, DEMO.url);
+    var que = u.searchParams.get('que');
+    var r = [];
+    if (DATOS.catalogo[que]) {
+      var t = (u.searchParams.get('q') || '').toUpperCase();
+      r = t.length < 2 ? [] : DATOS.catalogo[que].filter(function (x) {
+        return x.c.toUpperCase().indexOf(t) === 0 || x.n.toUpperCase().indexOf(t) >= 0;
+      }).slice(0, 30);
+    } else {
+      var partes = [];
+      u.searchParams.forEach(function (v, k) { partes.push([k, v]); });
+      var busca = function (clave) {
+        var ks = Object.keys(DATOS.api);
+        for (var i = 0; i < ks.length; i++) {
+          var g = new URLSearchParams(ks[i]);
+          var igual = partes.every(function (pv) { return g.get(pv[0]) === pv[1]; }) && Array.from(g.keys()).length === partes.length;
+          if (igual) return DATOS.api[ks[i]];
+        }
+        return [];
+      };
+      r = busca();
+    }
+    return Promise.resolve({ ok: true, json: function () { return Promise.resolve(r); } });
+  }
+  return fetchReal.apply(window, arguments);
+};
+
+function correrScripts() {
+  try { (function () { /*INTERFAZ*/ })(); } catch (e) { console.error(e); }
+  try { (function () { /*FORMULARIOS*/ })(); } catch (e) { console.error(e); }
+}
+
+// Enlaces: se quedan dentro de la demo
+document.addEventListener('click', function (ev) {
+  if (ev.defaultPrevented) return;
+  var a = ev.target.closest('a[href]');
+  if (!a) return;
+  var href = a.getAttribute('href');
+  if (!href || href.charAt(0) === '#' || /^(https?:|mailto:|tel:)/.test(href)) return;
+  ev.preventDefault();
+  ir(href);
+});
+
+// Formularios: búsquedas navegan; guardados solo muestran un aviso
+document.addEventListener('submit', function (ev) {
+  var f = ev.target;
+  ev.preventDefault();
+  ev.stopImmediatePropagation();
+  var accion = f.getAttribute('action') || DEMO.actual;
+  if (f.querySelector('#login') && f.querySelector('#clave')) {
+    var login = (f.querySelector('#login').value || '').trim().toUpperCase();
+    if (!login || !f.querySelector('#clave').value) { aviso('Escriba usuario y clave. En la demo sirve MEDPRUEBA / prueba123 (o NIXON07 para el administrador).'); return; }
+    DEMO.admin = login === 'NIXON07';
+    ir(DEMO.admin ? 'index.php' : 'modulo.php');
+    return;
+  }
+  if (accion.indexOf('logout.php') >= 0) { DEMO.admin = false; ir('login.php'); return; }
+  if ((f.getAttribute('method') || 'get').toLowerCase() === 'get') {
+    var u = new URL(accion, DEMO.url);
+    new FormData(f).forEach(function (v, k) { u.searchParams.set(k, v); });
+    ir(u.pathname.replace(/^\//, '') + u.search);
+    return;
+  }
+  aviso('Demo: aquí no se guarda. En la app real este formulario registra los datos en la tabla de SIHOS correspondiente y muestra el mensaje de confirmación.');
+}, true);
+
+pintar('login.php');
+</script>
