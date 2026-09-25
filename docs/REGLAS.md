@@ -130,3 +130,26 @@ SIHOS usa `0000-00-00` y `00:00:00` como vacío en columnas `NOT NULL`. MySQL de
 | TrasCama | — | 100% | — |
 | HojaLAdm (fase 2) | 63% | 97% | — |
 | DetaPrue (fase 2) | 49% | 56% | 29% |
+
+## Supuestos de la contingencia (pestañas de la historia, septiembre 2026)
+
+Decisiones tomadas sin poder verificarlas contra registros reales de SIHOS. **Revisarlas antes de la primera
+carga (fase 3)** comparando con una admisión real de cada módulo.
+
+| Tema | Supuesto |
+| --- | --- |
+| Consecutivos | `ConsCons`, `ConsAnte`, `ConsEsGe`, `ConsPres`, `ConsOrde`, `ConsData`, `ConsHoPr`, `ConsHoEn`, `ConsHoMe`, `ConsEvol`: `MAX + 1` por admisión, dentro de la transacción (`SELECT … FOR UPDATE`). |
+| `EncaPres.Consecut`, `EncaOrde.Consecut` | Son consecutivos **globales** de SIHOS. En la contingencia se guardan temporales (= `ConsPres` / `ConsOrde`); **al cargar se reasignan** con el siguiente de SIHOS. |
+| Consulta (RipsCons) | Se guarda realizada y cerrada: `EstaReal = 1`, `FechCier/HoraCier/UsuaCier` = momento del guardado. `UsuaCons = UsuaAsis` = login. `CodiEspe` = especialidad del usuario. `TipoCons` (código CUPS de la consulta) es opcional. Se permiten diagnóstico principal y 2 relacionados; `CodiRel3/4` quedan vacíos. |
+| Antecedentes (Antecede) | Se guarda una fila por consulta, ligada por `ConsCons`. Valores 1 = sí, 2 = no refiere; `AlerSiNo` igual. Se preguntan: patológicos, quirúrgicos, farmacológicos, tóxicos, traumáticos, familiares, ginecológicos, obstétricos y alérgicos. |
+| Examen físico (EstaGene) | 1 = normal, 2 = anormal (con descripción obligatoria), `NULL` = sin examinar. Solo se guarda si hay estado general o algún sistema examinado. `ConsHoPr = 0`. |
+| Prescripción | `PresSali`: se siguió la convención de SIHOS 1 = sí / 2 = no (1 = fórmula de salida). **Verificar**: la columna tiene 1 por defecto. `TipoPres = 1`, `FechEntr = Fecha`, `CodiFina` del detalle = `NULL`, `HoraApli = 0` (no hay catálogo `HoraApli` local), `HoraInic` = hora de la prescripción. `NumeDosi` = duración ÷ frecuencia (en horas, con `CodiTiem` 1 = horas, 2 = días, 3 = meses según el comentario de `DetaPres`) y `CantTota = CantSumi × NumeDosi`. Si no se escribe la indicación, `PresMedi` se arma con dosis, vía, frecuencia y duración. |
+| Administración de medicamentos (HojaMedi) | Solo de lo prescrito en la admisión. `NumeOrde = ConsPres`, `Item = Item` de `DetaPres`; `EstaApli = 1`; plan = hora de aplicación. Suma la cantidad en `DetaPres.CantApli`. |
+| Órdenes (EncaOrde/DetaOrde) | `EncaOrde.CodiFina` queda con su valor por defecto (`10`); la finalidad de cada ítem (catálogo `FinaProc`) va en `DetaOrde.CodiFina`. `CantReal = 0` (se realiza aparte). `CodiProf` = login. |
+| Orden médica en texto | `EncaData/DetaData` con `TipoObje = 7`, `CodiItem` 131 Urgencias / 130 Observación. En Consulta Externa no se muestra. |
+| Procedimientos (HojaProc) | `CantProc = 1`, `ProcReal = 1`, `NumePiez = CuadPiez = 0`, `NumeOrde = Item = 0` (no se liga a la orden). `UsuaDigi`, `UsuaModi`, `CodiProf` y `UsuaAsis` son `varchar(8)` en SIHOS: se guarda el login recortado a 8 caracteres. |
+| Evolución (EvolInte) | Formato SOAP (`Subjetivo`, `Objetivo`, `Analisis`, `PlanMane`). No aplica en Consulta Externa (0 % de uso en la muestra). `ContSign/ContLiqu` = 1 marcado, 0 no. |
+| Egreso (SaliInte) | Urgencias y Observación: se guarda `SaliInte` y se cierra la admisión (`Cerrado = 1`, `FechCier/HoraCier/UsuaCier`, `FechEgre/HoraEgre` = salida). `DiasEsta/HoraEsta` se calculan desde el ingreso. Si `EstaSali` es "muerto" (se reconoce por el nombre en el catálogo) se piden causa (`DiagMuer`, 4 caracteres) y fecha/hora de muerte. La cama queda libre porque la ocupación se calcula con las admisiones abiertas (no se toca `CodiCama`). |
+| Consulta Externa: "Cerrar atención" | En la muestra CE no tiene `SaliInte`; el egreso solo marca la admisión cerrada (`Cerrado = 1` y fechas de cierre/egreso). |
+| Confirmación | Egreso y cierre piden marcar una casilla de confirmación (se valida también en el servidor). |
+| Pendiente | Traslado de cama (`TrasCama`), materiales (`HojaMate`), remisión e incapacidad: no implementados todavía. |

@@ -50,3 +50,21 @@ OUT=docs/capturas NODE_PATH=$(npm root -g) node docs/capturas/recorrido.js
 | `25_movil_signos.png` | Celular · pestaña Signos vitales |
 | `26_movil_nueva_admision.png` | Celular · encabezado en modo nueva admisión |
 | `24_movil_menu.png` | Celular · menú lateral |
+
+## Pestañas de la historia (bloque 2)
+
+El recorrido llena y guarda cada pestaña en la admisión de Urgencias, hace el egreso de la de Observación y cierra
+la de Consulta Externa.
+
+| Archivo | Pantalla |
+| --- | --- |
+| `27_consulta.png` | 2. Consultas: anamnesis, antecedentes, examen físico, diagnósticos y consulta registrada |
+| `28_prescripcion_formulario.png` | 4. Prescripción con dos medicamentos (filas agregadas) antes de guardar |
+| `28_prescripcion.png` | 4. Prescripción guardada (dosis y cantidad total calculadas) |
+| `29_ordenes.png` | 5. Órdenes médicas: texto libre y órdenes de laboratorio e imagen |
+| `30_procedimientos.png` | 6. Procedimiento realizado |
+| `31_notas.png` | 7. Nota de enfermería y administración de un medicamento prescrito |
+| `32_evolucion.png` | 8. Evolución (SOAP) |
+| `33_egreso.png` | 9. Egreso en Observación con la confirmación marcada |
+| `34_egreso_cerrado.png` | Admisión cerrada: egreso en modo consulta |
+| `35_ce_cerrada.png` | Consulta Externa: "Cerrar atención" |

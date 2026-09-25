@@ -60,7 +60,11 @@ Abrir <http://localhost:8080>. Guía completa: [`docs/INSTALACION.md`](docs/INST
 - **Fase 2 — bloque 1 (hecho):** buscar y crear pacientes, nueva admisión con encabezado completo (EPS, contrato
   activo, categoría, vía de ingreso, causa externa, cama en Observación, acompañante), lista de pacientes abiertos
   por módulo, ficha de la admisión, triage (Urgencias) y signos vitales.
-- **Fase 2 — siguientes bloques:** anamnesis y diagnósticos (RipsCons, EstaGene, Antecede), orden médica, órdenes y
+- **Fase 2 — bloque 2 (hecho):** pestañas de la historia: 2. Consultas (RipsCons, Antecede, EstaGene),
+  4. Prescripción (EncaPres/DetaPres), 5. Órdenes médicas (texto libre EncaData/DetaData y órdenes EncaOrde/DetaOrde),
+  6. Procedimientos (HojaProc), 7. Notas de enfermería (HojaEnfe) y administración de medicamentos (HojaMedi),
+  8. Evolución (EvolInte) y 9. Egreso (SaliInte y cierre). Supuestos en `docs/REGLAS.md`.
+- **Fase 2 — siguientes bloques:** traslado de cama, materiales, remisión e incapacidad.
   procedimientos, fórmula y medicamentos, materiales, notas de enfermería, evolución, traslado de cama y egreso.
 - **Fase 3:** carga a SIHOS por el administrador (`cont_carga_sihos`).
 

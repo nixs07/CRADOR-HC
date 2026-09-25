@@ -105,14 +105,80 @@ async function buscarDocumento(p, modulo, tipo, doc) {
   await foto(p, '12_triage');
   await p.click('#triage button[type=submit]'); await p.waitForLoadState(); await estado(p, 'triage guardado');
 
-  // Signos: boton Continuar del pie (pasa a la pestana 3 sin recargar)
-  await p.click('[data-continuar]');
+  // Continuar (pie) pasa a la pestana 2 sin recargar; los signos estan en la pestana 3
+  await p.click('[data-continuar]'); console.log('-- continuar lleva a', await p.$eval('a.actual', a => a.dataset.tab));
+  await p.click('a[data-tab=signos]');
   await p.fill('#PANume', '118'); await p.fill('#PADeno', '76'); await p.fill('#Pulso', '82');
   await p.fill('#Respirac', '17'); await p.fill('#Temperat', '36.8'); await p.fill('#Saturaci', '98');
   await p.fill('#Dolor', '3'); await p.fill('#GlucMetr', '105');
   await foto(p, '13_signos');
   await p.click('#signos button[type=submit]'); await p.waitForLoadState(); await estado(p, 'signos guardados');
   await foto(p, '14_ficha_urg_con_triage_y_signos');
+
+  // --- Pestañas 2 y 4 a 8 en la admisión de Urgencias ---
+  const pestana = async (t) => { await p.click(`a[data-tab=${t}]`); await p.waitForTimeout(100); };
+  const guardar = async (sel, etiqueta) => { await p.click(sel); await p.waitForLoadState(); await estado(p, etiqueta); };
+
+  await pestana('consulta');
+  await p.fill('#ConsMoti', 'DOLOR EN LA BOCA DEL ESTOMAGO (datos inventados)');
+  await p.fill('#EnfeActu', 'Cuadro de 1 dia de dolor epigastrico urente, sin vomito. Datos inventados.');
+  await p.check('#consulta input[name=Patologi][value="1"]'); await p.fill('#consulta input[name=PatoDesc]', 'GASTRITIS HACE 2 AÑOS');
+  await p.check('#consulta input[name=Cabeza][value="1"]'); await p.check('#consulta input[name=CardPulm][value="1"]');
+  await p.check('#consulta input[name=Abdomen][value="2"]'); await p.fill('#consulta input[name=AbdoDesc]', 'DOLOR A LA PALPACION EN EPIGASTRIO');
+  await p.fill('#EstaGene', 'ALERTA, HIDRATADO, AFEBRIL');
+  await p.fill('#ConsDiag', 'K297'); await p.selectOption('#TipoDiag', '1');
+  await p.fill('#ConsDiag', 'K297');
+  await p.fill('#ObseReco', 'OMEPRAZOL, DIETA BLANDA, CONTROL EN 24 HORAS');
+  await guardar('#consulta button[type=submit]', 'consulta guardada');
+  await foto(p, '27_consulta');
+
+  await pestana('prescripcion');
+  const f1 = p.locator('#prescripcion [data-fila]').nth(0);
+  await f1.locator('input[name="CodiSumi[]"]').fill('MP0004'); await f1.locator('input[name="CantSumi[]"]').fill('20');
+  await f1.locator('select[name="UnidMedi[]"]').selectOption('1'); await f1.locator('select[name="CodiVia[]"]').selectOption('1');
+  await f1.locator('input[name="CantFrec[]"]').fill('24'); await f1.locator('input[name="CantPeDu[]"]').fill('7');
+  await p.click('#prescripcion [data-agregar-fila]');
+  const f2 = p.locator('#prescripcion [data-fila]').nth(1);
+  await f2.locator('input[name="CodiSumi[]"]').fill('MP0002'); await f2.locator('input[name="CantSumi[]"]').fill('1');
+  await f2.locator('select[name="UnidMedi[]"]').selectOption('4'); await f2.locator('select[name="CodiVia[]"]').selectOption('2');
+  await f2.locator('input[name="CantFrec[]"]').fill('8'); await f2.locator('input[name="CantPeDu[]"]').fill('1');
+  await foto(p, '28_prescripcion_formulario');
+  await guardar('#prescripcion button[type=submit]', 'prescripcion guardada');
+  await foto(p, '28_prescripcion');
+
+  await pestana('ordenes');
+  await p.fill('#TextoOrden', 'DIETA BLANDA\nLEV: SSN 0.9% 100 CC/HORA\nCONTROL DE SIGNOS VITALES CADA 4 HORAS\nAVISAR CAMBIOS');
+  await guardar('#ordenes form:has(input[name=accion][value=orden_medica]) button[type=submit]', 'orden medica guardada');
+  await pestana('ordenes');
+  const o1 = p.locator('#ordenes [data-fila]').nth(0);
+  await o1.locator('input[name="OrdProc[]"]').fill('902210');
+  await p.click('#ordenes [data-agregar-fila]');
+  const o2 = p.locator('#ordenes [data-fila]').nth(1);
+  await o2.locator('input[name="OrdProc[]"]').fill('871121'); await o2.locator('input[name="OrdObse[]"]').fill('DESCARTAR NEUMOPERITONEO');
+  await guardar('#ordenes form:has(input[name=accion][value=ordenes]) button[type=submit]', 'ordenes guardadas');
+  await foto(p, '29_ordenes');
+
+  await pestana('procedimientos');
+  await p.fill('#CodiProc', '939403'); await p.selectOption('#CodiFina', '2');
+  await p.fill('#IndiAdic', 'NEBULIZACION CON SSN, SIN COMPLICACIONES (datos inventados)');
+  await guardar('#procedimientos button[type=submit]', 'procedimiento guardado');
+  await foto(p, '30_procedimientos');
+
+  await pestana('notas');
+  await p.fill('#NotaEnfe', 'PACIENTE EN CAMILLA, ALERTA, CON LEV PERMEABLES. SE TOMAN SIGNOS. (datos inventados)');
+  await guardar('#notas form:has(input[name=accion][value=nota]) button[type=submit]', 'nota guardada');
+  await pestana('notas');
+  const med = await p.$eval('#MediPres', s => [...s.options].find(o => o.value).value);
+  await p.selectOption('#MediPres', med); await p.fill('#CantMedi', '1'); await p.fill('#MediObse', 'SIN REACCIONES');
+  await guardar('#notas form:has(input[name=accion][value=medicamento]) button[type=submit]', 'medicamento aplicado');
+  await foto(p, '31_notas');
+
+  await pestana('evolucion');
+  await p.fill('#Subjetivo', 'REFIERE MEJORIA DEL DOLOR'); await p.fill('#Objetivo', 'ABDOMEN BLANDO, DOLOR LEVE EN EPIGASTRIO');
+  await p.fill('#Analisis', 'EVOLUCION FAVORABLE'); await p.fill('#PlanMane', 'CONTINUAR MANEJO, VALORAR SALIDA');
+  await p.fill('#EvolDiag', 'K297'); await p.check('input[name=ContSign]');
+  await guardar('#evolucion button[type=submit]', 'evolucion guardada');
+  await foto(p, '32_evolucion');
 
   for (const [m, n] of [['obs', '16'], ['ce', '17']]) {
     await p.goto(B + 'atencion.php?modulo=' + m + '&historias=1'); await foto(p, n + '_lista_' + m);
@@ -130,6 +196,22 @@ async function buscarDocumento(p, modulo, tipo, doc) {
   await c.click('[data-menu-abrir]'); await c.waitForTimeout(400);
   await c.screenshot({ path: `${OUT}/24_movil_menu.png` }); console.log('FOTO', `${OUT}/24_movil_menu.png`);
   await c.close();
+
+  // --- Egreso en Observación (cierra la admisión y libera la cama) y cierre en Consulta Externa ---
+  await p.goto(B + 'atencion.php?id=' + adm.obs + '&tab=egreso');
+  await p.fill('#ObseSali', 'SALE EN BUENAS CONDICIONES (datos inventados)');
+  // Sin marcar la confirmacion: el servidor tambien la exige (se quita el "required" del navegador para probarlo)
+  await p.$eval('input[name=ConfEgre]', c => c.removeAttribute('required'));
+  await p.click('#egreso button[type=submit]'); await p.waitForLoadState(); await estado(p, 'egreso sin confirmar');
+  await p.check('input[name=ConfEgre]');
+  await foto(p, '33_egreso');
+  await p.click('#egreso button[type=submit]'); await p.waitForLoadState(); await estado(p, 'egreso guardado');
+  await foto(p, '34_egreso_cerrado');
+  await p.goto(B + 'atencion.php?id=' + adm.ce + '&tab=egreso');
+  await p.check('input[name=ConfEgre]');
+  await p.click('#egreso button[type=submit]'); await p.waitForLoadState(); await estado(p, 'atencion CE cerrada');
+  await foto(p, '35_ce_cerrada');
+  await p.goto(B + 'atencion.php?modulo=urg&historias=1');
 
   // Salir e ingreso del administrador: el administrador si ve el tablero
   await p.keyboard.press('Escape'); // cierra la ventana de historias abiertas
