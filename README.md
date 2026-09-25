@@ -13,6 +13,16 @@ E.S.E. Hospital Sagrado Corazón de Jesús.
 - **Usuarios:** los profesionales entran con su mismo login y clave de SIHOS.
 - **Carga a SIHOS:** solo el administrador (NIXON07), directo a la base de datos.
 
+## Interfaz
+
+- Después del ingreso el profesional **elige el módulo** (Urgencias, Observación e Internación o Consulta
+  Externa), como en SIHOS. La pantalla principal del módulo es **Historias abiertas**; cada historia muestra el
+  encabezado de la admisión y pestañas numeradas en el orden de SIHOS. El tablero es el inicio del administrador.
+- Funciona en PC, tableta y celular (menú lateral en cajón, tablas como tarjetas). Todo es local, sin CDN:
+  fuente Plus Jakarta Sans (`public/fonts`, licencia OFL), íconos Lucide en `public/img/iconos.svg` (licencia
+  ISC), CSS propio en `public/css/estilo.css` y JS propio en `public/js/`.
+- Capturas y recorrido de prueba: [`docs/capturas/`](docs/capturas/README.md).
+
 ## Regla principal
 
 Las tablas tienen **exactamente los mismos nombres y columnas que SIHOS** (ver `sql/`). Así la carga es un

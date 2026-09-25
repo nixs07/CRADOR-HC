@@ -923,3 +923,9 @@ tr[data-href] { cursor: pointer; }
     .ep-persona { align-items: flex-start; }
     .pestanas { padding-right: 32px; }
 }
+/* Barra superior: el modulo toma el espacio libre; el aviso de contingencia se oculta si no cabe */
+.superior-modulo { flex: 1 1 auto; }
+.superior-contexto { flex: 0 1 auto; }
+@media (max-width: 1150px) {
+    .superior-contexto { display: none; }
+}
