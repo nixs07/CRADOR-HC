@@ -55,12 +55,21 @@ $servicios = array_intersect_key(lista('Serv'), array_flip($mod['servicios']));
 
 vista_inicio('Nueva admisión');
 ?>
-<h1>Nueva admisión · <?= e($mod['nombre']) ?></h1>
-<div class="encabezado-paciente">
+<p class="migas"><a href="pacientes.php?q=<?= e(urlencode($pac['NumeUsua'])) ?>"><?= icono('arrow-left') ?>Pacientes</a></p>
+<div class="cabecera-pagina">
     <div>
-        <div class="ep-nombre"><?= e(paciente_nombre($pac)) ?></div>
-        <div class="ep-datos"><?= e($pac['TipoDocu'] . ' ' . $pac['NumeUsua']) ?> · <?= e(edad_texto($ev, $eu)) ?> ·
-            <?= e(lista_nombre('Sexo', $pac['SexoUsua'])) ?></div>
+        <div class="antetitulo"><?= icono(MODULOS_ICONO[$mod['clave']] ?? 'clipboard-plus') ?><?= e($mod['nombre']) ?></div>
+        <h1>Nueva admisión · <?= e($mod['nombre']) ?></h1>
+        <p>Encabezado completo de la admisión, igual que en SIHOS. El número queda temporal hasta cargarlo.</p>
+    </div>
+</div>
+<div class="encabezado-paciente">
+    <div class="ep-persona">
+        <span class="ep-avatar"><?= icono('user') ?></span>
+        <div>
+            <div class="ep-nombre"><?= e(paciente_nombre($pac)) ?></div>
+            <div class="ep-datos"><span><?= e($pac['TipoDocu'] . ' ' . $pac['NumeUsua']) ?></span><span><?= e(edad_texto($ev, $eu)) ?></span><span><?= e(lista_nombre('Sexo', $pac['SexoUsua'])) ?></span></div>
+        </div>
     </div>
 </div>
 <?= errores_resumen($e) ?>
@@ -138,7 +147,7 @@ vista_inicio('Nueva admisión');
     </fieldset>
 
     <div class="acciones">
-        <button type="submit" class="boton boton-primario">Crear admisión</button>
+        <button type="submit" class="boton boton-primario"><?= icono('save') ?>Crear admisión</button>
         <a href="pacientes.php?q=<?= e(urlencode($pac['NumeUsua'])) ?>" class="boton boton-claro">Cancelar</a>
     </div>
 </form>

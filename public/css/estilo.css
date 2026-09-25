@@ -313,6 +313,8 @@ h3 { font-size: 15px; font-weight: 600; margin: 0 0 8px; }
     color: var(--error); font-weight: 600; font-size: 13px; white-space: nowrap;
 }
 .sin-triage .icono { width: 15px; height: 15px; }
+a.sin-triage { text-decoration: none; }
+a.sin-triage:hover { text-decoration: underline; color: var(--error); }
 
 /* ---------------------------------------------------------------------
  * 5. Alertas
@@ -454,6 +456,7 @@ a.tarjeta:hover { border-color: var(--azul-borde); box-shadow: 0 4px 14px rgba(0
 .tabla tbody tr:hover { background: #fafcfe; }
 .tabla .num { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
 .tabla small { color: var(--texto-suave); }
+.tabla .celda-paciente { min-width: 220px; }
 .celda-paciente a { font-weight: 600; text-decoration: none; color: var(--texto); }
 .celda-paciente a:hover { color: var(--azul-texto); text-decoration: underline; }
 .celda-codigo { font-variant-numeric: tabular-nums; font-weight: 600; }
@@ -519,11 +522,7 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--a
 }
 .calculado span { font-size: 12px; color: var(--azul-texto); font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; }
 .calculado strong { font-size: 22px; font-variant-numeric: tabular-nums; }
-.formulario > .acciones {
-    position: sticky; bottom: 0; z-index: 5;
-    padding: 14px 0; margin-top: 0;
-    background: linear-gradient(rgba(255, 255, 255, 0), #fff 30%);
-}
+.formulario > .acciones { padding: 4px 0 8px; }
 
 .buscador {
     display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 22px;
@@ -727,6 +726,7 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--a
     .tabla-tarjetas .tabla td.celda-principal::before { display: none; }
     .tabla-tarjetas .tabla td.celda-acciones { display: block; text-align: left; }
     .tabla-tarjetas .tabla td.celda-acciones::before { display: block; margin-bottom: 6px; }
+    .tabla-tarjetas .tabla .celda-paciente { min-width: 0; }
     .tabla-tarjetas .tabla tbody tr:hover { background: var(--superficie); }
 }
 
@@ -741,3 +741,5 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--a
 
 /* Texto con aspecto de enlace dentro de una tarjeta-enlace */
 .enlace-falso { color: var(--azul-texto); font-weight: 600; display: inline-flex; align-items: center; gap: 2px; }
+.cabecera-pagina + .triage-resumen { margin-bottom: 20px; }
+h2 > .icono { width: 20px; height: 20px; color: var(--azul-texto); vertical-align: -3px; }

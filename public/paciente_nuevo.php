@@ -31,8 +31,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 vista_inicio('Nuevo paciente');
 ?>
-<h1>Nuevo paciente</h1>
-<p class="ayuda">Solo para pacientes que <strong>no aparecen</strong> en la búsqueda. Al volver SIHOS se crean allá.</p>
+<p class="migas"><a href="pacientes.php"><?= icono('arrow-left') ?>Pacientes</a></p>
+<div class="cabecera-pagina">
+    <div>
+        <div class="antetitulo"><?= icono('user-plus') ?>Registro</div>
+        <h1>Nuevo paciente</h1>
+        <p>Solo para pacientes que <strong>no aparecen</strong> en la búsqueda. Al volver SIHOS se crean allá.</p>
+    </div>
+</div>
 <?= errores_resumen($e) ?>
 
 <form method="post" class="formulario" data-una-vez>
@@ -96,7 +102,7 @@ vista_inicio('Nuevo paciente');
     </fieldset>
 
     <div class="acciones">
-        <button type="submit" class="boton boton-primario">Crear paciente</button>
+        <button type="submit" class="boton boton-primario"><?= icono('save') ?>Crear paciente</button>
         <a href="pacientes.php" class="boton boton-claro">Cancelar</a>
     </div>
 </form>
