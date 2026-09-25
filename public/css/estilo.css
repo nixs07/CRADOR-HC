@@ -1168,3 +1168,11 @@ tr[data-href] { cursor: pointer; }
     .registros { padding: 0 12px 14px; }
     .c-ancho-rejilla { grid-column: auto; }
 }
+.et-traslado { padding: 0 18px 16px; display: grid; gap: 14px; }
+.cama-actual { display: inline-flex; align-items: center; gap: 8px; font-size: 18px; }
+.subseccion { border: 1px solid var(--borde); border-radius: var(--radio); background: #fff; }
+.subseccion > summary { display: flex; align-items: center; gap: 8px; padding: 12px 14px; cursor: pointer; font-weight: 700; list-style: none; background: var(--superficie-2); border-radius: var(--radio); }
+.subseccion > summary::-webkit-details-marker { display: none; }
+.subseccion > summary::after { content: "▾"; margin-left: auto; color: var(--texto-suave); }
+.subseccion[open] > summary { border-radius: var(--radio) var(--radio) 0 0; border-bottom: 1px solid var(--borde); }
+.subseccion > form { padding: 4px 14px 14px; }

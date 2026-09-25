@@ -131,6 +131,18 @@ REPLACE INTO EstaSali (Codigo, EstaSaliSisPro, EstaSali) VALUES (1, '01', 'VIVO'
 REPLACE INTO TipoEgre (CodiTipo, NombTipo, FechDigi, HoraDigi, FechModi, HoraModi) VALUES
  (1, 'ALTA', CURDATE(), CURTIME(), CURDATE(), CURTIME()), (2, 'REMISION', CURDATE(), CURTIME(), CURDATE(), CURTIME()),
  (3, 'MUERTE', CURDATE(), CURTIME(), CURDATE(), CURTIME());
+REPLACE INTO CodiUnid (CodiUnid, NombUnid, TipoUnid, ViaAdmi) VALUES ('01', 'UNIDAD', 1, 1), ('02', 'PAR', 1, 1),
+ ('03', 'CAJA', 1, 1), ('04', 'METRO', 1, 1);
+REPLACE INTO CodiSumi (CodiSumi, NombSumi, CodiGrup, UnidMedi, SumiActi, NumeSeri, ModeDevo, RotuDevo, FechComp, UltiDepr,
+                       BodeActu, CodiServ, TiDoReSe, NuDoReSe, CodiDocu, NumeDocu, ConsDevo, EstaDevo, CodiTerc, NumeTerc,
+                       NumeFact, FechVida, MeDeprec, MeseDepr, DiasDepr) VALUES
+ ('MQ0001', 'GUANTES DE EXAMEN TALLA M (PAR)', 'MQX', 1, 1, '', '', '', '0000-00-00', '0000-00-00', 0, '', '', '', '', 0, 0, 0, '', '', '', '0000-00-00', 0, 0, 0),
+ ('MQ0002', 'CATETER INTRAVENOSO No. 20', 'MQX', 1, 1, '', '', '', '0000-00-00', '0000-00-00', 0, '', '', '', '', 0, 0, 0, '', '', '', '0000-00-00', 0, 0, 0),
+ ('MQ0003', 'EQUIPO DE VENOCLISIS MACROGOTEO', 'MQX', 1, 1, '', '', '', '0000-00-00', '0000-00-00', 0, '', '', '', '', 0, 0, 0, '', '', '', '0000-00-00', 0, 0, 0);
+REPLACE INTO MotiRemi (CodiMoti, NombMoti) VALUES (1, 'NO DISPONIBILIDAD DEL SERVICIO'), (2, 'FALTA DE ESPECIALISTA'),
+ (3, 'FALTA DE EQUIPOS'), (4, 'SOLICITUD DEL PACIENTE');
+REPLACE INTO ModaSoli (CodiModa, NombModa) VALUES (1, 'URGENCIAS'), (2, 'PRIORITARIA'), (3, 'AMBULATORIA');
+REPLACE INTO TipoInca (CodiTipo, NombTipo) VALUES (1, 'ENFERMEDAD GENERAL'), (2, 'ACCIDENTE DE TRABAJO'), (3, 'LICENCIA DE MATERNIDAD');
 REPLACE INTO CausMorb (CodiDiag, NombCaus, Activo) VALUES ('K297', 'GASTRITIS, NO ESPECIFICADA', 1), ('E86X', 'DEPLECION DEL VOLUMEN', 1);
 
 -- --- Pacientes (inventados) ---------------------------------------------

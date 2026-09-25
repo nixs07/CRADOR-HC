@@ -94,6 +94,11 @@ const ACCIONES_HISTORIA = [
     'medicamento'   => ['notas', 'medicamento_validar', 'medicamento_guardar', 'Aplicación de medicamento No. %d registrada.'],
     'evolucion'     => ['evolucion', 'evolucion_validar', 'evolucion_guardar', 'Evolución No. %d registrada.'],
     'egreso'        => ['egreso', 'egreso_validar', 'egreso_guardar', 'Admisión cerrada: egreso registrado.'],
+    'material'      => ['notas', 'material_validar', 'material_guardar', 'Material No. %d registrado.'],
+    'remision'      => ['egreso', 'remision_validar', 'remision_guardar', 'Remisión No. %d registrada.'],
+    'incapacidad'   => ['egreso', 'incapacidad_validar', 'incapacidad_guardar', 'Incapacidad No. %d registrada.'],
+    // Traslado de cama: se hace desde el encabezado; vuelve a la pestaña en la que se estaba
+    'traslado'      => ['', 'traslado_validar', 'traslado_guardar', 'Traslado de cama No. %d registrado.'],
 ];
 $F = [];   // datos enviados por formulario (para volver a mostrarlos si hay errores)
 $E = [];   // errores por formulario
@@ -117,6 +122,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     } elseif ($a && isset(ACCIONES_HISTORIA[$accion])) {
         // Pestanas 2 y 4 a 9: validar en src/historia.php, guardar en una transaccion y volver a la pestana
         [$pest, $validar, $guardar, $mensaje] = ACCIONES_HISTORIA[$accion];
+        if ($pest === '') {
+            $pest = $tab;
+            if (!$mod['cama']) {
+                flash('error', 'El traslado de cama solo aplica en Observación e Internación.');
+                redirigir($aqui);
+            }
+        }
         $tab = $pest;
         if (!$editable) {
             flash('error', 'La admisión no se puede modificar.');
@@ -273,6 +285,7 @@ vista_inicio($a ? 'Admisión ' . $a['ConsAdmi'] : $mod['nombre']);
             <?= campo_lectura('Afiliación', lista_nombre('TipoAfil', $a['TipoAfil']), 'c-2') ?>
             <?= campo_lectura('Categoría', $a['CodiEstr'], 'c-2') ?>
         </div>
+        <?php if ($mod['cama']) { require __DIR__ . '/../src/vistas/traslado_cama.php'; } ?>
         <details class="ea-mas">
             <summary><?= icono('file-text') ?>Motivo, acompañante y registro</summary>
             <div class="et-fila">
@@ -388,10 +401,14 @@ if ($a) {
     $aplicados = medicamentos_aplicados($a['ConsAdmi']);
     $evoluciones = evoluciones_de_admision($a['ConsAdmi']);
     $egreso = egreso_de_admision($a['ConsAdmi']);
+    $materiales = materiales_de_admision($a['ConsAdmi']);
+    $remisiones = remisiones_de_admision($a['ConsAdmi']);
+    $incapacidades = incapacidades_de_admision($a['ConsAdmi']);
+    $pendientes = $editable ? ordenes_pendientes($a['ConsAdmi']) : [];
     $conteos = ['triage' => $triage ? 1 : 0, 'consulta' => count($consultas), 'signos' => count($signos),
                 'prescripcion' => count($prescripciones), 'ordenes' => count($ordenesMedicas) + count($ordenes),
-                'procedimientos' => count($procedimientos), 'notas' => count($notas) + count($aplicados),
-                'evolucion' => count($evoluciones), 'egreso' => $egreso ? 1 : 0];
+                'procedimientos' => count($procedimientos), 'notas' => count($notas) + count($aplicados) + count($materiales),
+                'evolucion' => count($evoluciones), 'egreso' => ($egreso ? 1 : 0) + count($remisiones) + count($incapacidades)];
 }
 pestanas_historia($a, $mod, $tab, $conteos ?? []);
 ?>
@@ -537,7 +554,8 @@ foreach (['consulta', 'prescripcion', 'ordenes', 'procedimientos', 'notas', 'evo
     if (in_array($vista, $disponibles, true)) {
         // Cada panel se pinta en su propia funcion para que sus variables no pisen las de esta pagina
         (function () use ($vista, $a, $mod, $editable, $aqui, $tab, $F, $E, $triage, $consultas, $prescripciones,
-                          $ordenesMedicas, $ordenes, $procedimientos, $notas, $prescritos, $aplicados, $evoluciones, $egreso) {
+                          $ordenesMedicas, $ordenes, $procedimientos, $notas, $prescritos, $aplicados, $evoluciones, $egreso,
+                          $materiales, $remisiones, $incapacidades, $pendientes) {
             require __DIR__ . '/../src/vistas/pestana_' . $vista . '.php';
         })();
     }

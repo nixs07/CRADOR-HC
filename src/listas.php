@@ -40,6 +40,11 @@ const LISTAS = [
     'DestSali' => ['DestSali', 'CodiDest', 'NombDest', 'Activo = 1'],
     'EstaSali' => ['EstaSali', 'Codigo', 'EstaSali', ''],
     'TipoEgre' => ['TipoEgre', 'CodiTipo', 'NombTipo', ''],
+    'CodiUnid' => ['CodiUnid', 'CodiUnid', 'NombUnid', ''],
+    'MotiRemi' => ['MotiRemi', 'CodiMoti', 'NombMoti', ''],
+    'ModaSoli' => ['ModaSoli', 'CodiModa', 'NombModa', ''],
+    'TipoInca' => ['TipoInca', 'CodiTipo', 'NombTipo', ''],
+    'Espe'     => ['CodiEspe', 'CodiEspe', 'NombEspe', ''],
 ];
 
 /** Devuelve [codigo => nombre] de una lista, ordenada por nombre (se guarda en memoria por peticion). */

@@ -1,7 +1,8 @@
 <?php
 /**
  * Pestaña 6. Procedimientos realizados (HojaProc).
- * Variables: $a, $editable, $aqui, $tab, $F, $E, $procedimientos.
+ * Se puede ligar a un ítem de orden pendiente (DetaOrde): llena NumeOrde/Item y suma CantReal.
+ * Variables: $a, $editable, $aqui, $tab, $F, $E, $procedimientos, $pendientes.
  */
 $d = $F['procedimiento'] ?? ['FechProc' => date('Y-m-d'), 'HoraProc' => date('H:i'), 'CodiFina' => '2', 'ProcTipoDiag' => '1', 'DiagPrin' => $a['DiagIngr']];
 $er = $E['procedimiento'] ?? [];
@@ -14,9 +15,19 @@ $er = $E['procedimiento'] ?? [];
         <?= csrf_campo() ?>
         <input type="hidden" name="accion" value="procedimiento">
         <h3 class="titulo-form"><?= icono('plus') ?>Registrar procedimiento realizado</h3>
+        <?php if ($pendientes): ?>
+            <div><label for="OrdenItem">Atiende la orden (opcional)</label>
+                <select id="OrdenItem" name="OrdenItem" class="<?= ce($er, 'OrdenItem') ?>">
+                    <option value="">— No viene de una orden —</option>
+                    <?php foreach ($pendientes as $llave => $o): ?>
+                        <option value="<?= e($llave) ?>"<?= ($d['OrdenItem'] ?? '') === $llave ? ' selected' : '' ?>>Orden <?= (int) $o['ConsOrde'] ?> ítem <?= (int) $o['Item'] ?> · <?= e($o['CodiProc'] . ' ' . ($o['NombProc'] ?? '')) ?> (<?= (int) $o['CantReal'] ?>/<?= (int) $o['CantSumi'] ?> realizados)</option>
+                    <?php endforeach; ?>
+                </select><?= me($er, 'OrdenItem') ?>
+                <div class="nota-campo">Si escoge un ítem, el procedimiento se toma de la orden.</div></div>
+        <?php endif; ?>
         <div class="rejilla">
             <?= campos_fecha_hora('FechProc', 'HoraProc', $d, $er) ?>
-            <?= campo_buscador('CodiProc', 'Procedimiento (CUPS)', $d, $er, 'procedimientos', true) ?>
+            <?= campo_buscador('CodiProc', 'Procedimiento (CUPS)', $d, $er, 'procedimientos', !$pendientes) ?>
             <?= campo_lista('CodiFina', 'Finalidad', 'FinaProc', $d, $er) ?>
             <?= campo_buscador('DiagPrin', 'Diagnóstico principal (CIE-10)', $d, $er, 'diagnosticos', true) ?>
             <?= campo_lista('ProcTipoDiag', 'Tipo de diagnóstico', 'TipoDiag', $d + ['ProcTipoDiag' => $d['TipoDiag'] ?? '1'], $er) ?>
@@ -34,13 +45,14 @@ $er = $E['procedimiento'] ?? [];
 <?php else: ?>
     <div class="tabla-contenedor">
     <table class="tabla">
-        <thead><tr><th>#</th><th>Fecha</th><th>Procedimiento</th><th>Finalidad</th><th>Diagnóstico</th><th>Observaciones</th><th>Registró</th></tr></thead>
+        <thead><tr><th>#</th><th>Fecha</th><th>Procedimiento</th><th>Orden</th><th>Finalidad</th><th>Diagnóstico</th><th>Observaciones</th><th>Registró</th></tr></thead>
         <tbody>
         <?php foreach ($procedimientos as $p): ?>
             <tr>
                 <td><span class="contador"><?= (int) $p['ConsHoPr'] ?></span></td>
                 <td class="sin-salto"><?= e(fecha_hora($p['FechProc'] . ' ' . $p['HoraProc'])) ?></td>
                 <td><strong><?= e($p['CodiProc']) ?></strong> · <?= e($p['NombProc'] ?? '') ?></td>
+                <td><?= (int) $p['NumeOrde'] ? 'Orden ' . (int) $p['NumeOrde'] . ' ítem ' . (int) $p['Item'] : '—' ?></td>
                 <td><?= e($p['NombFina'] ?? $p['CodiFina']) ?></td>
                 <td><?= e(diag_texto($p['DiagPrin'])) ?></td>
                 <td><?= e($p['IndiAdic']) ?></td>

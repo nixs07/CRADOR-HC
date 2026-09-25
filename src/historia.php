@@ -593,6 +593,21 @@ function procedimiento_validar(array $a): array
     $d = [];
     $e = [];
     hc_fecha_hora($a, $d, $e, 'FechProc', 'HoraProc', 'procedimiento');
+    // Ítem de orden que se atiende (opcional): el procedimiento y la finalidad salen del ítem
+    $d['OrdenItem'] = campo('OrdenItem', 10);
+    $d['orden'] = null;
+    if ($d['OrdenItem'] !== '') {
+        $pend = ordenes_pendientes($a['ConsAdmi']);
+        if (!isset($pend[$d['OrdenItem']])) {
+            $e['OrdenItem'] = 'El ítem de orden no existe o ya se realizó completo.';
+        } else {
+            $d['orden'] = $pend[$d['OrdenItem']];
+            $_POST['CodiProc'] = $d['orden']['CodiProc'];
+            if (campo('CodiFina', 1) === '' && $d['orden']['CodiFina'] !== null) {
+                $_POST['CodiFina'] = $d['orden']['CodiFina'];
+            }
+        }
+    }
     $d['CodiProc'] = hc_procedimiento('CodiProc', true, $e);
     $d['CodiFina'] = hc_de_lista('FinaProc', 'CodiFina', true, $e, 'Seleccione la finalidad del procedimiento.', 1);
     $d['DiagPrin'] = hc_diagnostico('DiagPrin', true, $e, 'el diagnóstico principal');
@@ -616,10 +631,17 @@ function procedimiento_guardar(array $a, array $d, string $login): int
             'TipoDiag' => (int) $d['TipoDiag'], 'TipoDiaR' => 0, 'TipoDia1' => 0, 'TipoDia2' => 0, 'TipoDiaC' => 0,
             'DiagPrin' => $d['DiagPrin'], 'DiagRela' => $d['DiagRela'], 'DiagRel1' => '', 'DiagRel2' => '', 'DiagRel3' => '',
             'DiagComp' => '', 'IndiAdic' => $d['IndiAdic'], 'CodiProf' => $l8, 'UsuaAsis' => $l8,
-            'ProcReal' => 1, 'CantProc' => 1, 'CantFact' => 0, 'NumeOrde' => 0, 'Item' => 0,
+            'ProcReal' => 1, 'CantProc' => 1, 'CantFact' => 0,
+            // Orden que se atiende: NumeOrde = consecutivo general de la orden (EncaOrde.Consecut), Item = ítem
+            'NumeOrde' => $d['orden'] ? (int) $d['orden']['Consecut'] : 0, 'Item' => $d['orden'] ? (int) $d['orden']['Item'] : 0,
             'CentCost' => '0', 'ServEgre' => $a['ServEgre'], 'CodiDocu' => '', 'NumeLiqu' => 0, 'ConsDeFa' => 0,
             'NumePiez' => 0, 'CuadPiez' => 0, 'CodiServ' => $a['ServEgre'],
         ] + $dig);
+        if ($d['orden']) {
+            $pdo->prepare('UPDATE DetaOrde SET CantReal = CantReal + 1, FechModi = CURDATE(), HoraModi = CURTIME(), UsuaModi = ?
+                            WHERE CodiInst = ? AND ConsAdmi = ? AND ConsOrde = ? AND Item = ?')
+                ->execute([$login, CODI_INST, $a['ConsAdmi'], $d['orden']['ConsOrde'], $d['orden']['Item']]);
+        }
         return $cons;
     });
 }
@@ -870,4 +892,239 @@ function egreso_de_admision(string $cons): ?array
     $st = db()->prepare('SELECT * FROM SaliInte WHERE CodiInst = ? AND ConsAdmi = ?');
     $st->execute([CODI_INST, $cons]);
     return $st->fetch() ?: null;
+}
+
+// ---------------------------------------------------------------------
+// Traslado de cama (TrasCama), solo en Observación e Internación
+// ---------------------------------------------------------------------
+
+/** Inicio del tramo actual en la cama: salida del último traslado o ingreso de la admisión. */
+function traslado_inicio_tramo(string $consAdmi, array $a): array
+{
+    $st = db()->prepare('SELECT FechSali, HoraSali FROM TrasCama WHERE CodiInst = ? AND ConsAdmi = ? ORDER BY ConsTras DESC LIMIT 1');
+    $st->execute([CODI_INST, $consAdmi]);
+    $f = $st->fetch();
+    return $f ? [$f['FechSali'], $f['HoraSali']] : [$a['FechIngr'], $a['HoraIngr']];
+}
+
+function traslado_validar(array $a): array
+{
+    $d = [];
+    $e = [];
+    hc_fecha_hora($a, $d, $e, 'FechTras', 'HoraTras', 'traslado');
+    $mod = modulo_de_servicio($a['ServEgre']);
+    $servicios = $mod ? MODULOS_DETALLE[$mod]['servicios'] : [];
+    $d['ServDest'] = campo('ServDest', 3);
+    if (!in_array($d['ServDest'], $servicios, true)) {
+        $e['ServDest'] = 'Seleccione el servicio destino.';
+    }
+    $d['CamaDest'] = campo('CamaDest', 10);
+    if (!isset($e['ServDest'])) {
+        $camas = camas($d['ServDest']);
+        if (!array_key_exists($d['CamaDest'], $camas)) {
+            $e['CamaDest'] = 'Seleccione la cama destino.';
+        } elseif ($d['CamaDest'] === $a['CamaActu']) {
+            $e['CamaDest'] = 'La cama destino es la misma cama actual.';
+        } elseif (strpos($camas[$d['CamaDest']], '(ocupada)') !== false) {
+            $e['CamaDest'] = 'La cama destino está ocupada.';
+        }
+    }
+    if (!$e) {
+        [$fi, $hi] = traslado_inicio_tramo($a['ConsAdmi'], $a);
+        if ($d['FechTras'] . ' ' . $d['HoraTras'] < $fi . ' ' . $hi) {
+            $e['HoraTras'] = 'El traslado no puede ser anterior al último movimiento de cama (' . fecha_hora("$fi $hi") . ').';
+        }
+    }
+    return [$d, $e];
+}
+
+/** Cierra el tramo en la cama actual (TrasCama) y mueve la admisión a la cama destino. */
+function traslado_guardar(array $a, array $d, string $login): int
+{
+    return hc_transaccion(function (PDO $pdo) use ($a, $d, $login) {
+        $cons = hc_siguiente($pdo, 'TrasCama', 'ConsTras', $a['ConsAdmi']);
+        [$fi, $hi] = traslado_inicio_tramo($a['ConsAdmi'], $a);
+        $seg = max(0, strtotime($d['FechTras'] . ' ' . $d['HoraTras']) - strtotime("$fi $hi"));
+        hc_insertar($pdo, 'TrasCama', [
+            'CodiInst' => CODI_INST, 'ConsAdmi' => $a['ConsAdmi'], 'ConsTras' => $cons,
+            'CodiServ' => $a['ServEgre'], 'CodiModu' => hc_modulo($a), 'CamaOrig' => (string) $a['CamaActu'],
+            'ServEgre' => $d['ServDest'], 'EntoAten_id' => null, 'CamaDest' => $d['CamaDest'],
+            'FechIngr' => $fi, 'HoraIngr' => $hi, 'FechSali' => $d['FechTras'], 'HoraSali' => $d['HoraTras'],
+            // Dias y Horas del tramo: dias completos y horas restantes
+            'Dias' => intdiv($seg, 86400), 'Horas' => intdiv($seg % 86400, 3600),
+            'CoinDest' => '', 'CoadDest' => '', 'CentEgre' => '',
+        ] + hc_digitacion($login));
+        $pdo->prepare('UPDATE Admision SET CamaActu = ?, ServEgre = ?, FechModi = CURDATE(), HoraModi = CURTIME(), UsuaModi = ?
+                        WHERE CodiInst = ? AND ConsAdmi = ?')
+            ->execute([$d['CamaDest'], $d['ServDest'], $login, CODI_INST, $a['ConsAdmi']]);
+        return $cons;
+    });
+}
+
+function traslados_de_admision(string $cons): array
+{
+    $st = db()->prepare('SELECT * FROM TrasCama WHERE CodiInst = ? AND ConsAdmi = ? ORDER BY ConsTras DESC');
+    $st->execute([CODI_INST, $cons]);
+    return $st->fetchAll();
+}
+
+// ---------------------------------------------------------------------
+// Materiales usados (HojaMate)
+// ---------------------------------------------------------------------
+
+function material_validar(array $a): array
+{
+    $d = [];
+    $e = [];
+    hc_fecha_hora($a, $d, $e, 'FechMate', 'HoraMate', 'uso del material');
+    $d['CodiMate'] = campo('CodiMate', 20);
+    if ($d['CodiMate'] === '' || suministro_nombre($d['CodiMate']) === null) {
+        $e['CodiMate'] = 'Escriba un material o suministro activo (código o nombre).';
+    }
+    $d['UnidMate'] = hc_de_lista('CodiUnid', 'UnidMate', true, $e, 'Seleccione la unidad.', 2);
+    $cant = campo_numero('CantMate');
+    if ($cant === null || $cant <= 0 || $cant > 99999) $e['CantMate'] = 'Escriba la cantidad usada.';
+    $d['CantMate'] = $cant ?? 0;
+    $d['IndiAdic'] = campo('MateObse', 255);
+    return [$d, $e];
+}
+
+function material_guardar(array $a, array $d, string $login): int
+{
+    return hc_transaccion(function (PDO $pdo) use ($a, $d, $login) {
+        $cons = hc_siguiente($pdo, 'HojaMate', 'ConsHoMa', $a['ConsAdmi']);
+        hc_insertar($pdo, 'HojaMate', [
+            'CodiInst' => CODI_INST, 'ConsAdmi' => $a['ConsAdmi'], 'ConsHoMa' => $cons, 'CodiModu' => hc_modulo($a),
+            'CodiServ' => $a['ServEgre'], 'FechMate' => $d['FechMate'], 'HoraMate' => $d['HoraMate'],
+            'CodiMate' => $d['CodiMate'], 'UnidMate' => $d['UnidMate'], 'EsFact' => 1, 'IndiAdic' => $d['IndiAdic'],
+            'CantMate' => $d['CantMate'], 'CantFact' => 0, 'NumeOrde' => 0, 'Item' => 0, 'CentCost' => '0',
+            'CodiDocu' => '', 'NumeLiqu' => 0, 'ConsDeFa' => 0, 'UsuaAsis' => $login,
+        ] + hc_digitacion($login));
+        return $cons;
+    });
+}
+
+function materiales_de_admision(string $cons): array
+{
+    $st = db()->prepare('SELECT h.*, s.NombSumi FROM HojaMate h LEFT JOIN CodiSumi s ON s.CodiSumi = h.CodiMate
+                          WHERE h.CodiInst = ? AND h.ConsAdmi = ? ORDER BY h.FechMate DESC, h.HoraMate DESC, h.ConsHoMa DESC');
+    $st->execute([CODI_INST, $cons]);
+    return $st->fetchAll();
+}
+
+// ---------------------------------------------------------------------
+// Remisión (Remision) e incapacidad (IncaPaci)
+// ---------------------------------------------------------------------
+
+function remision_validar(array $a): array
+{
+    $d = [];
+    $e = [];
+    hc_fecha_hora($a, $d, $e, 'FechRemi', 'HoraRemi', 'remisión');
+    $d['RemiMoti'] = hc_de_lista('MotiRemi', 'RemiMoti', true, $e, 'Seleccione el motivo de remisión.', 2);
+    $d['ModaSoli'] = hc_de_lista('ModaSoli', 'ModaSoli', true, $e, 'Seleccione la modalidad de la solicitud.', 2);
+    $d['EspeRemi'] = hc_de_lista('Espe', 'EspeRemi', false, $e, 'Seleccione una especialidad válida.', 3);
+    $d['InstDest'] = campo('InstDest', 200);
+    $d['MotiRemi'] = campo('MotiRemiTexto', 5000);
+    if ($d['MotiRemi'] === '') $e['MotiRemiTexto'] = 'Describa el motivo de la remisión (resumen clínico).';
+    $d['OtroMoti'] = campo('OtroMoti', 2000);
+    $d['DiagRemi'] = hc_diagnostico('DiagRemi', true, $e, 'el diagnóstico de remisión');
+    $d['TipoDiag'] = hc_de_lista('TipoDiag', 'RemiTipoDiag', true, $e, 'Seleccione el tipo de diagnóstico.', 1);
+    $d['NombAcep'] = mb_strtoupper(campo('NombAcep', 80));
+    $d['CargAcep'] = campo('CargAcep', 40);
+    $d['NumeAuto'] = campo('RemiAuto', 15);
+    $d['Ambulanc'] = campo('Ambulanc', 1) === '1' ? 1 : 0;
+    $d['PlacAmbu'] = mb_strtoupper(campo('PlacAmbu', 10));
+    if ($d['Ambulanc'] && $d['PlacAmbu'] === '') $e['PlacAmbu'] = 'Escriba la placa de la ambulancia.';
+    return [$d, $e];
+}
+
+function remision_guardar(array $a, array $d, string $login): int
+{
+    return hc_transaccion(function (PDO $pdo) use ($a, $d, $login) {
+        $cons = hc_siguiente($pdo, 'Remision', 'CodiRemi', $a['ConsAdmi']);
+        $acepta = $d['NombAcep'] !== '';
+        hc_insertar($pdo, 'Remision', [
+            'CodiInst' => CODI_INST, 'ConsAdmi' => $a['ConsAdmi'], 'CodiRemi' => $cons, 'ConsAuto' => 0,
+            'CodiModu' => hc_modulo($a),
+            // No hay catálogo local de instituciones receptoras: el nombre va al inicio del motivo escrito
+            'MotiRemi' => ($d['InstDest'] !== '' ? 'INSTITUCION DESTINO: ' . mb_strtoupper($d['InstDest']) . "\n" : '') . $d['MotiRemi'],
+            'EspeRemi' => $d['EspeRemi'], 'InstRemi' => '', 'NombAcep' => $d['NombAcep'], 'CargAcep' => $d['CargAcep'],
+            'NumeAuto' => $d['NumeAuto'], 'Ambulanc' => $d['Ambulanc'], 'PlacAmbu' => $d['PlacAmbu'] !== '' ? $d['PlacAmbu'] : null,
+            'ModaSoli' => (int) $d['ModaSoli'], 'RemiMoti' => (int) $d['RemiMoti'], 'OtroMoti' => $d['OtroMoti'],
+            'FechAcep' => $acepta ? $d['FechRemi'] : '0000-00-00', 'HoraAcep' => $acepta ? $d['HoraRemi'] : '00:00:00',
+            'TipoRemi' => 0, 'FechSali' => $d['FechRemi'], 'HoraSali' => $d['HoraRemi'],
+            'FechLLega' => '0000-00-00', 'HoraLLega' => '00:00:00', 'FechCier' => '0000-00-00', 'HoraCier' => '00:00:00',
+            'UsuaCier' => '', 'Cerrado' => 0,
+            'DiagRemi' => $d['DiagRemi'], 'DiagRel1' => '', 'DiagRel2' => '', 'DiagRel3' => '', 'DiagRel4' => '', 'DiagComp' => '',
+            'TipoDiag' => $d['TipoDiag'], 'TipoDia1' => '', 'TipoDia2' => '', 'TipoDia3' => '', 'TipoDia4' => '',
+        ] + hc_digitacion($login));
+        return $cons;
+    });
+}
+
+function remisiones_de_admision(string $cons): array
+{
+    $st = db()->prepare('SELECT r.*, m.NombMoti, s.NombModa FROM Remision r
+                           LEFT JOIN MotiRemi m ON m.CodiMoti = r.RemiMoti LEFT JOIN ModaSoli s ON s.CodiModa = r.ModaSoli
+                          WHERE r.CodiInst = ? AND r.ConsAdmi = ? ORDER BY r.CodiRemi DESC');
+    $st->execute([CODI_INST, $cons]);
+    return $st->fetchAll();
+}
+
+function incapacidad_validar(array $a): array
+{
+    $d = [];
+    $e = [];
+    hc_fecha_hora($a, $d, $e, 'FechInca', 'HoraInca', 'incapacidad');
+    $d['TipoInca'] = hc_de_lista('TipoInca', 'TipoInca', true, $e, 'Seleccione el tipo de incapacidad.', 1);
+    $d['OrigInca'] = campo('OrigInca', 1);
+    if (!in_array($d['OrigInca'], ['1', '2'], true)) $e['OrigInca'] = 'Seleccione el origen (común o laboral).';
+    $dias = campo('DiasIncaPaci', 4);
+    if (!ctype_digit($dias) || (int) $dias < 1 || (int) $dias > 540) $e['DiasIncaPaci'] = 'Los días de incapacidad deben estar entre 1 y 540.';
+    $d['DiasInca'] = (int) $dias;
+    $d['ObseInca'] = campo('ObseInca', 5000);
+    return [$d, $e];
+}
+
+function incapacidad_guardar(array $a, array $d, string $login): int
+{
+    return hc_transaccion(function (PDO $pdo) use ($a, $d, $login) {
+        $cons = hc_siguiente($pdo, 'IncaPaci', 'ConsInca', $a['ConsAdmi']);
+        hc_insertar($pdo, 'IncaPaci', [
+            'CodiInst' => CODI_INST, 'ConsAdmi' => $a['ConsAdmi'], 'ConsInca' => $cons, 'CodiModu' => hc_modulo($a),
+            'FechInca' => $d['FechInca'], 'HoraInca' => $d['HoraInca'], 'TipoInca' => (int) $d['TipoInca'],
+            'OrigInca' => (int) $d['OrigInca'], 'DiasInca' => $d['DiasInca'], 'ObseInca' => $d['ObseInca'],
+            'TipoAlca' => 0, 'EmbaMult' => 0, 'FePoPart' => '0000-00-00', 'EdadGest' => 0,
+        ] + hc_digitacion($login));
+        return $cons;
+    });
+}
+
+function incapacidades_de_admision(string $cons): array
+{
+    $st = db()->prepare('SELECT i.*, t.NombTipo FROM IncaPaci i LEFT JOIN TipoInca t ON t.CodiTipo = i.TipoInca
+                          WHERE i.CodiInst = ? AND i.ConsAdmi = ? ORDER BY i.ConsInca DESC');
+    $st->execute([CODI_INST, $cons]);
+    return $st->fetchAll();
+}
+
+// ---------------------------------------------------------------------
+// Ítems de orden pendientes (para ligar un procedimiento realizado a su orden)
+// ---------------------------------------------------------------------
+
+/** Ítems de DetaOrde con cantidad pendiente (CantReal < CantSumi), no suspendidos: ["ConsOrde-Item" => fila]. */
+function ordenes_pendientes(string $cons): array
+{
+    $st = db()->prepare("SELECT d.*, e.Consecut, p.NombProc FROM DetaOrde d
+                           JOIN EncaOrde e ON e.CodiInst = d.CodiInst AND e.ConsAdmi = d.ConsAdmi AND e.ConsOrde = d.ConsOrde
+                           LEFT JOIN CodiProc p ON p.CodiProc = d.CodiProc
+                          WHERE d.CodiInst = ? AND d.ConsAdmi = ? AND d.CantReal < d.CantSumi AND d.FechSusp = '0000-00-00'
+                          ORDER BY d.ConsOrde, d.Item");
+    $st->execute([CODI_INST, $cons]);
+    $r = [];
+    foreach ($st as $f) {
+        $r[$f['ConsOrde'] . '-' . $f['Item']] = $f;
+    }
+    return $r;
 }

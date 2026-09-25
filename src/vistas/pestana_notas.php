@@ -1,14 +1,17 @@
 <?php
 /**
  * Pestaña 7. Notas de enfermería (HojaEnfe) y administración de medicamentos prescritos (HojaMedi).
- * Variables: $a, $editable, $aqui, $tab, $F, $E, $notas, $prescritos, $aplicados.
+ * Tambien los materiales usados (HojaMate).
+ * Variables: $a, $editable, $aqui, $tab, $F, $E, $notas, $prescritos, $aplicados, $materiales.
  */
 $d = $F['nota'] ?? ['FechNota' => date('Y-m-d'), 'HoraNota' => date('H:i'), 'TipoNota' => '1'];
 $er = $E['nota'] ?? [];
 $dm = $F['medicamento'] ?? ['FechMedi' => date('Y-m-d'), 'HoraMedi' => date('H:i')];
 $em = $E['medicamento'] ?? [];
+$dt = $F['material'] ?? ['FechMate' => date('Y-m-d'), 'HoraMate' => date('H:i')];
+$et = $E['material'] ?? [];
 ?>
-<?= panel_abrir('notas', '7. Notas de enfermería', 'clipboard-list', $tab, count($notas) . ' notas · ' . count($aplicados) . ' medicamentos aplicados') ?>
+<?= panel_abrir('notas', '7. Notas de enfermería', 'clipboard-list', $tab, count($notas) . ' notas · ' . count($aplicados) . ' medicamentos aplicados · ' . count($materiales) . ' materiales') ?>
 <?php if ($editable): ?>
     <div class="panel-cuerpo panel-dos">
     <form method="post" action="<?= e($aqui) ?>&amp;tab=notas" class="formulario formulario-panel" data-una-vez>
@@ -49,6 +52,23 @@ $em = $E['medicamento'] ?? [];
             <?= botones_panel('Registrar aplicación') ?>
         <?php endif; ?>
     </form>
+
+    <form method="post" action="<?= e($aqui) ?>&amp;tab=notas" class="formulario formulario-panel" data-una-vez>
+        <?= csrf_campo() ?>
+        <input type="hidden" name="accion" value="material">
+        <h3 class="titulo-form"><?= icono('clipboard-plus') ?>Materiales usados</h3>
+        <?= errores_resumen($et) ?>
+        <div class="rejilla">
+            <?= campos_fecha_hora('FechMate', 'HoraMate', $dt, $et) ?>
+            <?= campo_buscador('CodiMate', 'Material o suministro', $dt, $et, 'suministros', true) ?>
+            <?= campo_lista('UnidMate', 'Unidad', 'CodiUnid', $dt, $et) ?>
+            <div><label for="CantMate">Cantidad <span class="obligatorio" aria-hidden="true">*</span></label>
+                <input type="number" id="CantMate" name="CantMate" value="<?= v($dt, 'CantMate') ?>" step="any" min="0" inputmode="decimal" class="<?= ce($et, 'CantMate') ?>" required><?= me($et, 'CantMate') ?></div>
+            <div class="c-ancho-rejilla"><label for="MateObse">Observación</label>
+                <input type="text" id="MateObse" name="MateObse" value="<?= v($dt, 'MateObse') ?>" maxlength="255"></div>
+        </div>
+        <?= botones_panel('Registrar material') ?>
+    </form>
     </div>
 <?php endif; ?>
 
@@ -83,6 +103,29 @@ $em = $E['medicamento'] ?? [];
                 <td><strong><?= e($m['CodiMedi']) ?></strong> · <?= e($m['NombSumi'] ?? '') ?></td>
                 <td class="num"><?= e((float) $m['CantMedi']) ?> <?= e(lista_nombre('UnidMedi', $m['UnidMedi'])) ?></td>
                 <td><?= e(lista_nombre('ViaAdmi', $m['ViaAdmi'])) ?></td>
+                <td><?= e($m['IndiAdic']) ?></td>
+                <td><?= e($m['UsuaAsis']) ?></td>
+            </tr>
+        <?php endforeach; ?>
+        </tbody>
+    </table>
+    </div>
+<?php endif; ?>
+
+<h3 class="titulo-tabla"><?= icono('history') ?>Materiales usados</h3>
+<?php if (!$materiales): ?>
+    <?= panel_vacio('No hay materiales registrados.') ?>
+<?php else: ?>
+    <div class="tabla-contenedor">
+    <table class="tabla">
+        <thead><tr><th>#</th><th>Fecha</th><th>Material</th><th class="num">Cantidad</th><th>Observación</th><th>Registró</th></tr></thead>
+        <tbody>
+        <?php foreach ($materiales as $m): ?>
+            <tr>
+                <td><span class="contador"><?= (int) $m['ConsHoMa'] ?></span></td>
+                <td class="sin-salto"><?= e(fecha_hora($m['FechMate'] . ' ' . $m['HoraMate'])) ?></td>
+                <td><strong><?= e($m['CodiMate']) ?></strong> · <?= e($m['NombSumi'] ?? '') ?></td>
+                <td class="num"><?= e((float) $m['CantMate']) ?> <?= e(lista_nombre('CodiUnid', $m['UnidMate'])) ?></td>
                 <td><?= e($m['IndiAdic']) ?></td>
                 <td><?= e($m['UsuaAsis']) ?></td>
             </tr>
