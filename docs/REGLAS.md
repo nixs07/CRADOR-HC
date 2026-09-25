@@ -11,8 +11,11 @@
 ## Número de admisión (ConsAdmi)
 
 - Formato `AAAAMMDD` + consecutivo de 4 dígitos del día de digitación (ej. `202609240001`). `varchar(12)`.
-- En la contingencia la admisión lleva un número temporal. **Al cargar a SIHOS** se busca la última admisión
-  de ese día en SIHOS y se asigna la siguiente. La fecha real de ingreso (`FechIngr`) se conserva.
+- En la contingencia la admisión lleva un número **temporal**: `C` + `AAMMDD` + consecutivo de 5 dígitos
+  (ej. `C26092500001`, 12 caracteres). Nunca choca con SIHOS, que usa solo dígitos. Se reserva con
+  `GET_LOCK('crador_consadmi')` para que dos equipos no saquen el mismo (probado con 12 procesos en paralelo).
+- **Al cargar a SIHOS** se busca la última admisión de ese día en SIHOS y se asigna la siguiente. La fecha real
+  de ingreso (`FechIngr`) se conserva.
 - Todos los demás consecutivos (ConsOrde, ConsPres, ConsEvol, ConsSign, ConsHoEn...) son **por admisión**:
   no chocan con SIHOS.
 
@@ -22,6 +25,38 @@ Paciente (si no existe) → Admision → EncaData → EncaOrde → EncaPres → 
 (DetaData, DetaOrde, DetaPres, DetaPrue, Triage, SignVita, RipsCons, EstaGene, Antecede, HojaEnfe, HojaMedi,
 HojaMate, HojaLAdm, EvolInte, TrasCama, Remision, IncaPaci, SaliInte).
 Cada admisión entra completa o no entra (transacción por admisión). La base de SIHOS no tiene triggers.
+
+## Triage
+
+- `Triage.ConsTria` **no es por admisión**: es el número de triage **del paciente** en toda su historia
+  (1, 2, 3...). En la contingencia se calcula con los triages locales; **al cargar se recalcula** con
+  `MAX(ConsTria)` del paciente en SIHOS + 1.
+- La pantalla de triage de SIHOS guarda también la toma de signos No. 1 (`SignVita.ConsSign = 1`,
+  `SintResp = SintPiel = 2`) y actualiza `Admision.ClasTria`. Las tomas posteriores llevan `SintResp = SintPiel = 0`.
+- `Triage.CodiInst` tiene por defecto `734430295601` en la estructura: **siempre** se escribe `868650001001`.
+
+## Signos vitales
+
+- `MasaCorp` (IMC) = peso / (talla en metros)²; `TM` (presión arterial media) = (sistólica + 2 × diastólica) / 3.
+- `CodiModu`: 6 Urgencias, 8 Observación, 5 Consulta Externa. `ValoEdad`/`UnidEdad` se copian de la admisión.
+
+## Valores fijos de la admisión (lo que SIHOS guarda en la práctica, ago-sep 2026)
+
+`EstaIngr = 1`, `EntoAten = 20`, `VienRefe = 0`, `CentCost = CentEgre = ''`, `NumePoli = ''`, `Reingres = 0`,
+`ServEgre = CodiServ`, `CamaActu = CodiCama` (solo Observación lleva cama), `MotiCons = '.'` si no se escribe.
+Por módulo: Urgencias vía de ingreso 1, Observación 1, Consulta Externa 2; causa externa habitual 13;
+grupo poblacional O; condición de la usuaria 4 (mujer) o 5 (no aplica).
+
+## Contratos y categorías
+
+- Contrato "activo" = `Contrato.EstaCont = 1`. **No se usan las fechas**: los contratos más usados tienen
+  `FechFiCo` vencida (2025-12-31) y SIHOS los sigue aceptando.
+- La categoría (`CodiEstr`) se valida contra `AdmiEstr` por EPS + `TipoAten` + `TipoAfil` (`EstaEstr = 1`).
+
+## Pacientes nuevos
+
+Un paciente que no está en la copia local se crea en `Paciente` y queda marcado en `cont_paciente`
+(`accion = 'nuevo'`). Al cargar: si ya existe en SIHOS (lo crearon mientras tanto) no se toca; si no, se inserta.
 
 ## Orden médica
 

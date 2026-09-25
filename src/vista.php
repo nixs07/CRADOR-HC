@@ -25,6 +25,10 @@ function vista_inicio(string $titulo): void
     <?php if ($u): ?>
     <nav class="barra-menu">
         <a href="index.php" class="<?= $pagina === 'index.php' ? 'activo' : '' ?>">Tablero</a>
+        <a href="pacientes.php" class="<?= in_array($pagina, ['pacientes.php', 'paciente_nuevo.php', 'admision_nueva.php'], true) ? 'activo' : '' ?>">Pacientes</a>
+        <?php foreach (MODULOS_DETALLE as $clave => $m): ?>
+            <a href="admisiones.php?modulo=<?= e($clave) ?>" class="<?= ($pagina === 'admisiones.php' && ($_GET['modulo'] ?? '') === $clave) ? 'activo' : '' ?>"><?= e($m['nombre']) ?></a>
+        <?php endforeach; ?>
         <?php if (es_admin()): ?>
             <a href="catalogos.php" class="<?= $pagina === 'catalogos.php' ? 'activo' : '' ?>">Catálogos</a>
         <?php endif; ?>

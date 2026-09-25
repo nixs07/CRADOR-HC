@@ -23,9 +23,10 @@ vista_inicio('Tablero');
 
 <h2>Admisiones abiertas por módulo</h2>
 <div class="tarjetas">
-    <?php foreach ($modulos as $nombre => $m): ?>
+    <?php foreach ($modulos as $nombre => $m):
+        $clave = array_search($nombre, array_map(fn ($d) => $d['nombre'], MODULOS_DETALLE), true) ?: null; ?>
         <div class="tarjeta">
-            <div class="tarjeta-titulo"><?= e($nombre) ?></div>
+            <div class="tarjeta-titulo"><?= $clave ? '<a href="admisiones.php?modulo=' . e($clave) . '">' . e($nombre) . '</a>' : e($nombre) ?></div>
             <div class="tarjeta-numero"><?= numero($m['abiertas']) ?></div>
             <div class="tarjeta-nota">Servicio <?= e(implode(', ', $m['servicios'])) ?> · abiertas</div>
         </div>

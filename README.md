@@ -27,8 +27,8 @@ Las tablas tienen **exactamente los mismos nombres y columnas que SIHOS** (ver `
 | `sql/02_catalogos.sql` | 24 catálogos principales que se copian de SIHOS (Paciente, Contrato, CodiAdmi, CausMorb, CodiProc...) |
 | `sql/03_catalogos_listas.sql` | 37 catálogos de listas desplegables (TipoDocu, ViaIngre, ViaAdmi, UnidMedi, CausSali, DestSali...) |
 | `sql/99_datos_prueba.sql` | Datos inventados para pruebas. **No** se cargan solos; nunca en producción. |
-| `public/` | Páginas web (lo único que publica Apache): login, tablero, catálogos, CSS |
-| `src/` | Código PHP común: configuración, conexión PDO, sesión/CSRF, catálogos, tablero |
+| `public/` | Páginas web (lo único que publica Apache): login, tablero, pacientes, admisiones, triage, signos, CSS/JS |
+| `src/` | Código PHP común: configuración, conexión PDO, sesión/CSRF, catálogos, listas, atención clínica |
 | `bin/` | Tareas por línea de comandos (`actualizar_catalogos.php` y su `.bat` para el Programador de tareas) |
 | `docker/` | Dockerfile de la app y scripts de la base (datos de prueba, respaldo, restauración) |
 | `docs/` | Reglas de negocio (`REGLAS.md`) e instalación (`INSTALACION.md`) |
@@ -46,7 +46,11 @@ Abrir <http://localhost:8080>. Guía completa: [`docs/INSTALACION.md`](docs/INST
 ## Estado
 
 - **Fase 1 (hecha):** Docker, login con usuarios de SIHOS, tablero, actualización de catálogos, tablas de control.
-- **Fase 2:** módulos clínicos (admisión, triage, signos vitales, órdenes, prescripción, notas, evolución, egreso...).
+- **Fase 2 — bloque 1 (hecho):** buscar y crear pacientes, nueva admisión con encabezado completo (EPS, contrato
+  activo, categoría, vía de ingreso, causa externa, cama en Observación, acompañante), lista de pacientes abiertos
+  por módulo, ficha de la admisión, triage (Urgencias) y signos vitales.
+- **Fase 2 — siguientes bloques:** anamnesis y diagnósticos (RipsCons, EstaGene, Antecede), orden médica, órdenes y
+  procedimientos, fórmula y medicamentos, materiales, notas de enfermería, evolución, traslado de cama y egreso.
 - **Fase 3:** carga a SIHOS por el administrador (`cont_carga_sihos`).
 
 ## Stack

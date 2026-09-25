@@ -151,6 +151,85 @@ input:focus { outline: 2px solid #9cc3ec; border-color: var(--primario); }
 .etiqueta-parcial, .etiqueta-omitida, .etiqueta-en_curso { background: var(--aviso-fondo); color: var(--aviso); }
 .etiqueta-error { background: var(--error-fondo); color: var(--error); }
 
+/* --- Formularios clinicos (fase 2) --- */
+.formulario fieldset {
+    background: var(--superficie);
+    border: 1px solid var(--borde);
+    border-radius: var(--radio);
+    padding: 12px 18px 18px;
+    margin: 0 0 16px;
+}
+.formulario legend { font-weight: 700; padding: 0 6px; color: var(--primario); }
+.rejilla { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 0 16px; }
+.rejilla-signos { grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); }
+select, textarea, input[type="date"], input[type="time"], input[type="number"] {
+    width: 100%;
+    font: inherit;
+    padding: 8px 10px;
+    border: 1px solid var(--borde);
+    border-radius: 6px;
+    background: #fff;
+}
+textarea { resize: vertical; }
+select:focus, textarea:focus { outline: 2px solid #9cc3ec; border-color: var(--primario); }
+.con-error { border-color: var(--error) !important; background: #fffafa; }
+.error-campo { color: var(--error); font-size: 13px; margin-top: 3px; }
+.nota-campo { color: var(--texto-suave); font-size: 13px; margin-top: 3px; min-height: 1em; }
+.alerta ul { margin: 6px 0 0; padding-left: 20px; }
+.acciones { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 4px; }
+.calculado { display: flex; flex-direction: column; justify-content: flex-end; padding-bottom: 8px; }
+.calculado span { font-size: 13px; color: var(--texto-suave); font-weight: 600; margin-top: 14px; }
+.calculado strong { font-size: 20px; }
+
+.buscador { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 18px; }
+.buscador input { flex: 1; min-width: 240px; }
+.boton-chico { padding: 3px 9px; font-size: 13px; margin: 2px 2px 2px 0; }
+.titulo-con-acciones { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
+.titulo-con-acciones h1, .titulo-con-acciones h2 { margin-bottom: 12px; }
+.migas { margin: 0 0 10px; font-size: 14px; }
+.sin-salto { white-space: nowrap; }
+
+/* Encabezado del paciente */
+.encabezado-paciente {
+    display: flex; justify-content: space-between; flex-wrap: wrap; gap: 10px 24px;
+    background: var(--superficie); border: 1px solid var(--borde); border-left: 5px solid var(--primario);
+    border-radius: var(--radio); padding: 12px 18px; margin-bottom: 16px;
+}
+.ep-nombre { font-size: 19px; font-weight: 700; }
+.ep-datos, .ep-admision { font-size: 14px; color: var(--texto-suave); }
+.ep-admision { text-align: right; }
+
+/* Pestanas de la ficha */
+.pestanas { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0 8px; }
+.pestanas a, .pestana-proxima {
+    padding: 6px 12px; border-radius: 16px; font-size: 14px; border: 1px solid var(--borde);
+    background: var(--superficie); text-decoration: none;
+}
+.pestana-proxima { color: #8a94a3; background: #eef0f3; cursor: not-allowed; }
+.seccion { margin-top: 8px; }
+
+/* Datos en lista */
+.datos { display: grid; grid-template-columns: minmax(160px, 220px) 1fr; gap: 6px 16px; margin: 0;
+         background: var(--superficie); border: 1px solid var(--borde); border-radius: var(--radio); padding: 14px 18px; }
+.datos dt { font-weight: 600; color: var(--texto-suave); }
+.datos dd { margin: 0; }
+.texto-largo { white-space: pre-wrap; }
+
+/* Colores de triage (I rojo ... V azul) */
+.triage-1 { background: #b42318; color: #fff; }
+.triage-2 { background: #e8590c; color: #fff; }
+.triage-3 { background: #f2c200; color: #3b2f00; }
+.triage-4 { background: #2f9e44; color: #fff; }
+.triage-5 { background: #1c7ed6; color: #fff; }
+.etiqueta-pendiente { background: var(--aviso-fondo); color: var(--aviso); }
+.etiqueta-cargada { background: var(--ok-fondo); color: var(--ok); }
+
+@media (max-width: 640px) {
+    .ep-admision { text-align: left; }
+    .datos { grid-template-columns: 1fr; }
+    .datos dt { margin-top: 6px; }
+}
+
 @media (max-width: 640px) {
     .barra { padding: 10px 14px; }
     .contenido { padding: 14px; }
