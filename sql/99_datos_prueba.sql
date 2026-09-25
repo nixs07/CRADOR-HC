@@ -92,6 +92,47 @@ REPLACE INTO CausMorb (CodiDiag, NombCaus, Activo) VALUES ('R101', 'DOLOR ABDOMI
  ('R509', 'FIEBRE, NO ESPECIFICADA', 1), ('J00X', 'RINOFARINGITIS AGUDA (RESFRIADO COMUN)', 1), ('A09X', 'DIARREA Y GASTROENTERITIS DE PRESUNTO ORIGEN INFECCIOSO', 1),
  ('R51X', 'CEFALEA', 1), ('I10X', 'HIPERTENSION ESENCIAL (PRIMARIA)', 1), ('Z000', 'EXAMEN MEDICO GENERAL', 1);
 
+-- --- Catalogos para las pestañas de la historia (fase 2, bloque 2) ---------
+-- Filas INVENTADAS con codigos plausibles (RIPS / CUPS / CUM de ejemplo). En produccion
+-- estos catalogos se copian de SIHOS con "Actualizar catalogos".
+REPLACE INTO FinaCons (CodiFina, NombFina, Formular, Activo) VALUES
+ ('10', 'NO APLICA', '', 1), ('01', 'ATENCION DEL PARTO (PUERPERIO)', '', 1),
+ ('07', 'DETECCION DE ALTERACIONES DEL ADULTO', '', 1);
+REPLACE INTO TipoDiag (CodiDiag, NombDiag) VALUES (1, 'IMPRESION DIAGNOSTICA'), (2, 'CONFIRMADO NUEVO'), (3, 'CONFIRMADO REPETIDO');
+REPLACE INTO CodiProc (CodiProc, NombProc, CodiCups, CodiSoat, CodiISS, TipoServ, TrasCheck, TrasChek, Activo) VALUES
+ ('890201', 'CONSULTA DE PRIMERA VEZ POR MEDICINA GENERAL', '890201', '', '', 1, 0, 0, 1),
+ ('890701', 'CONSULTA DE URGENCIAS POR MEDICINA GENERAL', '890701', '', '', 1, 0, 0, 1),
+ ('890601', 'CUIDADO (MANEJO) INTRAHOSPITALARIO POR MEDICINA GENERAL', '890601', '', '', 1, 0, 0, 1),
+ ('902210', 'HEMOGRAMA IV (HEMOGLOBINA HEMATOCRITO RECUENTO DE ERITROCITOS...)', '902210', '', '', 2, 0, 0, 1),
+ ('903841', 'GLUCOSA EN SUERO U OTRO FLUIDO DIFERENTE A ORINA', '903841', '', '', 2, 0, 0, 1),
+ ('907106', 'UROANALISIS', '907106', '', '', 2, 0, 0, 1),
+ ('871121', 'RADIOGRAFIA DE TORAX (P.A. O A.P. Y LATERAL)', '871121', '', '', 3, 0, 0, 1),
+ ('939403', 'TERAPIA RESPIRATORIA (NEBULIZACION)', '939403', '', '', 4, 0, 0, 1),
+ ('869500', 'CURACION DE HERIDA', '869500', '', '', 4, 0, 0, 1);
+REPLACE INTO CodiSumi (CodiSumi, NombSumi, CodiGrup, UnidMedi, SumiActi, NumeSeri, ModeDevo, RotuDevo, FechComp, UltiDepr,
+                       BodeActu, CodiServ, TiDoReSe, NuDoReSe, CodiDocu, NumeDocu, ConsDevo, EstaDevo, CodiTerc, NumeTerc,
+                       NumeFact, FechVida, MeDeprec, MeseDepr, DiasDepr) VALUES
+ ('MP0001', 'ACETAMINOFEN 500 MG TABLETA', 'MED', 3, 1, '', '', '', '0000-00-00', '0000-00-00', 0, '', '', '', '', 0, 0, 0, '', '', '', '0000-00-00', 0, 0, 0),
+ ('MP0002', 'DIPIRONA 1 G / 2 ML SOLUCION INYECTABLE', 'MED', 4, 1, '', '', '', '0000-00-00', '0000-00-00', 0, '', '', '', '', 0, 0, 0, '', '', '', '0000-00-00', 0, 0, 0),
+ ('MP0003', 'CLORURO DE SODIO 0.9% SOLUCION 500 ML', 'MED', 2, 1, '', '', '', '0000-00-00', '0000-00-00', 0, '', '', '', '', 0, 0, 0, '', '', '', '0000-00-00', 0, 0, 0),
+ ('MP0004', 'OMEPRAZOL 20 MG CAPSULA', 'MED', 3, 1, '', '', '', '0000-00-00', '0000-00-00', 0, '', '', '', '', 0, 0, 0, '', '', '', '0000-00-00', 0, 0, 0),
+ ('MP0005', 'METOCLOPRAMIDA 10 MG / 2 ML SOLUCION INYECTABLE', 'MED', 4, 1, '', '', '', '0000-00-00', '0000-00-00', 0, '', '', '', '', 0, 0, 0, '', '', '', '0000-00-00', 0, 0, 0);
+REPLACE INTO ViaAdmi (CodiVia, codigo, NombVia, activo) VALUES (1, '048', 'ORAL', 1), (2, '042', 'INTRAVENOSA', 1),
+ (3, '030', 'INTRAMUSCULAR', 1), (4, '058', 'SUBCUTANEA', 1), (5, '067', 'TOPICA', 1);
+REPLACE INTO UnidMedi (CodiUnid, NombUnid, ViaAdmi) VALUES (1, 'MG', 1), (2, 'ML', 2), (3, 'TABLETA', 1), (4, 'AMPOLLA', 2), (5, 'GOTAS', 1);
+REPLACE INTO CodiTiem (CodiTiem, codigo, NombTiem, activo) VALUES (1, '1', 'HORA(S)', 1), (2, '2', 'DIA(S)', 1), (3, '3', 'MES(ES)', 1);
+REPLACE INTO FinaProc (CodiFina, NombFina, FinaProcSispro, Activo) VALUES (1, 'DIAGNOSTICO', 15, 1), (2, 'TERAPEUTICO', 16, 1),
+ (3, 'PROTECCION ESPECIFICA', 17, 1), (4, 'DETECCION TEMPRANA', 18, 1);
+REPLACE INTO TipoNota (CodiTipo, NombTipo) VALUES (1, 'NOTA DE ENFERMERIA'), (2, 'NOTA DE TRASLADO'), (5, 'CONSENTIMIENTO INFORMADO');
+REPLACE INTO CausSali (CodiCaus, NombCaus) VALUES (1, 'ALTA MEDICA'), (2, 'REMISION'), (3, 'ALTA VOLUNTARIA'), (4, 'FUGA'), (5, 'MUERTE');
+REPLACE INTO DestSali (CodiDest, NombDest, Activo) VALUES ('01', 'DOMICILIO', 1), ('02', 'REMITIDO A OTRA INSTITUCION', 1),
+ ('03', 'HOSPITALIZACION', 1), ('04', 'OBSERVACION', 1);
+REPLACE INTO EstaSali (Codigo, EstaSaliSisPro, EstaSali) VALUES (1, '01', 'VIVO'), (2, '02', 'MUERTO');
+REPLACE INTO TipoEgre (CodiTipo, NombTipo, FechDigi, HoraDigi, FechModi, HoraModi) VALUES
+ (1, 'ALTA', CURDATE(), CURTIME(), CURDATE(), CURTIME()), (2, 'REMISION', CURDATE(), CURTIME(), CURDATE(), CURTIME()),
+ (3, 'MUERTE', CURDATE(), CURTIME(), CURDATE(), CURTIME());
+REPLACE INTO CausMorb (CodiDiag, NombCaus, Activo) VALUES ('K297', 'GASTRITIS, NO ESPECIFICADA', 1), ('E86X', 'DEPLECION DEL VOLUMEN', 1);
+
 -- --- Pacientes (inventados) ---------------------------------------------
 REPLACE INTO Paciente (TipoDocu, NumeUsua, NombUsua, NombUsu1, Ape1Usua, Ape2Usua, CodiAdmi, TipoUsua, TipoAfil,
                        NumeCont, FechNaci, SexoUsua, ResiDepa, ResiMuni, ResiZona, DireResi, TeleCelu, FechDigi, UsuaDigi) VALUES

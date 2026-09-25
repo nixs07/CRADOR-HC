@@ -28,6 +28,18 @@ const LISTAS = [
     'Serv'     => ['CodiServ', 'CodiServ', 'NombServ', ''],
     'ClasTria' => ['ClasTria', 'CodiTria', 'NombTria', ''],
     'CondTria' => ['CondTria', 'CodiTipo', 'NombTipo', ''],
+    // Pestañas de la historia (fase 2, bloque 2)
+    'FinaCons' => ['FinaCons', 'CodiFina', 'NombFina', '(Activo = 1 OR Activo IS NULL)'],
+    'TipoDiag' => ['TipoDiag', 'CodiDiag', 'NombDiag', ''],
+    'ViaAdmi'  => ['ViaAdmi', 'CodiVia', 'NombVia', '(activo = 1 OR activo IS NULL)'],
+    'UnidMedi' => ['UnidMedi', 'CodiUnid', 'NombUnid', ''],
+    'CodiTiem' => ['CodiTiem', 'CodiTiem', 'NombTiem', '(activo = 1 OR activo IS NULL)'],
+    'FinaProc' => ['FinaProc', 'CodiFina', 'NombFina', 'Activo = 1'],
+    'TipoNota' => ['TipoNota', 'CodiTipo', 'NombTipo', ''],
+    'CausSali' => ['CausSali', 'CodiCaus', 'NombCaus', ''],
+    'DestSali' => ['DestSali', 'CodiDest', 'NombDest', 'Activo = 1'],
+    'EstaSali' => ['EstaSali', 'Codigo', 'EstaSali', ''],
+    'TipoEgre' => ['TipoEgre', 'CodiTipo', 'NombTipo', ''],
 ];
 
 /** Devuelve [codigo => nombre] de una lista, ordenada por nombre (se guarda en memoria por peticion). */

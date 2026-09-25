@@ -6,10 +6,12 @@
  *   api.php?que=estratos&admi=ESS118&aten=3&afil=D
  *   api.php?que=camas&serv=008
  *   api.php?que=diagnosticos&q=R10
+ *   api.php?que=procedimientos&q=8902   (CodiProc activos, por código o nombre)
+ *   api.php?que=suministros&q=ACETA    (CodiSumi activos, por código o nombre)
  * Solo lectura y solo con sesion iniciada.
  */
 require __DIR__ . '/../src/inicio.php';
-require __DIR__ . '/../src/atencion.php';
+require __DIR__ . '/../src/historia.php';
 
 header('Content-Type: application/json; charset=utf-8');
 header('Cache-Control: no-store');
@@ -49,6 +51,12 @@ switch ($_GET['que'] ?? '') {
         break;
     case 'diagnosticos':
         $r = array_map(fn ($f) => ['c' => $f['CodiDiag'], 'n' => $f['NombCaus']], diagnosticos_buscar($g('q', 60)));
+        break;
+    case 'procedimientos':
+        $r = procedimientos_buscar($g('q', 60));
+        break;
+    case 'suministros':
+        $r = suministros_buscar($g('q', 60));
         break;
     default:
         http_response_code(400);
