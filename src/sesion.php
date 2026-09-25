@@ -187,7 +187,7 @@ function modulo_elegir(?string $clave): void
 
 /**
  * Pagina de inicio segun el usuario: el administrador va al tablero; el profesional
- * va a las historias abiertas de su modulo, o a elegir modulo si aun no tiene.
+ * va a la pantalla de trabajo de su modulo, o a elegir modulo si aun no tiene.
  */
 function pagina_inicio(): string
 {
@@ -195,5 +195,5 @@ function pagina_inicio(): string
         return 'index.php';
     }
     $m = modulo_actual();
-    return $m ? 'admisiones.php?modulo=' . $m : 'modulo.php';
+    return $m ? 'atencion.php?modulo=' . $m : 'modulo.php';
 }

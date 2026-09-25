@@ -1,44 +1,52 @@
-# Capturas de pantalla (fase 2, bloque 1 · nuevo diseño)
+# Capturas de pantalla (fase 2, bloque 1 · pantalla de trabajo por módulo)
 
 Tomadas el 25/09/2026 con la app corriendo en Docker (`docker compose up -d`) y los **datos de prueba
 inventados** (`docker compose exec db sh /crador/cargar_datos_prueba.sh`). Ningún dato es de pacientes reales.
 Usuario: `MEDPRUEBA` / `prueba123` (la captura 19 es con `NIXON07`, administrador).
 
 Se generan con `recorrido.js` (Playwright), que además comprueba el flujo completo: ingreso, elegir módulo,
-crear paciente, 3 admisiones (una por módulo), triage, toma de signos No. 2, salir e ingreso del administrador:
+el médico no puede abrir el tablero, buscar documento en el encabezado, crear paciente, 3 admisiones (una por
+módulo) creadas en el encabezado, triage, toma de signos No. 2, salir e ingreso del administrador:
 
 ```sh
 OUT=docs/capturas NODE_PATH=$(npm root -g) node docs/capturas/recorrido.js
 ```
 
-Flujo: después del ingreso el profesional **elige el módulo** (23). Dentro del módulo la pantalla principal es
-**Historias abiertas** (15-17) y cada historia tiene el encabezado de la admisión y pestañas numeradas como en
-SIHOS (7, 9, 11, 14). El triage y los signos se llenan **dentro de la historia**, en su pestaña (12, 13):
-al guardar se vuelve a la misma pestaña (`admision.php?id=...&tab=triage|signos`). El tablero (2, 18, 19) queda para el administrador y como opción "Tablero general".
+## Flujo (como en SIHOS)
 
-| # | Pantalla | Archivo |
-| --- | --- | --- |
-| 1 | Ingreso (login) | `01_login.png` |
-| 2 | Tablero general | `02_tablero.png` |
-| 3 | Nueva admisión: búsqueda de pacientes | `03_pacientes_busqueda.png` |
-| 4 | Nuevo paciente | `04_paciente_nuevo.png` |
-| 5 | Paciente creado (búsqueda con botones para abrir admisión) | `05_paciente_creado.png` |
-| 6 | Nueva admisión · Urgencias | `06_admision_nueva_urg.png` |
-| 7 | Historia de Urgencias (sin triage) | `07_ficha_urg.png` |
-| 8 | Nueva admisión · Observación e Internación (con cama) | `08_admision_nueva_obs.png` |
-| 9 | Historia de Observación | `09_ficha_obs.png` |
-| 10 | Nueva admisión · Consulta Externa | `10_admision_nueva_ce.png` |
-| 11 | Historia de Consulta Externa | `11_ficha_ce.png` |
-| 12 | Pestaña 1. Triage dentro de la historia (orden de SIHOS, signos en fila compacta, IMC y TM calculados) | `12_triage.png` |
-| 13 | Pestaña 2. Signos vitales: nueva toma arriba y tomas anteriores abajo | `13_signos.png` |
-| 14 | Historia de Urgencias con triage y dos tomas de signos | `14_ficha_urg_con_triage_y_signos.png` |
-| 15 | Historias abiertas · Urgencias | `15_lista_urg.png` |
-| 16 | Historias abiertas · Observación e Internación | `16_lista_obs.png` |
-| 17 | Historias abiertas · Consulta Externa | `17_lista_ce.png` |
-| 18 | Tablero después de registrar | `18_tablero_final.png` |
-| 19 | Tablero del administrador | `19_tablero_administrador.png` |
-| 20 | Celular · Tablero | `20_movil_tablero.png` |
-| 21 | Celular · Historias abiertas de Urgencias (filas como tarjetas) | `21_movil_lista_urg.png` |
-| 22 | Celular · Historia | `22_movil_ficha.png` |
-| 23 | Selección de módulo (después del ingreso) | `23_seleccion_modulo.png` |
-| 24 | Celular · Menú lateral abierto | `24_movil_menu.png` |
+1. Después del ingreso el profesional **elige el módulo** (23). El tablero es solo del administrador (19).
+2. Cada módulo tiene **una sola pantalla de trabajo** (`atencion.php`): encabezado de la admisión arriba y
+   pestañas numeradas debajo. Al entrar se abre la ventana **Historias abiertas** (15-17); clic en la fila
+   carga la admisión.
+3. **Nueva admisión** en el mismo encabezado: se escribe el documento y se pulsa Buscar. Si el paciente no
+   existe se crea (4, 5) y se vuelve con el documento cargado; si existe, el encabezado queda editable (6, 8, 10).
+4. Con la admisión cargada, el encabezado queda en modo lectura y se trabaja por pestañas: 1. Triage
+   (solo Urgencias), 2. Consultas, 3. Signos vitales, 4. Prescripción … 9. Egreso (las que faltan: "Próximamente").
+   Pie con **Volver a historias abiertas** y **Continuar**.
+
+| Archivo | Pantalla |
+| --- | --- |
+| `01_login.png` | Ingreso |
+| `23_seleccion_modulo.png` | Selección de módulo |
+| `15_lista_urg.png` | Urgencias: ventana de historias abiertas |
+| `03_pacientes_busqueda.png` | Búsqueda de pacientes por nombre (botón "…") |
+| `04_paciente_nuevo.png` | Paciente nuevo |
+| `05_paciente_creado.png` | De vuelta en el módulo con el documento cargado (encabezado en modo nueva admisión) |
+| `06_admision_nueva_urg.png` | Encabezado en modo nueva admisión · Urgencias |
+| `07_ficha_urg.png` | Admisión cargada · pestaña 1. Triage lista para llenar |
+| `08_admision_nueva_obs.png` | Nueva admisión · Observación e Internación (con cama) |
+| `09_ficha_obs.png` | Admisión cargada · Observación (pestaña 3. Signos vitales) |
+| `10_admision_nueva_ce.png` | Nueva admisión · Consulta Externa |
+| `11_ficha_ce.png` | Admisión cargada · Consulta Externa |
+| `12_triage.png` | Triage lleno (signos en fila compacta, IMC y TM calculados) |
+| `13_signos.png` | Pestaña 3. Signos vitales: nueva toma arriba, tomas anteriores abajo |
+| `14_ficha_urg_con_triage_y_signos.png` | Después de guardar la toma No. 2 |
+| `16_lista_obs.png` | Observación: historias abiertas |
+| `17_lista_ce.png` | Consulta Externa: historias abiertas |
+| `19_tablero_administrador.png` | Tablero (solo administrador) |
+| `20_movil_seleccion_modulo.png` | Celular · selección de módulo |
+| `21_movil_lista_urg.png` | Celular · historias abiertas (filas como tarjetas) |
+| `22_movil_ficha.png` | Celular · admisión cargada, pestaña Triage |
+| `25_movil_signos.png` | Celular · pestaña Signos vitales |
+| `26_movil_nueva_admision.png` | Celular · encabezado en modo nueva admisión |
+| `24_movil_menu.png` | Celular · menú lateral |

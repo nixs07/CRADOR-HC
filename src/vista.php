@@ -56,6 +56,7 @@ function vista_inicio(string $titulo): void
     <link rel="stylesheet" href="css/estilo.css">
 </head>
 <body class="<?= $u ? 'con-menu' : 'sin-menu' ?>">
+<script>try { if (localStorage.getItem('menuColapsado') === '1') { document.body.classList.add('menu-colapsado'); } } catch (e) {}</script>
 <a class="saltar" href="#contenido">Saltar al contenido</a>
 <?php if ($u): ?>
 <aside class="lateral" id="menu-lateral" aria-label="Menú principal">
@@ -70,20 +71,19 @@ function vista_inicio(string $titulo): void
     </div>
     <nav class="menu">
         <?php if ($modulo): ?>
-            <div class="menu-grupo">Atención</div>
-            <a href="admisiones.php?modulo=<?= e($modulo) ?>"<?= $activo(in_array($pagina, ['admisiones.php', 'admision.php'], true)) ?>><?= icono('clipboard-list') ?><span>Historias abiertas</span></a>
-            <a href="pacientes.php"<?= $activo(in_array($pagina, ['pacientes.php', 'paciente_nuevo.php', 'admision_nueva.php'], true)) ?>><?= icono('user-plus') ?><span>Nueva admisión</span></a>
+            <div class="menu-modulo">
+                <span class="tarjeta-icono icono-<?= e($modulo) ?>"><?= icono(MODULOS_ICONO[$modulo]) ?></span>
+                <span><small>Módulo</small><strong><?= e(MODULOS_DETALLE[$modulo]['nombre']) ?></strong></span>
+            </div>
+            <a href="atencion.php?modulo=<?= e($modulo) ?>&amp;historias=1"<?= $activo($pagina === 'atencion.php' && !isset($_GET['nueva'])) ?> data-abrir-ventana="historias"><?= icono('clipboard-list') ?><span>Historias abiertas</span></a>
+            <a href="atencion.php?modulo=<?= e($modulo) ?>&amp;nueva=1"<?= $activo($pagina === 'atencion.php' && isset($_GET['nueva'])) ?>><?= icono('user-plus') ?><span>Nueva admisión</span></a>
         <?php endif; ?>
-
-        <div class="menu-grupo">General</div>
-        <a href="modulo.php"<?= $activo($pagina === 'modulo.php') ?>><?= icono('hospital') ?><span><?= $modulo ? 'Cambiar de módulo' : 'Elegir módulo' ?></span></a>
-        <?php if (!$modulo): ?>
-            <a href="pacientes.php"<?= $activo(in_array($pagina, ['pacientes.php', 'paciente_nuevo.php', 'admision_nueva.php'], true)) ?>><?= icono('users') ?><span>Pacientes</span></a>
-        <?php endif; ?>
-        <a href="index.php"<?= $activo($pagina === 'index.php') ?>><?= icono('layout-dashboard') ?><span>Tablero general</span></a>
+        <a href="pacientes.php"<?= $activo(in_array($pagina, ['pacientes.php', 'paciente_nuevo.php'], true)) ?>><?= icono('users') ?><span>Pacientes</span></a>
+        <a href="modulo.php"<?= $activo($pagina === 'modulo.php') ?>><?= icono('hospital') ?><span><?= $modulo ? 'Cambiar módulo' : 'Elegir módulo' ?></span></a>
 
         <?php if (es_admin()): ?>
             <div class="menu-grupo">Administración</div>
+            <a href="index.php"<?= $activo($pagina === 'index.php') ?>><?= icono('layout-dashboard') ?><span>Tablero</span></a>
             <a href="catalogos.php"<?= $activo($pagina === 'catalogos.php') ?>><?= icono('database') ?><span>Catálogos</span></a>
             <span class="menu-deshabilitado" aria-disabled="true" title="Disponible en la fase 3"><?= icono('cloud-upload') ?><span>Cargar a SIHOS</span><small>Fase 3</small></span>
         <?php endif; ?>
@@ -102,6 +102,9 @@ function vista_inicio(string $titulo): void
 <div class="principal">
     <?php if ($u): ?>
     <header class="superior">
+        <button type="button" class="boton-icono boton-colapsar" data-menu-colapsar aria-controls="menu-lateral" aria-expanded="true" aria-label="Contraer o expandir el menú" title="Contraer o expandir el menú">
+            <?= icono('menu') ?>
+        </button>
         <button type="button" class="boton-icono boton-menu" data-menu-abrir aria-controls="menu-lateral" aria-expanded="false" aria-label="Abrir menú">
             <?= icono('menu') ?>
         </button>

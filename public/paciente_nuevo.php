@@ -25,13 +25,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!$e) {
         paciente_crear($d, $u['Login']);
         flash('ok', 'Paciente creado. Ahora abra la admisión.');
-        redirigir('pacientes.php?q=' . urlencode($d['NumeUsua']));
+        // Vuelve a la pantalla del modulo con el documento cargado en el encabezado
+        $m = modulo_actual();
+        redirigir($m ? 'atencion.php?modulo=' . $m . '&TipoDocu=' . urlencode($d['TipoDocu']) . '&NumeUsua=' . urlencode($d['NumeUsua'])
+                     : 'pacientes.php?q=' . urlencode($d['NumeUsua']));
     }
 }
 
+$volverPac = modulo_actual() ? 'atencion.php?modulo=' . modulo_actual() . '&nueva=1' : 'pacientes.php';
 vista_inicio('Nuevo paciente');
 ?>
-<p class="migas"><a href="pacientes.php"><?= icono('arrow-left') ?>Pacientes</a></p>
+<p class="migas"><a href="<?= e($volverPac) ?>"><?= icono('arrow-left') ?>Volver</a></p>
 <div class="cabecera-pagina">
     <div>
         <div class="antetitulo"><?= icono('user-plus') ?>Registro</div>
@@ -103,7 +107,7 @@ vista_inicio('Nuevo paciente');
 
     <div class="acciones">
         <button type="submit" class="boton boton-primario"><?= icono('save') ?>Crear paciente</button>
-        <a href="pacientes.php" class="boton boton-claro">Cancelar</a>
+        <a href="<?= e($volverPac) ?>" class="boton boton-claro">Cancelar</a>
     </div>
 </form>
 <script src="js/formularios.js"></script>

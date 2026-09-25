@@ -1,7 +1,7 @@
 <?php
 /**
  * Seleccion del modulo de trabajo (como en SIHOS: Gestion > Urgencias, Observacion, Consulta Externa).
- * El profesional llega aqui despues del ingreso. El modulo queda en la sesion al abrir su lista.
+ * El profesional llega aqui despues del ingreso. El modulo queda en la sesion al entrar a su pantalla.
  */
 require __DIR__ . '/../src/inicio.php';
 require __DIR__ . '/../src/tablero.php';
@@ -30,7 +30,7 @@ vista_inicio('Elegir módulo');
 <div class="modulos">
     <?php foreach (MODULOS_DETALLE as $clave => $m):
         $n = $abiertas[$m['nombre']]['abiertas'] ?? 0; ?>
-        <a class="modulo modulo-<?= e($clave) ?><?= $actual === $clave ? ' modulo-actual' : '' ?>" href="admisiones.php?modulo=<?= e($clave) ?>">
+        <a class="modulo modulo-<?= e($clave) ?><?= $actual === $clave ? ' modulo-actual' : '' ?>" href="atencion.php?modulo=<?= e($clave) ?>">
             <span class="modulo-icono"><?= icono(MODULOS_ICONO[$clave]) ?></span>
             <span class="modulo-nombre"><?= e($m['nombre']) ?></span>
             <span class="modulo-texto"><?= e($descripcion[$clave] ?? '') ?></span>

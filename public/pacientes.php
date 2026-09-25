@@ -57,10 +57,10 @@ $urlCrear = 'paciente_nuevo.php' . (preg_match('/^[0-9A-Za-z]+$/', $q) ? '?NumeU
                     <td data-etiqueta="EPS"><?= e($p['CodiAdmi'] ? lista_nombre('Admi', $p['CodiAdmi']) : '—') ?></td>
                     <td data-etiqueta="Abrir admisión en" class="celda-acciones">
                         <?php if ($abierta): ?>
-                            <a href="admision.php?id=<?= e(urlencode($abierta['ConsAdmi'])) ?>" class="boton boton-claro boton-chico"><?= icono('file-text') ?>Admisión abierta <?= e($abierta['ConsAdmi']) ?></a>
+                            <a href="atencion.php?id=<?= e(urlencode($abierta['ConsAdmi'])) ?>" class="boton boton-claro boton-chico"><?= icono('file-text') ?>Admisión abierta <?= e($abierta['ConsAdmi']) ?></a>
                         <?php else: ?>
                             <?php foreach (MODULOS_DETALLE as $clave => $m): ?>
-                                <a href="admision_nueva.php?modulo=<?= e($clave) ?>&amp;<?= e($doc) ?>" class="boton <?= $clave === $modulo ? 'boton-primario' : 'boton-claro' ?> boton-chico"><?= icono(MODULOS_ICONO[$clave]) ?><?= e($m['nombre']) ?></a>
+                                <a href="atencion.php?modulo=<?= e($clave) ?>&amp;<?= e($doc) ?>" class="boton <?= $clave === $modulo ? 'boton-primario' : 'boton-claro' ?> boton-chico"><?= icono(MODULOS_ICONO[$clave]) ?><?= e($m['nombre']) ?></a>
                             <?php endforeach; ?>
                         <?php endif; ?>
                     </td>

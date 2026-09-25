@@ -5,6 +5,11 @@ require __DIR__ . '/../src/catalogos.php';
 
 $u = requiere_login();
 
+// El tablero es solo del administrador: el profesional trabaja en su modulo
+if (!es_admin()) {
+    redirigir('modulo.php');
+}
+
 $modulos  = tablero_abiertas_por_modulo();
 $hoy      = tablero_admisiones_hoy();
 $cargas   = tablero_cargas();
@@ -38,7 +43,7 @@ vista_inicio('Tablero');
 <div class="tarjetas">
     <?php foreach ($modulos as $nombre => $m):
         $clave = $claves[$nombre] ?? null; ?>
-        <?php if ($clave): ?><a class="tarjeta" href="admisiones.php?modulo=<?= e($clave) ?>"><?php else: ?><div class="tarjeta"><?php endif; ?>
+        <?php if ($clave): ?><a class="tarjeta" href="atencion.php?modulo=<?= e($clave) ?>&amp;historias=1"><?php else: ?><div class="tarjeta"><?php endif; ?>
             <div class="tarjeta-cabeza">
                 <span class="tarjeta-icono icono-<?= e($clave ?? 'neutro') ?>"><?= icono(MODULOS_ICONO[$clave] ?? 'clipboard-list') ?></span>
                 <div class="tarjeta-titulo"><?= e($nombre) ?></div>

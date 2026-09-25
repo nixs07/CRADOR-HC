@@ -62,7 +62,7 @@ const CODI_INST = '868650001001';
 
 /**
  * Datos de cada modulo para registrar atenciones (ver docs/REGLAS.md).
- *  clave      : se usa en las URL (admisiones.php?modulo=urg)
+ *  clave      : se usa en las URL (atencion.php?modulo=urg)
  *  servicios  : Admision.CodiServ permitidos (el primero es el de defecto)
  *  TipoAten   : Admision.TipoAten
  *  CodiModu   : SignVita.CodiModu y demas tablas con modulo

@@ -926,7 +926,7 @@ tr[data-href] { cursor: pointer; }
 /* Barra superior: el modulo toma el espacio libre; el aviso de contingencia se oculta si no cabe */
 .superior-modulo { flex: 1 1 auto; }
 .superior-contexto { flex: 0 1 auto; }
-@media (max-width: 1150px) {
+@media (max-width: 1440px) {
     .superior-contexto { display: none; }
 }
 
@@ -945,3 +945,144 @@ tr[data-href] { cursor: pointer; }
 [hidden] { display: none !important; }
 .rejilla-signos { align-items: start; }
 .rejilla-signos .calculado { margin-top: 10px; min-height: 69px; justify-content: center; }
+
+/* ---------------------------------------------------------------------
+ * 14. Pantalla de trabajo del modulo (atencion.php): encabezado tipo SIHOS,
+ *     ventana de historias abiertas, pie Volver / Continuar y menu contraible
+ * ------------------------------------------------------------------- */
+.contenido { max-width: 1480px; }
+
+.encabezado-trabajo {
+    background: var(--superficie); border: 1px solid var(--borde); border-radius: var(--radio-lg);
+    box-shadow: var(--sombra); margin-bottom: 16px; overflow: hidden; position: relative;
+}
+.encabezado-trabajo::before {
+    content: ""; position: absolute; inset: 0 0 auto 0; height: 4px;
+    background: linear-gradient(90deg, var(--azul), var(--verde));
+}
+.et-barra {
+    display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px 16px;
+    padding: 14px 18px 12px; border-bottom: 1px solid var(--borde); background: var(--superficie-2);
+}
+.et-admision { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 10px; }
+.et-etiqueta { font-size: 11px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--texto-suave); }
+.et-admision strong { font-size: 19px; font-variant-numeric: tabular-nums; letter-spacing: 0.01em; margin-right: 4px; }
+.et-botones { display: flex; flex-wrap: wrap; gap: 8px; }
+.et-botones .boton { min-height: 36px; padding: 6px 12px; font-size: 13.5px; }
+
+/* Rejilla de 12 columnas del encabezado */
+.et-fila {
+    display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 10px 14px;
+    padding: 10px 18px 12px; margin: 0;
+}
+.et-fila + .et-fila { padding-top: 0; }
+.et-fila > * { min-width: 0; }
+.c-1 { grid-column: span 1; } .c-2 { grid-column: span 2; } .c-3 { grid-column: span 3; }
+.c-4 { grid-column: span 4; } .c-5 { grid-column: span 5; } .c-6 { grid-column: span 6; }
+.et-fila label { margin: 0 0 4px; font-size: 11.5px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: var(--texto-suave); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.et-fila input, .et-fila select { min-height: 38px; padding: 6px 10px; font-size: 14px; }
+.et-fila select { padding-right: 30px; background-position: right 8px center; }
+.et-fila textarea { min-height: 38px; padding: 7px 10px; font-size: 14px; }
+.et-buscar { border-bottom: 1px solid var(--borde); padding-top: 12px; }
+.doc-campos { display: flex; gap: 6px; }
+.doc-campos select { width: 72px; flex: none; }
+.doc-campos input { flex: 1; min-width: 0; font-weight: 600; }
+.doc-campos .boton { min-height: 38px; padding: 6px 12px; flex: none; }
+.boton-puntos { font-weight: 700; letter-spacing: 0.1em; }
+
+.campo-lectura { display: flex; flex-direction: column; gap: 4px; }
+.cl-etiqueta { font-size: 11.5px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: var(--texto-suave); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cl-valor {
+    display: block; min-height: 38px; padding: 8px 10px; border-radius: var(--radio-sm);
+    background: var(--superficie-2); border: 1px solid var(--borde); color: var(--texto);
+    font-size: 14px; font-weight: 500; line-height: 1.4; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.et-nombre .cl-valor { font-weight: 700; }
+.et-vacia .cl-valor { background: repeating-linear-gradient(135deg, var(--superficie-2) 0 8px, #f1f5f9 8px 16px); }
+.et-ayuda { display: flex; align-items: center; gap: 8px; margin: 0; padding: 0 18px 14px; font-size: 13.5px; color: var(--texto-suave); }
+.et-ayuda .icono { width: 16px; height: 16px; }
+.et-aviso { padding: 0 18px; }
+.et-form { margin: 0; }
+.et-form > .alerta { margin: 12px 18px 0; }
+.formulario > .et-acciones { padding: 4px 18px 16px; margin: 0; }
+.encabezado-trabajo .ea-mas { border-top: 1px solid var(--borde); }
+.encabezado-trabajo .ea-mas summary { padding: 9px 18px; }
+.encabezado-trabajo .ea-mas .et-fila { padding-top: 0; }
+
+.panel-vacio .panel-cuerpo { display: flex; align-items: center; gap: 14px; color: var(--texto-2); padding: 28px 22px; }
+.panel-vacio .icono { width: 34px; height: 34px; color: var(--azul-texto); flex: none; }
+.panel-vacio p { margin: 0; }
+
+.pie-trabajo {
+    display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap;
+    margin: 4px 0 0; padding: 14px 0 0; border-top: 1px solid var(--borde);
+}
+
+/* Ventana "Historias abiertas" (propia, sin librerias) */
+.ventana {
+    position: fixed; inset: 0; z-index: 60;
+    display: flex; align-items: flex-start; justify-content: center;
+    padding: 72px 24px 24px; background: rgba(15, 30, 50, 0.45);
+    overflow-y: auto;
+}
+.ventana-caja {
+    width: 100%; max-width: 1180px; background: #fff; border-radius: 18px;
+    box-shadow: var(--sombra-alta); overflow: hidden;
+}
+.ventana-cabeza {
+    display: flex; justify-content: space-between; align-items: center; gap: 12px;
+    padding: 16px 20px; border-bottom: 1px solid var(--borde);
+}
+.ventana-cabeza h2 { margin: 0; display: flex; align-items: center; gap: 10px; font-size: 18px; }
+.ventana-cabeza h2 .icono { width: 22px; height: 22px; color: var(--azul-texto); }
+.ventana .buscador { margin: 14px 20px; box-shadow: none; }
+.ventana-cuerpo { padding: 0 20px 20px; }
+.ventana-cuerpo .alerta { margin: 0; }
+.con-ventana { overflow: hidden; }
+.fila-actual { background: var(--azul-suave) !important; }
+
+/* Menu: bloque del modulo actual */
+.menu-modulo {
+    display: flex; align-items: center; gap: 12px; margin: 4px 0 10px; padding: 12px;
+    background: var(--superficie-2); border: 1px solid var(--borde); border-radius: var(--radio);
+}
+.menu-modulo .tarjeta-icono { width: 36px; height: 36px; border-radius: 10px; }
+.menu-modulo small { display: block; font-size: 11px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--texto-suave); }
+.menu-modulo strong { display: block; font-size: 14.5px; line-height: 1.25; }
+
+/* Boton para contraer el menu (solo PC) y menu contraido: solo iconos */
+.superior .boton-colapsar { display: inline-flex; }
+@media (min-width: 1024px) {
+    .menu-colapsado { --ancho-lateral: 76px; }
+    .menu-colapsado .lateral-marca div, .menu-colapsado .menu a span, .menu-colapsado .menu-deshabilitado span,
+    .menu-colapsado .menu-deshabilitado small, .menu-colapsado .menu-grupo, .menu-colapsado .menu-modulo > span:last-child,
+    .menu-colapsado .lateral-pie { display: none; }
+    .menu-colapsado .lateral-marca { justify-content: center; padding: 18px 8px; }
+    .menu-colapsado .menu { padding: 4px 10px; }
+    .menu-colapsado .menu a, .menu-colapsado .menu-deshabilitado { justify-content: center; padding: 12px 0; }
+    .menu-colapsado .menu-modulo { justify-content: center; padding: 8px 0; background: none; border: 0; }
+}
+@media (max-width: 1023px) {
+    .superior .boton-colapsar { display: none; }
+    .et-fila { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+    .c-1 { grid-column: span 1; } .c-2, .c-3 { grid-column: span 2; } .c-4, .c-5, .c-6 { grid-column: span 6; }
+    .ventana { padding: 24px 12px; }
+}
+@media (max-width: 767px) {
+    .et-fila { grid-template-columns: repeat(2, minmax(0, 1fr)); padding: 10px 14px 12px; gap: 10px; }
+    .c-1, .c-2, .c-3 { grid-column: span 1; } .c-4, .c-5, .c-6 { grid-column: span 2; }
+    .et-barra { padding: 12px 14px 10px; }
+    .et-botones { width: 100%; }
+    .et-botones .boton { flex: 1 1 auto; }
+    .doc-campos .boton span { display: none; }
+    .ventana { padding: 0; align-items: stretch; }
+    .ventana-caja { border-radius: 0; min-height: 100%; }
+    .ventana .buscador { margin: 12px; }
+    .ventana-cuerpo { padding: 0 12px 16px; }
+    .pie-trabajo .boton { flex: 1; }
+}
+@media (max-width: 767px) {
+    .formulario > .et-acciones { padding: 4px 14px 16px; }
+    .et-acciones .boton { min-width: 0; }
+    .et-ayuda { padding: 0 14px 14px; align-items: flex-start; }
+}

@@ -43,94 +43,48 @@ function admision_estado(array $a): array
     return (int) $a['Cerrado'] === 1 ? ['Cerrada', 'cerrada'] : ['Abierta', 'abierta'];
 }
 
-/**
- * Encabezado de la admision (como la parte de arriba de la historia en SIHOS):
- * numero, fecha y hora, documento, paciente, nacimiento, edad, genero, EPS/contrato,
- * servicio, cama, via de ingreso, causa externa, diagnostico y estado.
- * $masDatos: muestra tambien el resto de los datos del ingreso (solo en la ficha).
- */
-function encabezado_admision(array $a, bool $masDatos = false): void
+/** Campo del encabezado en modo lectura (grisado, como SIHOS con la admision cargada). */
+function campo_lectura(string $etiqueta, $valor, string $clase = ''): string
 {
-    $mod = modulo_de_servicio($a['ServEgre']);
-    [$estado, $claseEstado] = admision_estado($a);
-    $nacimiento = ($a['FechNaci'] ?? '') && $a['FechNaci'] !== '0000-00-00' ? date('d/m/Y', strtotime($a['FechNaci'])) : '—';
-    ?>
-    <section class="encabezado-admision" aria-label="Encabezado de la admisión">
-        <div class="ea-cabeza">
-            <div class="ep-persona">
-                <span class="ep-avatar"><?= icono('user') ?></span>
-                <div>
-                    <div class="ep-nombre"><?= e(paciente_nombre($a)) ?></div>
-                    <div class="ep-datos"><span><?= e($a['TipoDocu'] . ' ' . $a['NumeUsua']) ?></span><span><?= e(edad_texto($a['ValoEdad'], $a['UnidEdad'])) ?></span><span><?= e(lista_nombre('Sexo', $a['SexoUsua'])) ?></span></div>
-                </div>
-            </div>
-            <div class="ea-admision">
-                <div class="ea-numero"><small>Admisión</small><strong><?= e($a['ConsAdmi']) ?></strong></div>
-                <div class="ea-chips">
-                    <span class="etiqueta etiqueta-<?= e($claseEstado) ?>"><?= e($estado) ?></span>
-                    <span class="etiqueta" title="Número temporal: al cargar a SIHOS se asigna el definitivo">Temporal</span>
-                    <?php if ($a['ClasTria']): ?>
-                        <span class="etiqueta triage-<?= (int) $a['ClasTria'] ?>">Triage <?= e(triage_romano($a['ClasTria'])) ?></span>
-                    <?php endif; ?>
-                </div>
-            </div>
-        </div>
-        <dl class="ea-datos">
-            <div><dt>Fecha y hora</dt><dd><?= e(fecha_hora($a['FechIngr'] . ' ' . $a['HoraIngr'])) ?></dd></div>
-            <div><dt>F. nacimiento</dt><dd><?= e($nacimiento) ?></dd></div>
-            <div class="ea-ancho"><dt>EPS / contrato</dt><dd><?= e($a['NombAdmi'] ?? $a['CodiAdmi']) ?> · <?= e($a['NumeCont']) ?></dd></div>
-            <div><dt>Servicio</dt><dd><?= e($a['NombServ'] ?? ($mod ? MODULOS_DETALLE[$mod]['nombre'] : $a['ServEgre'])) ?></dd></div>
-            <?php if ($a['CamaActu']): ?><div><dt>Cama</dt><dd><?= e($a['CamaActu']) ?></dd></div><?php endif; ?>
-            <div><dt>Vía de ingreso</dt><dd><?= e(lista_nombre('ViaIngre', $a['ViaIngre'])) ?></dd></div>
-            <div><dt>Causa externa</dt><dd><?= e(lista_nombre('CausExte', $a['CausExte'])) ?></dd></div>
-            <div class="ea-ancho"><dt>Diagnóstico</dt><dd><?= e($a['DiagIngr'] ? $a['DiagIngr'] . ' · ' . (diagnostico_nombre($a['DiagIngr']) ?? '') : '—') ?></dd></div>
-        </dl>
-        <?php if ($masDatos): ?>
-        <details class="ea-mas">
-            <summary><?= icono('file-text') ?>Más datos del ingreso</summary>
-            <dl class="ea-datos">
-                <div><dt>Tipo de usuario / afiliación</dt><dd><?= e(lista_nombre('TipoUsua', $a['TipoUsua'])) ?> · <?= e(lista_nombre('TipoAfil', $a['TipoAfil'])) ?> · categoría <?= e($a['CodiEstr']) ?></dd></div>
-                <div><dt>Autorización</dt><dd><?= e($a['NumeAuto'] ?: '—') ?></dd></div>
-                <div><dt>Grupo poblacional</dt><dd><?= e(lista_nombre('GrupAten', $a['GrupoAte'])) ?> · <?= e(lista_nombre('CondUsua', $a['CondUsua'])) ?></dd></div>
-                <div><dt>Acompañante</dt><dd><?= e(lista_nombre('TipoAcom', $a['TipoAcom'])) ?><?= $a['NombAcom'] ? ' · ' . e($a['NombAcom']) . ' (' . e(lista_nombre('Parentes', $a['Parentes'])) . ') ' . e($a['TeleAcom']) : '' ?></dd></div>
-                <div class="ea-ancho"><dt>Motivo</dt><dd class="texto-largo"><?= e($a['MotiCons']) ?></dd></div>
-                <div><dt>Registró</dt><dd><?= e($a['UsuaDigi']) ?> · <?= e(fecha_hora($a['FechDigi'] . ' ' . $a['HoraDigi'])) ?></dd></div>
-                <div><dt>Carga a SIHOS</dt><dd><span class="etiqueta etiqueta-<?= e($a['estado_carga'] ?? 'pendiente') ?>"><?= e($a['estado_carga'] ?? 'pendiente') ?></span></dd></div>
-            </dl>
-        </details>
-        <?php endif; ?>
-    </section>
-    <?php
+    $valor = trim((string) $valor);
+    return '<div class="campo-lectura ' . e($clase) . '"><span class="cl-etiqueta">' . e($etiqueta) . '</span>'
+         . '<span class="cl-valor">' . ($valor !== '' ? e($valor) : '&nbsp;') . '</span></div>';
 }
 
 /**
- * Pestanas numeradas de la historia, en el orden de SIHOS. Las que aun no existen
- * (siguientes bloques de la fase 2) se ven deshabilitadas.
- * $activa: 'triage' o 'signos'. Cada pestana es un enlace a admision.php?id=...&tab=...
- * (funciona sin JavaScript); con JavaScript cambia el panel sin recargar (js/interfaz.js).
+ * Pestanas numeradas de la historia, en el orden de SIHOS y con la misma numeracion en los
+ * 3 modulos: 1. Triage (solo Urgencias), 2. Consultas, 3. Signos vitales, 4. Prescripcion,
+ * 5. Ordenes medicas, 6. Procedimientos, 7. Notas de enfermeria, 8. Evolucion, 9. Egreso.
+ * Las que aun no existen se ven deshabilitadas "Proximamente". Sin admision cargada, todas
+ * quedan deshabilitadas. Cada pestana es un enlace ?id=..&tab=.. (funciona sin JavaScript);
+ * con JavaScript cambia el panel sin recargar (js/interfaz.js).
  */
-function pestanas_historia(array $a, string $activa, int $nSignos): void
+function pestanas_historia(?array $a, array $mod, string $activa, int $nSignos): void
 {
-    $mod = modulo_de_servicio($a['ServEgre']);
-    $base = 'admision.php?id=' . urlencode($a['ConsAdmi']) . '&tab=';
-    $pestanas = [];
-    if ($mod && MODULOS_DETALLE[$mod]['triage']) {
-        $pestanas[] = ['triage', 'Triage', 'siren'];
-    }
-    $pestanas[] = ['signos', 'Signos vitales', 'heart-pulse'];
-    $proximas = ['Consulta', 'Prescripción', 'Órdenes médicas', 'Procedimientos', 'Notas de enfermería', 'Evolución', 'Egreso'];
-    $n = 0;
+    $base = $a ? 'atencion.php?id=' . urlencode($a['ConsAdmi']) . '&tab=' : '';
+    $lista = [
+        1 => ['triage', 'Triage', $mod['triage'] ? '' : 'Solo Urgencias'],
+        2 => ['', 'Consultas', 'Próximamente'],
+        3 => ['signos', 'Signos vitales', ''],
+        4 => ['', 'Prescripción', 'Próximamente'],
+        5 => ['', 'Órdenes médicas', 'Próximamente'],
+        6 => ['', 'Procedimientos', 'Próximamente'],
+        7 => ['', 'Notas de enfermería', 'Próximamente'],
+        8 => ['', 'Evolución', 'Próximamente'],
+        9 => ['', 'Egreso', 'Próximamente'],
+    ];
     ?>
     <nav class="pestanas" aria-label="Pestañas de la historia" data-pestanas>
-        <?php foreach ($pestanas as [$id, $nombre, $ic]): $n++; ?>
-            <a href="<?= e($base . $id) ?>" data-tab="<?= e($id) ?>"<?= $id === $activa ? ' class="actual" aria-selected="true"' : ' aria-selected="false"' ?>>
-                <span class="pestana-numero"><?= $n ?></span><?= e($nombre) ?>
-                <?php if ($id === 'signos'): ?><span class="contador"><?= $nSignos ?></span><?php endif; ?>
-            </a>
-        <?php endforeach; ?>
-        <?php foreach ($proximas as $nombre): $n++; ?>
-            <span class="pestana-proxima" aria-disabled="true" title="Próximamente (siguiente bloque de la fase 2)">
-                <span class="pestana-numero"><?= $n ?></span><?= e($nombre) ?><small>Próximamente</small></span>
+        <?php foreach ($lista as $n => [$id, $nombre, $nota]):
+            if ($id !== '' && $nota === '' && $a): ?>
+                <a href="<?= e($base . $id) ?>" data-tab="<?= e($id) ?>"<?= $id === $activa ? ' class="actual" aria-selected="true"' : ' aria-selected="false"' ?>>
+                    <span class="pestana-numero"><?= $n ?></span><?= e($nombre) ?>
+                    <?php if ($id === 'signos'): ?><span class="contador"><?= $nSignos ?></span><?php endif; ?>
+                </a>
+            <?php else: ?>
+                <span class="pestana-proxima" aria-disabled="true" title="<?= e($nota ?: 'Cargue una admisión') ?>">
+                    <span class="pestana-numero"><?= $n ?></span><?= e($nombre) ?><?php if ($nota): ?><small><?= e($nota) ?></small><?php endif; ?></span>
+            <?php endif; ?>
         <?php endforeach; ?>
     </nav>
     <?php
