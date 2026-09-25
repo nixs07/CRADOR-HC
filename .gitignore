@@ -1,0 +1,7 @@
+.env
+*.log
+/vendor/
+/data/
+*.sql.gz
+*.bak
+respaldos/
