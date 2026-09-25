@@ -1,0 +1,67 @@
+# CRADOR-HC - Contingencia SIHOS
+# Uso:  copiar .env.example como .env, ajustar claves y ejecutar:  docker compose up -d
+# App:  http://localhost:8080  (puerto APP_PUERTO del .env)
+
+services:
+
+  # Base de datos local: MySQL 5.6, igual que SIHOS.
+  db:
+    image: mysql:5.6
+    container_name: crador_db
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_CLAVE_ROOT}
+      MYSQL_DATABASE: ${DB_NOMBRE:-crador_hc}
+      MYSQL_USER: ${DB_USUARIO:-crador}
+      MYSQL_PASSWORD: ${DB_CLAVE}
+      TZ: ${TZ:-America/Bogota}
+    # La configuracion va por linea de comandos (y no en un .cnf montado) porque
+    # MySQL ignora los .cnf que en Windows aparecen con permisos de escritura para todos.
+    #  - latin1 y sql_mode sin modo estricto: SIHOS usa fechas 0000-00-00.
+    #  - explicit_defaults_for_timestamp: necesario para las columnas
+    #    "timestamp DEFAULT NULL" de SIHOS (Admision.MensPart, CausMorb.deleted_at...).
+    command:
+      - --character-set-server=latin1
+      - --collation-server=latin1_swedish_ci
+      - --sql-mode=NO_ENGINE_SUBSTITUTION
+      - --explicit-defaults-for-timestamp=1
+      - --max-allowed-packet=64M
+      - --skip-name-resolve
+    volumes:
+      - db_datos:/var/lib/mysql
+      # Se ejecutan SOLO la primera vez (cuando el volumen esta vacio), en este orden:
+      - ./sql/00_control.sql:/docker-entrypoint-initdb.d/00_control.sql:ro
+      - ./sql/01_tablas_clinicas.sql:/docker-entrypoint-initdb.d/01_tablas_clinicas.sql:ro
+      - ./sql/02_catalogos.sql:/docker-entrypoint-initdb.d/02_catalogos.sql:ro
+      - ./sql/03_catalogos_listas.sql:/docker-entrypoint-initdb.d/03_catalogos_listas.sql:ro
+      # Carpeta sql completa (solo lectura) para cargar a mano los datos de prueba.
+      # sql/99_datos_prueba.sql NO se carga automaticamente.
+      - ./sql:/sql:ro
+    ports:
+      # Solo accesible desde el mismo equipo (para HeidiSQL / Workbench).
+      - "127.0.0.1:${DB_PUERTO_EQUIPO:-3307}:3306"
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -p\"$$MYSQL_ROOT_PASSWORD\" --silent"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+
+  # Aplicacion web: PHP 8 + Apache, sirve la carpeta public/.
+  app:
+    build: ./docker/app
+    container_name: crador_app
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      TZ: ${TZ:-America/Bogota}
+    volumes:
+      # El codigo se monta desde esta carpeta: un cambio en los .php se ve sin reconstruir.
+      - ./:/var/www/app
+    ports:
+      - "${APP_PUERTO:-8080}:80"
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  db_datos:
