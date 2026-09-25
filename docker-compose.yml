@@ -37,6 +37,9 @@ services:
       # Carpeta sql completa (solo lectura) para cargar a mano los datos de prueba.
       # sql/99_datos_prueba.sql NO se carga automaticamente.
       - ./sql:/sql:ro
+      # Scripts de apoyo (datos de prueba, respaldo, restauracion) y carpeta de respaldos
+      - ./docker/db:/crador:ro
+      - ./respaldos:/respaldos
     ports:
       # Solo accesible desde el mismo equipo (para HeidiSQL / Workbench).
       - "127.0.0.1:${DB_PUERTO_EQUIPO:-3307}:3306"

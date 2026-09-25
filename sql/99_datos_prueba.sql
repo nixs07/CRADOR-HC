@@ -3,7 +3,7 @@
 -- NUNCA cargar en la instalacion de produccion del hospital.
 --
 -- Cargar (con Docker, desde la carpeta del proyecto):
---   docker compose exec db sh /sql/cargar_datos_prueba.sh
+--   docker compose exec db sh /crador/cargar_datos_prueba.sh
 --
 -- Usuarios de prueba (clave de todos: prueba123, hash MD5-crypt $1$ como SIHOS):
 --   NIXON07    Administrador de prueba (rol admin por ADMIN_LOGIN)
