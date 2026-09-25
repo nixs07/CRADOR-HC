@@ -9,11 +9,13 @@
  *                                                 si no, el encabezado queda editable para crearla
  *   atencion.php?id=C26092500001&tab=triage       admision cargada, en la pestana indicada
  *
- * Los formularios envian a esta misma pagina: accion=admision | triage | signos.
+ * Los formularios envian a esta misma pagina: accion=admision | triage | signos | consulta | prescripcion |
+ * orden_medica | ordenes | procedimiento | nota | medicamento | evolucion | egreso.
+ * Los paneles de las pestanas 2 y 4 a 9 estan en src/vistas/pestana_*.php.
  * Siempre se vuelve a esta pantalla (POST y redireccion).
  */
 require __DIR__ . '/../src/inicio.php';
-require __DIR__ . '/../src/atencion.php';
+require __DIR__ . '/../src/historia.php';
 require __DIR__ . '/../src/formulario.php';
 
 $u = requiere_login();
@@ -70,7 +72,7 @@ $triage = $a ? triage_de_admision($a['ConsAdmi']) : null;
 $signos = $a ? signos_de_admision($a['ConsAdmi']) : [];
 $tieneTriage = (bool) $mod['triage'];
 
-$disponibles = $a ? ($tieneTriage ? ['triage', 'signos'] : ['signos']) : [];
+$disponibles = $a ? pestanas_disponibles($mod) : [];
 $tab = in_array($_GET['tab'] ?? '', $disponibles, true) ? $_GET['tab']
      : (($tieneTriage && $a && !$triage) ? 'triage' : 'signos');
 
@@ -80,6 +82,21 @@ $eT = [];
 $ultima = $signos[0] ?? null;
 $sv = ['FechToma' => date('Y-m-d'), 'HoraToma' => date('H:i'), 'Peso' => $ultima['Peso'] ?? '', 'Talla' => $ultima['Talla'] ?? ''];
 $eS = [];
+
+// Acciones de las pestanas nuevas: accion => [pestana, validar, guardar, mensaje]
+const ACCIONES_HISTORIA = [
+    'consulta'      => ['consulta', 'consulta_validar', 'consulta_guardar', 'Consulta No. %d registrada.'],
+    'prescripcion'  => ['prescripcion', 'prescripcion_validar', 'prescripcion_guardar', 'Prescripción No. %d registrada.'],
+    'orden_medica'  => ['ordenes', 'orden_medica_validar', 'orden_medica_guardar', 'Orden médica No. %d registrada.'],
+    'ordenes'       => ['ordenes', 'ordenes_validar', 'ordenes_guardar', 'Orden No. %d registrada.'],
+    'procedimiento' => ['procedimientos', 'procedimiento_validar', 'procedimiento_guardar', 'Procedimiento No. %d registrado.'],
+    'nota'          => ['notas', 'nota_validar', 'nota_guardar', 'Nota No. %d registrada.'],
+    'medicamento'   => ['notas', 'medicamento_validar', 'medicamento_guardar', 'Aplicación de medicamento No. %d registrada.'],
+    'evolucion'     => ['evolucion', 'evolucion_validar', 'evolucion_guardar', 'Evolución No. %d registrada.'],
+    'egreso'        => ['egreso', 'egreso_validar', 'egreso_guardar', 'Admisión cerrada: egreso registrado.'],
+];
+$F = [];   // datos enviados por formulario (para volver a mostrarlos si hay errores)
+$E = [];   // errores por formulario
 
 // --- Guardar (POST) -----------------------------------------------------
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -96,6 +113,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $cons = admision_crear($mod, $pac, $d, $u['Login']);
             flash('ok', "Admisión $cons creada.");
             redirigir('atencion.php?id=' . urlencode($cons));
+        }
+    } elseif ($a && isset(ACCIONES_HISTORIA[$accion])) {
+        // Pestanas 2 y 4 a 9: validar en src/historia.php, guardar en una transaccion y volver a la pestana
+        [$pest, $validar, $guardar, $mensaje] = ACCIONES_HISTORIA[$accion];
+        $tab = $pest;
+        if (!$editable) {
+            flash('error', 'La admisión no se puede modificar.');
+            redirigir($aqui . '&tab=' . $pest);
+        }
+        if (!in_array($pest, $disponibles, true)) {
+            flash('error', 'Esa pestaña no aplica en este módulo.');
+            redirigir($aqui);
+        }
+        [$F[$accion], $E[$accion]] = $validar($a);
+        if (!$E[$accion]) {
+            $n = $guardar($a, $F[$accion], $accion === 'consulta' ? $u : $u['Login']);
+            flash('ok', sprintf($mensaje, $n));
+            redirigir($aqui . '&tab=' . $pest);
         }
     } elseif ($a && ($accion === 'triage' || $accion === 'signos')) {
         $ingreso = $a['FechIngr'] . ' ' . $a['HoraIngr'];
@@ -340,7 +375,26 @@ vista_inicio($a ? 'Admisión ' . $a['ConsAdmi'] : $mod['nombre']);
     <div class="alerta alerta-aviso"><?= icono('lock') ?><div>Esta admisión está cerrada, anulada o ya se cargó a SIHOS: solo se puede consultar.</div></div>
 <?php endif; ?>
 
-<?php pestanas_historia($a, $mod, $tab, count($signos)); ?>
+<?php
+// Registros de cada pestana (para las listas y los contadores)
+if ($a) {
+    $consultas = consultas_de_admision($a['ConsAdmi']);
+    $prescripciones = prescripciones_de_admision($a['ConsAdmi']);
+    $ordenesMedicas = ordenes_medicas_de_admision($a['ConsAdmi']);
+    $ordenes = ordenes_de_admision($a['ConsAdmi']);
+    $procedimientos = procedimientos_de_admision($a['ConsAdmi']);
+    $notas = notas_de_admision($a['ConsAdmi']);
+    $prescritos = $editable ? medicamentos_prescritos($a['ConsAdmi']) : [];
+    $aplicados = medicamentos_aplicados($a['ConsAdmi']);
+    $evoluciones = evoluciones_de_admision($a['ConsAdmi']);
+    $egreso = egreso_de_admision($a['ConsAdmi']);
+    $conteos = ['triage' => $triage ? 1 : 0, 'consulta' => count($consultas), 'signos' => count($signos),
+                'prescripcion' => count($prescripciones), 'ordenes' => count($ordenesMedicas) + count($ordenes),
+                'procedimientos' => count($procedimientos), 'notas' => count($notas) + count($aplicados),
+                'evolucion' => count($evoluciones), 'egreso' => $egreso ? 1 : 0];
+}
+pestanas_historia($a, $mod, $tab, $conteos ?? []);
+?>
 
 <?php if (!$a): ?>
     <section class="panel panel-vacio">
@@ -478,13 +532,24 @@ vista_inicio($a ? 'Admisión ' . $a['ConsAdmi'] : $mod['nombre']);
     </div>
     <?php endif; ?>
 </section>
+<?php
+foreach (['consulta', 'prescripcion', 'ordenes', 'procedimientos', 'notas', 'evolucion', 'egreso'] as $vista) {
+    if (in_array($vista, $disponibles, true)) {
+        // Cada panel se pinta en su propia funcion para que sus variables no pisen las de esta pagina
+        (function () use ($vista, $a, $mod, $editable, $aqui, $tab, $F, $E, $triage, $consultas, $prescripciones,
+                          $ordenesMedicas, $ordenes, $procedimientos, $notas, $prescritos, $aplicados, $evoluciones, $egreso) {
+            require __DIR__ . '/../src/vistas/pestana_' . $vista . '.php';
+        })();
+    }
+}
+?>
 <?php endif; ?>
 
 <!-- Pie de la pantalla de trabajo: Volver y Continuar, como en SIHOS -->
 <div class="pie-trabajo">
     <a href="<?= e($base) ?>&amp;historias=1" class="boton boton-claro" data-abrir-ventana="historias"><?= icono('arrow-left') ?>Volver a historias abiertas</a>
-    <?php if ($a && $tieneTriage): ?>
-        <a href="<?= e($aqui) ?>&amp;tab=signos" class="boton boton-primario" data-continuar data-tab="signos" data-desde="triage"<?= $tab === 'signos' ? ' hidden' : '' ?>>Continuar <?= icono('chevron-right') ?></a>
+    <?php if ($a): $pos = array_search($tab, $disponibles, true); $siguiente = $disponibles[$pos + 1] ?? null; ?>
+        <a href="<?= e($aqui) ?>&amp;tab=<?= e($siguiente ?? '') ?>" class="boton boton-primario" data-continuar data-tab="<?= e($siguiente ?? '') ?>"<?= $siguiente ? '' : ' hidden' ?>>Continuar <?= icono('chevron-right') ?></a>
     <?php endif; ?>
 </div>
 

@@ -1,0 +1,873 @@
+<?php
+/**
+ * Pestañas de la historia (fase 2, bloque 2): consultas, prescripción, órdenes médicas,
+ * procedimientos, notas de enfermería, administración de medicamentos, evolución y egreso.
+ *
+ * Reglas (ver docs/REGLAS.md):
+ *  - Tablas y columnas IGUALES a SIHOS. Se llenan todas las columnas NOT NULL sin valor por defecto.
+ *  - Todo campo con código se valida contra su catálogo en el servidor.
+ *  - Los consecutivos (ConsCons, ConsPres, ConsOrde, ConsHoPr, ConsHoEn, ConsHoMe, ConsEvol...) son
+ *    POR ADMISIÓN: MAX + 1 dentro de la misma transacción (SELECT ... FOR UPDATE).
+ *  - No se liquida: NumeLiqu, ConsDeFa y CantFact quedan en 0.
+ *  - UsuaDigi / UsuaModi = login real del profesional.
+ *  - Cada guardado es una transacción: entra completo o no entra.
+ */
+
+require_once __DIR__ . '/atencion.php';
+
+// ---------------------------------------------------------------------
+// Utilidades comunes
+// ---------------------------------------------------------------------
+
+/** Columnas de digitación: fecha, hora y usuario que digitó y modificó. */
+function hc_digitacion(string $login): array
+{
+    $f = date('Y-m-d');
+    $h = date('H:i:s');
+    return ['FechDigi' => $f, 'HoraDigi' => $h, 'UsuaDigi' => $login,
+            'FechModi' => $f, 'HoraModi' => $h, 'UsuaModi' => $login];
+}
+
+/** INSERT a partir de un arreglo [columna => valor]. Las columnas vienen del código, nunca del usuario. */
+function hc_insertar(PDO $pdo, string $tabla, array $fila): void
+{
+    $cols = array_keys($fila);
+    $sql = 'INSERT INTO `' . $tabla . '` (`' . implode('`, `', $cols) . '`) VALUES ('
+         . implode(', ', array_fill(0, count($cols), '?')) . ')';
+    $pdo->prepare($sql)->execute(array_values($fila));
+}
+
+/** Siguiente consecutivo por admisión (MAX + 1), bloqueando las filas de la admisión. */
+function hc_siguiente(PDO $pdo, string $tabla, string $columna, string $consAdmi, string $extra = '', array $params = []): int
+{
+    $st = $pdo->prepare("SELECT IFNULL(MAX(`$columna`), 0) + 1 FROM `$tabla`
+                          WHERE CodiInst = ? AND ConsAdmi = ? $extra FOR UPDATE");
+    $st->execute(array_merge([CODI_INST, $consAdmi], $params));
+    return (int) $st->fetchColumn();
+}
+
+/** Ejecuta $fn dentro de una transacción y devuelve su resultado. */
+function hc_transaccion(callable $fn)
+{
+    $pdo = db();
+    $pdo->beginTransaction();
+    try {
+        $r = $fn($pdo);
+        $pdo->commit();
+        return $r;
+    } catch (Throwable $ex) {
+        $pdo->rollBack();
+        throw $ex;
+    }
+}
+
+/** CodiModu de SIHOS de la admisión (6 Urgencias, 8 Observación, 5 Consulta Externa). */
+function hc_modulo(array $a): int
+{
+    $m = modulo_de_servicio($a['ServEgre']);
+    return $m ? (int) MODULOS_DETALLE[$m]['CodiModu'] : 0;
+}
+
+/**
+ * Valida fecha y hora del formulario: formato, no futura y no anterior al ingreso.
+ * Deja en $d[$cf] la fecha (Y-m-d) y en $d[$ch] la hora (H:i:s).
+ */
+function hc_fecha_hora(array $a, array &$d, array &$e, string $cf, string $ch, string $que): void
+{
+    $d[$cf] = campo($cf, 10);
+    $d[$ch] = hora_valida(campo($ch, 8)) ?? campo($ch, 8);
+    if (!fecha_valida($d[$cf])) {
+        $e[$cf] = "Fecha de $que no válida.";
+    } elseif (!hora_valida($d[$ch])) {
+        $e[$ch] = "Hora de $que no válida.";
+    } elseif ($d[$cf] . ' ' . $d[$ch] > date('Y-m-d H:i:s', time() + 300)) {
+        $e[$cf] = "La fecha y hora de $que no puede ser futura.";
+    } elseif ($d[$cf] . ' ' . $d[$ch] < $a['FechIngr'] . ' ' . $a['HoraIngr']) {
+        $e[$ch] = "La $que no puede ser anterior al ingreso (" . fecha_hora($a['FechIngr'] . ' ' . $a['HoraIngr']) . ').';
+    }
+}
+
+/** Diagnóstico CIE-10 del POST: vacío o un código activo de CausMorb. */
+function hc_diagnostico(string $campo, bool $obligatorio, array &$e, string $etiqueta = 'el diagnóstico'): string
+{
+    $v = strtoupper(campo($campo, 8));
+    if ($v === '') {
+        if ($obligatorio) {
+            $e[$campo] = "Escriba $etiqueta (CIE-10).";
+        }
+    } elseif (diagnostico_nombre($v) === null) {
+        $e[$campo] = "El código $v no existe en el CIE-10 activo.";
+    }
+    return $v;
+}
+
+/** Código del POST que debe existir en una lista (catálogo). */
+function hc_de_lista(string $lista, string $campo, bool $obligatorio, array &$e, string $mensaje, int $max = 3): string
+{
+    $v = campo($campo, $max);
+    if ($v === '' && !$obligatorio) {
+        return '';
+    }
+    if (!lista_valida($lista, $v)) {
+        $e[$campo] = $mensaje;
+    }
+    return $v;
+}
+
+/** Nombre de un procedimiento activo (CodiProc) o null si no existe. */
+function procedimiento_nombre(?string $codigo): ?string
+{
+    if ($codigo === null || trim($codigo) === '') {
+        return null;
+    }
+    $st = db()->prepare('SELECT NombProc FROM CodiProc WHERE CodiProc = ? AND Activo = 1');
+    $st->execute([trim($codigo)]);
+    $n = $st->fetchColumn();
+    return $n === false ? null : (string) $n;
+}
+
+/** Busca procedimientos activos por código o nombre (máximo 30). */
+function procedimientos_buscar(string $texto): array
+{
+    $texto = trim($texto);
+    if (mb_strlen($texto) < 2) {
+        return [];
+    }
+    $st = db()->prepare("SELECT CodiProc AS c, NombProc AS n FROM CodiProc
+                          WHERE Activo = 1 AND (CodiProc LIKE ? OR NombProc LIKE ?)
+                          ORDER BY (CodiProc LIKE ?) DESC, NombProc LIMIT 30");
+    $st->execute([$texto . '%', '%' . $texto . '%', $texto . '%']);
+    return $st->fetchAll();
+}
+
+/** Nombre de un suministro activo (CodiSumi) o null si no existe. */
+function suministro_nombre(?string $codigo): ?string
+{
+    if ($codigo === null || trim($codigo) === '') {
+        return null;
+    }
+    $st = db()->prepare('SELECT NombSumi FROM CodiSumi WHERE CodiSumi = ? AND SumiActi = 1');
+    $st->execute([trim($codigo)]);
+    $n = $st->fetchColumn();
+    return $n === false ? null : (string) $n;
+}
+
+/** Busca suministros activos por código o nombre (máximo 30). */
+function suministros_buscar(string $texto): array
+{
+    $texto = trim($texto);
+    if (mb_strlen($texto) < 2) {
+        return [];
+    }
+    $st = db()->prepare("SELECT CodiSumi AS c, NombSumi AS n FROM CodiSumi
+                          WHERE SumiActi = 1 AND (CodiSumi LIKE ? OR NombSumi LIKE ?)
+                          ORDER BY (CodiSumi LIKE ?) DESC, NombSumi LIMIT 30");
+    $st->execute([$texto . '%', '%' . $texto . '%', $texto . '%']);
+    return $st->fetchAll();
+}
+
+/** Procedimiento del POST: vacío o un código activo de CodiProc. */
+function hc_procedimiento(string $campo, bool $obligatorio, array &$e): string
+{
+    $v = campo($campo, 15);
+    if ($v === '') {
+        if ($obligatorio) {
+            $e[$campo] = 'Escriba el procedimiento (código CUPS o nombre).';
+        }
+    } elseif (procedimiento_nombre($v) === null) {
+        $e[$campo] = "El procedimiento $v no existe o no está activo.";
+    }
+    return $v;
+}
+
+/** Último ConsCons (consulta) de la admisión, o 0 si no hay. */
+function hc_ultima_consulta(string $consAdmi): int
+{
+    $st = db()->prepare('SELECT IFNULL(MAX(ConsCons), 0) FROM RipsCons WHERE CodiInst = ? AND ConsAdmi = ?');
+    $st->execute([CODI_INST, $consAdmi]);
+    return (int) $st->fetchColumn();
+}
+
+/** Lee filas repetidas del POST (campos con [] ), descartando las filas vacías (sin $clave). */
+function hc_filas(array $campos, string $clave): array
+{
+    $n = is_array($_POST[$clave] ?? null) ? count($_POST[$clave]) : 0;
+    $filas = [];
+    for ($i = 0; $i < min($n, 30); $i++) {
+        $f = [];
+        foreach ($campos as $c => $max) {
+            $v = $_POST[$c][$i] ?? '';
+            $f[$c] = is_string($v) ? mb_substr(trim($v), 0, $max) : '';
+        }
+        if ($f[$clave] !== '') {
+            $filas[] = $f;
+        }
+    }
+    return $filas;
+}
+
+/** Número de una fila repetida (acepta coma decimal) o null. */
+function hc_numero(string $v): ?float
+{
+    $v = str_replace(',', '.', trim($v));
+    return ($v !== '' && is_numeric($v)) ? (float) $v : null;
+}
+
+// ---------------------------------------------------------------------
+// 2. Consultas: RipsCons + Antecede + EstaGene (un solo guardado)
+// ---------------------------------------------------------------------
+
+/** Antecedentes que se preguntan: columna => [etiqueta, columna de descripción]. */
+const ANTECEDENTES = [
+    'Patologi' => ['Patológicos', 'PatoDesc'],
+    'Quirurgi' => ['Quirúrgicos', 'QuirDesc'],
+    'Farmacol' => ['Farmacológicos', 'FarmDesc'],
+    'ToxiAler' => ['Tóxicos', 'ToxiDesc'],
+    'Traumati' => ['Traumáticos', 'TrauDesc'],
+    'Familiar' => ['Familiares', 'FamiDesc'],
+    'Ginecolo' => ['Ginecológicos', 'GineDesc'],
+    'Obstetri' => ['Obstétricos', 'ObstDesc'],
+];
+
+/** Sistemas del examen físico: columna => [etiqueta, columna de descripción]. */
+const EXAMEN_SISTEMAS = [
+    'Cabeza'   => ['Cabeza', 'CabeDesc'],
+    'Ojos'     => ['Ojos', 'OjosDesc'],
+    'Nariz'    => ['Nariz', 'NariDesc'],
+    'Oidos'    => ['Oídos', 'OidoDesc'],
+    'Boca'     => ['Boca', 'BocaDesc'],
+    'Cuello'   => ['Cuello', 'CuelDesc'],
+    'CardPulm' => ['Cardiopulmonar', 'CardDesc'],
+    'Abdomen'  => ['Abdomen', 'AbdoDesc'],
+    'GeniUrin' => ['Genitourinario', 'GeniDesc'],
+    'Extremid' => ['Extremidades', 'ExtrDesc'],
+    'OsteMusc' => ['Osteomuscular', 'OsteDesc'],
+    'Neurolog' => ['Neurológico', 'NeurDesc'],
+    'Piel'     => ['Piel', 'PielDesc'],
+];
+
+function consulta_validar(array $a): array
+{
+    $d = [];
+    $e = [];
+    hc_fecha_hora($a, $d, $e, 'FechCons', 'HoraCons', 'consulta');
+    $d['TipoCons'] = hc_procedimiento('TipoCons', false, $e);
+    $d['FinaCons'] = hc_de_lista('FinaCons', 'FinaCons', true, $e, 'Seleccione la finalidad de la consulta.', 2);
+    foreach (['MotiCons', 'EnfeActu', 'ReviSist', 'ObseReco'] as $c) {
+        $d[$c] = campo($c, 5000);
+    }
+    if ($d['MotiCons'] === '') $e['MotiCons'] = 'Escriba el motivo de consulta.';
+    if ($d['EnfeActu'] === '') $e['EnfeActu'] = 'Escriba la enfermedad actual.';
+    $d['CodiDiag'] = hc_diagnostico('CodiDiag', true, $e, 'el diagnóstico principal');
+    $d['TipoDiag'] = hc_de_lista('TipoDiag', 'TipoDiag', true, $e, 'Seleccione el tipo de diagnóstico.', 1);
+    foreach ([1, 2] as $i) {
+        $d["CodiRel$i"] = hc_diagnostico("CodiRel$i", false, $e);
+        $d["TipoDia$i"] = $d["CodiRel$i"] !== ''
+            ? hc_de_lista('TipoDiag', "TipoDia$i", true, $e, "Seleccione el tipo del diagnóstico relacionado $i.", 1) : '0';
+    }
+    // Antecedentes: 1 = sí, 2 = no refiere
+    foreach (ANTECEDENTES as $c => [$etq, $desc]) {
+        $d[$c] = campo($c, 1) === '1' ? 1 : 2;
+        $d[$desc] = campo($desc, 2000);
+        if ($d[$c] === 1 && $d[$desc] === '') $e[$desc] = "Describa los antecedentes $etq.";
+    }
+    $d['AlerSiNo'] = campo('AlerSiNo', 1) === '1' ? 1 : 2;
+    $d['AlerDesc'] = campo('AlerDesc', 2000);
+    if ($d['AlerSiNo'] === 1 && $d['AlerDesc'] === '') $e['AlerDesc'] = 'Describa las alergias.';
+    // Examen físico: 1 = normal, 2 = anormal, vacío = no examinado
+    $d['EstaGene'] = campo('EstaGene', 5000);
+    foreach (EXAMEN_SISTEMAS as $c => [$etq, $desc]) {
+        $v = campo($c, 1);
+        $d[$c] = in_array($v, ['1', '2'], true) ? (int) $v : null;
+        $d[$desc] = campo($desc, 2000);
+        if ($d[$c] === 2 && $d[$desc] === '') $e[$desc] = "Describa el hallazgo anormal en $etq.";
+    }
+    return [$d, $e];
+}
+
+/** Guarda la consulta (RipsCons), los antecedentes (Antecede) y el examen físico (EstaGene). Devuelve ConsCons. */
+function consulta_guardar(array $a, array $d, array $u): int
+{
+    return hc_transaccion(function (PDO $pdo) use ($a, $d, $u) {
+        $login = $u['Login'];
+        $modu = hc_modulo($a);
+        $cons = hc_siguiente($pdo, 'RipsCons', 'ConsCons', $a['ConsAdmi']);
+        $ahora = hc_digitacion($login);
+        hc_insertar($pdo, 'RipsCons', [
+            'CodiInst' => CODI_INST, 'ConsAdmi' => $a['ConsAdmi'], 'ConsCons' => $cons, 'CodiModu' => $modu,
+            'FechCons' => $d['FechCons'], 'HoraCons' => $d['HoraCons'], 'UsuaCons' => $login,
+            'TipoCons' => $d['TipoCons'], 'FinaCons' => $d['FinaCons'],
+            'MotiCons' => $d['MotiCons'], 'EnfeActu' => $d['EnfeActu'], 'ReviSist' => $d['ReviSist'],
+            'TipoDiag' => (int) $d['TipoDiag'], 'TipoDia1' => (int) $d['TipoDia1'], 'TipoDia2' => (int) $d['TipoDia2'],
+            'TipoDia3' => 0, 'TipoDia4' => 0,
+            'CodiDiag' => $d['CodiDiag'], 'CodiRel1' => $d['CodiRel1'], 'CodiRel2' => $d['CodiRel2'], 'CodiRel3' => '', 'CodiRel4' => '',
+            'CodiEspe' => $u['CodiEspe'] ?? null, 'ObseReco' => $d['ObseReco'],
+            // La consulta queda realizada y cerrada al guardarla
+            'EstaReal' => 1, 'FechCier' => $ahora['FechDigi'], 'HoraCier' => $ahora['HoraDigi'], 'UsuaCier' => $login,
+            'UsuaAsis' => $login, 'EstaCarg' => 0, 'NumeLiqu' => 0, 'ConsDeFa' => 0, 'CentCost' => '',
+            'ServEgre' => $a['ServEgre'], 'CodiServ' => $a['ServEgre'],
+        ] + $ahora);
+
+        $ante = hc_siguiente($pdo, 'Antecede', 'ConsAnte', $a['ConsAdmi']);
+        $fila = ['CodiInst' => CODI_INST, 'ConsAdmi' => $a['ConsAdmi'], 'ConsAnte' => $ante,
+                 'TipoDocu' => $a['TipoDocu'], 'NumeUsua' => $a['NumeUsua'], 'CodiModu' => $modu, 'ConsCons' => $cons,
+                 'AlerSiNo' => $d['AlerSiNo'], 'AlerDesc' => $d['AlerDesc']];
+        foreach (ANTECEDENTES as $c => [, $desc]) {
+            $fila[$c] = $d[$c];
+            $fila[$desc] = $d[$desc];
+        }
+        hc_insertar($pdo, 'Antecede', $fila + $ahora);
+
+        $examen = $d['EstaGene'] !== '' || array_filter(array_keys(EXAMEN_SISTEMAS), fn ($c) => $d[$c] !== null);
+        if ($examen) {
+            $fila = ['CodiInst' => CODI_INST, 'ConsAdmi' => $a['ConsAdmi'],
+                     'ConsEsGe' => hc_siguiente($pdo, 'EstaGene', 'ConsEsGe', $a['ConsAdmi']),
+                     'CodiModu' => $modu, 'ConsCons' => $cons, 'ConsHoPr' => 0,
+                     'Fecha' => $d['FechCons'], 'Hora' => $d['HoraCons'], 'EstaGene' => $d['EstaGene']];
+            foreach (EXAMEN_SISTEMAS as $c => [, $desc]) {
+                $fila[$c] = $d[$c];
+                $fila[$desc] = $d[$desc];
+            }
+            hc_insertar($pdo, 'EstaGene', $fila + $ahora);
+        }
+        return $cons;
+    });
+}
+
+/** Consultas de la admisión (más reciente arriba), con antecedentes y examen físico ligados. */
+function consultas_de_admision(string $cons): array
+{
+    $st = db()->prepare('SELECT r.*, f.NombFina FROM RipsCons r LEFT JOIN FinaCons f ON f.CodiFina = r.FinaCons
+                          WHERE r.CodiInst = ? AND r.ConsAdmi = ? ORDER BY r.FechCons DESC, r.HoraCons DESC, r.ConsCons DESC');
+    $st->execute([CODI_INST, $cons]);
+    $r = $st->fetchAll();
+    $ante = db()->prepare('SELECT * FROM Antecede WHERE CodiInst = ? AND ConsAdmi = ? AND ConsCons = ? LIMIT 1');
+    $exam = db()->prepare('SELECT * FROM EstaGene WHERE CodiInst = ? AND ConsAdmi = ? AND ConsCons = ? LIMIT 1');
+    foreach ($r as &$c) {
+        $ante->execute([CODI_INST, $cons, $c['ConsCons']]);
+        $c['antecedentes'] = $ante->fetch() ?: null;
+        $exam->execute([CODI_INST, $cons, $c['ConsCons']]);
+        $c['examen'] = $exam->fetch() ?: null;
+    }
+    return $r;
+}
+
+// ---------------------------------------------------------------------
+// 4. Prescripción: EncaPres + DetaPres
+// ---------------------------------------------------------------------
+
+/** Horas de cada unidad de tiempo (CodiTiem): 1 hora(s), 2 día(s), 3 mes(es) (según el comentario de DetaPres). */
+const TIEMPO_HORAS = [1 => 1, 2 => 24, 3 => 720];
+
+/** Campos de cada medicamento de la prescripción (se envían como arreglos: CodiSumi[] ...). */
+const PRES_CAMPOS = ['CodiSumi' => 20, 'CantSumi' => 12, 'UnidMedi' => 2, 'CodiVia' => 1, 'CantFrec' => 3,
+                     'TiemFrec' => 1, 'CantPeDu' => 3, 'TiemPeDu' => 1, 'PresMedi' => 1000];
+
+function prescripcion_validar(array $a): array
+{
+    $d = [];
+    $e = [];
+    hc_fecha_hora($a, $d, $e, 'FechPres', 'HoraPres', 'prescripción');
+    $d['PresSali'] = campo('PresSali', 1) === '1' ? 1 : 2;
+    $d['ObseOrde'] = campo('ObseOrde', 5000);
+    $d['CodiDiag'] = hc_diagnostico('PresDiag', false, $e);
+    $d['items'] = hc_filas(PRES_CAMPOS, 'CodiSumi');
+    if (!$d['items']) {
+        $e['CodiSumi'] = 'Agregue al menos un medicamento.';
+    }
+    foreach ($d['items'] as $i => &$it) {
+        $n = $i + 1;
+        $nombre = suministro_nombre($it['CodiSumi']);
+        if ($nombre === null) {
+            $e["item$n"] = "Medicamento $n: el código {$it['CodiSumi']} no existe o no está activo.";
+            continue;
+        }
+        $it['NombSumi'] = $nombre;
+        $cant = hc_numero($it['CantSumi']);
+        if ($cant === null || $cant <= 0 || $cant > 99999) $e["item{$n}c"] = "Medicamento $n: escriba la dosis.";
+        if (!lista_valida('UnidMedi', $it['UnidMedi'])) $e["item{$n}u"] = "Medicamento $n: seleccione la unidad.";
+        if (!lista_valida('ViaAdmi', $it['CodiVia'])) $e["item{$n}v"] = "Medicamento $n: seleccione la vía.";
+        $frec = (int) $it['CantFrec'];
+        $dura = (int) $it['CantPeDu'];
+        if ($frec < 1 || $frec > 99 || !lista_valida('CodiTiem', $it['TiemFrec'])) $e["item{$n}f"] = "Medicamento $n: escriba la frecuencia (cada cuánto).";
+        if ($dura < 1 || $dura > 99 || !lista_valida('CodiTiem', $it['TiemPeDu'])) $e["item{$n}d"] = "Medicamento $n: escriba la duración.";
+        // Número de dosis = duración / frecuencia (en horas); cantidad total = dosis x número de dosis
+        $hf = $frec * (TIEMPO_HORAS[(int) $it['TiemFrec']] ?? 0);
+        $hd = $dura * (TIEMPO_HORAS[(int) $it['TiemPeDu']] ?? 0);
+        $it['NumeDosi'] = ($hf > 0 && $hd > 0) ? max(1, (int) ceil($hd / $hf)) : 1;
+        $it['CantTota'] = round(($cant ?? 0) * $it['NumeDosi'], 2);
+        $it['CantSumi'] = $cant ?? 0;
+        if ($it['PresMedi'] === '') {
+            $it['PresMedi'] = sprintf('%s: %s %s VIA %s CADA %d %s DURANTE %d %s',
+                $nombre, rtrim(rtrim(number_format((float) $it['CantSumi'], 2, '.', ''), '0'), '.'),
+                lista_nombre('UnidMedi', $it['UnidMedi']), lista_nombre('ViaAdmi', $it['CodiVia']),
+                $frec, lista_nombre('CodiTiem', $it['TiemFrec']), $dura, lista_nombre('CodiTiem', $it['TiemPeDu']));
+        }
+    }
+    return [$d, $e];
+}
+
+/** Guarda la prescripción. Devuelve ConsPres. */
+function prescripcion_guardar(array $a, array $d, string $login): int
+{
+    return hc_transaccion(function (PDO $pdo) use ($a, $d, $login) {
+        $modu = hc_modulo($a);
+        $pres = hc_siguiente($pdo, 'EncaPres', 'ConsPres', $a['ConsAdmi']);
+        $ahora = hc_digitacion($login);
+        hc_insertar($pdo, 'EncaPres', [
+            'CodiInst' => CODI_INST, 'ConsAdmi' => $a['ConsAdmi'], 'ConsPres' => $pres, 'TipoPres' => 1,
+            'CodiModu' => $modu, 'CodiServ' => $a['ServEgre'], 'CentCost' => '',
+            'ConsCons' => hc_ultima_consulta($a['ConsAdmi']),
+            // Consecutivo global de SIHOS: en la contingencia es temporal (= ConsPres); se reasigna al cargar
+            'Consecut' => $pres,
+            'Fecha' => $d['FechPres'], 'Hora' => $d['HoraPres'], 'FechEntr' => $d['FechPres'],
+            'ObseOrde' => $d['ObseOrde'], 'PresSali' => $d['PresSali'],
+            'CodiDiag' => $d['CodiDiag'] !== '' ? $d['CodiDiag'] : ($a['DiagIngr'] ?? ''),
+            'CodiRel1' => '', 'CodiRel2' => '', 'CodiRel3' => '', 'CodiRel4' => '', 'ImprOrde' => 0,
+        ] + $ahora);
+        foreach ($d['items'] as $i => $it) {
+            hc_insertar($pdo, 'DetaPres', [
+                'CodiInst' => CODI_INST, 'ConsAdmi' => $a['ConsAdmi'], 'ConsPres' => $pres, 'Item' => $i + 1,
+                'CodiModu' => $modu, 'CodiFina' => null, 'CodiSumi' => $it['CodiSumi'],
+                'CantSumi' => $it['CantSumi'], 'Contenid' => 0, 'CodiVia' => (int) $it['CodiVia'],
+                'HoraApli' => 0, 'HoraInic' => $d['HoraPres'],
+                'CantFrec' => (int) $it['CantFrec'], 'TiemFrec' => (int) $it['TiemFrec'],
+                'CantPeDu' => (int) $it['CantPeDu'], 'TiemPeDu' => (int) $it['TiemPeDu'],
+                'NumeDosi' => $it['NumeDosi'], 'CantTota' => $it['CantTota'], 'CantApli' => 0,
+                'CantSoli' => 0, 'CantEntr' => 0, 'CantDevo' => 0, 'PresMedi' => $it['PresMedi'], 'MediPrin' => 0,
+                'CantFact' => 0, 'CodiDocu' => '', 'NumeLiqu' => 0, 'ConsDeFa' => 0, 'CodiServ' => $a['ServEgre'],
+                'FechSusp' => '0000-00-00', 'HoraSusp' => '00:00:00', 'UsuaSusp' => '',
+                'UnidMedi' => (int) $it['UnidMedi'],
+            ] + $ahora);
+        }
+        return $pres;
+    });
+}
+
+/** Prescripciones de la admisión (más reciente arriba) con sus medicamentos. */
+function prescripciones_de_admision(string $cons): array
+{
+    $st = db()->prepare('SELECT * FROM EncaPres WHERE CodiInst = ? AND ConsAdmi = ? ORDER BY Fecha DESC, Hora DESC, ConsPres DESC');
+    $st->execute([CODI_INST, $cons]);
+    $r = $st->fetchAll();
+    $det = db()->prepare('SELECT d.*, s.NombSumi FROM DetaPres d LEFT JOIN CodiSumi s ON s.CodiSumi = d.CodiSumi
+                           WHERE d.CodiInst = ? AND d.ConsAdmi = ? AND d.ConsPres = ? ORDER BY d.Item');
+    foreach ($r as &$p) {
+        $det->execute([CODI_INST, $cons, $p['ConsPres']]);
+        $p['items'] = $det->fetchAll();
+    }
+    return $r;
+}
+
+// ---------------------------------------------------------------------
+// 5. Órdenes médicas: texto libre (EncaData/DetaData TipoObje 7) y órdenes (EncaOrde/DetaOrde)
+// ---------------------------------------------------------------------
+
+/** CodiItem de la orden médica en DetaData según el módulo: 131 Urgencias, 130 Observación (REGLAS). */
+function orden_medica_item(array $a): ?int
+{
+    return ['urg' => 131, 'obs' => 130][modulo_de_servicio($a['ServEgre'])] ?? null;
+}
+
+function orden_medica_validar(array $a): array
+{
+    $d = [];
+    $e = [];
+    hc_fecha_hora($a, $d, $e, 'FechOrMe', 'HoraOrMe', 'orden médica');
+    $d['Texto'] = campo('TextoOrden', 10000);
+    if ($d['Texto'] === '') $e['TextoOrden'] = 'Escriba la orden médica.';
+    if (orden_medica_item($a) === null) $e['TextoOrden'] = 'La orden médica en texto libre no aplica en este módulo.';
+    return [$d, $e];
+}
+
+function orden_medica_guardar(array $a, array $d, string $login): int
+{
+    return hc_transaccion(function (PDO $pdo) use ($a, $d, $login) {
+        $cons = hc_siguiente($pdo, 'EncaData', 'ConsData', $a['ConsAdmi'], 'AND TipoObje = 7');
+        $ahora = hc_digitacion($login);
+        hc_insertar($pdo, 'EncaData', [
+            'CodiInst' => CODI_INST, 'ConsAdmi' => $a['ConsAdmi'], 'TipoObje' => 7, 'ConsData' => $cons,
+            'CodiModu' => hc_modulo($a), 'Fecha' => $d['FechOrMe'], 'Hora' => $d['HoraOrMe'], 'UsuaAsis' => $login,
+        ] + $ahora);
+        hc_insertar($pdo, 'DetaData', [
+            'CodiInst' => CODI_INST, 'ConsAdmi' => $a['ConsAdmi'], 'TipoObje' => 7, 'ConsData' => $cons,
+            'CodiItem' => orden_medica_item($a), 'CodiSino' => null, 'CodiEsta' => 0, 'Texto' => $d['Texto'],
+        ] + $ahora);
+        return $cons;
+    });
+}
+
+function ordenes_medicas_de_admision(string $cons): array
+{
+    $st = db()->prepare('SELECT e.*, d.Texto FROM EncaData e
+                           JOIN DetaData d ON d.CodiInst = e.CodiInst AND d.ConsAdmi = e.ConsAdmi AND d.TipoObje = e.TipoObje AND d.ConsData = e.ConsData
+                          WHERE e.CodiInst = ? AND e.ConsAdmi = ? AND e.TipoObje = 7
+                          ORDER BY e.Fecha DESC, e.Hora DESC, e.ConsData DESC');
+    $st->execute([CODI_INST, $cons]);
+    return $st->fetchAll();
+}
+
+/** Campos de cada procedimiento ordenado (arreglos: OrdProc[] ...). */
+const ORDEN_CAMPOS = ['OrdProc' => 15, 'OrdFina' => 1, 'OrdCant' => 5, 'OrdObse' => 70];
+
+function ordenes_validar(array $a): array
+{
+    $d = [];
+    $e = [];
+    hc_fecha_hora($a, $d, $e, 'FechOrde', 'HoraOrde', 'orden');
+    $d['ObseOrde'] = campo('ObseOrdeProc', 5000);
+    $d['CodiDiag'] = hc_diagnostico('OrdeDiag', false, $e);
+    $d['items'] = hc_filas(ORDEN_CAMPOS, 'OrdProc');
+    if (!$d['items']) {
+        $e['OrdProc'] = 'Agregue al menos un procedimiento, laboratorio o imagen.';
+    }
+    foreach ($d['items'] as $i => &$it) {
+        $n = $i + 1;
+        $it['NombProc'] = procedimiento_nombre($it['OrdProc']);
+        if ($it['NombProc'] === null) $e["ord$n"] = "Ítem $n: el procedimiento {$it['OrdProc']} no existe o no está activo.";
+        if (!lista_valida('FinaProc', $it['OrdFina'])) $e["ord{$n}f"] = "Ítem $n: seleccione la finalidad.";
+        $cant = (int) $it['OrdCant'];
+        if ($cant < 1 || $cant > 999) $e["ord{$n}c"] = "Ítem $n: la cantidad debe estar entre 1 y 999.";
+        $it['OrdCant'] = $cant;
+    }
+    return [$d, $e];
+}
+
+function ordenes_guardar(array $a, array $d, string $login): int
+{
+    return hc_transaccion(function (PDO $pdo) use ($a, $d, $login) {
+        $modu = hc_modulo($a);
+        $orde = hc_siguiente($pdo, 'EncaOrde', 'ConsOrde', $a['ConsAdmi']);
+        $ahora = hc_digitacion($login);
+        hc_insertar($pdo, 'EncaOrde', [
+            'CodiInst' => CODI_INST, 'ConsAdmi' => $a['ConsAdmi'], 'ConsOrde' => $orde, 'CodiModu' => $modu,
+            'CodiServ' => $a['ServEgre'], 'ConsCons' => hc_ultima_consulta($a['ConsAdmi']),
+            // Consecutivo general de SIHOS: temporal (= ConsOrde) en la contingencia; se reasigna al cargar
+            'Consecut' => $orde,
+            'Fecha' => $d['FechOrde'], 'Hora' => $d['HoraOrde'], 'ObseOrde' => $d['ObseOrde'],
+            'CodiDiag' => $d['CodiDiag'] !== '' ? $d['CodiDiag'] : ($a['DiagIngr'] ?? ''),
+            'CodiRel1' => '', 'CodiRel2' => '', 'CodiRel3' => '', 'CodiRel4' => '',
+            'OrdeSali' => 0, 'OrdeAmbu' => 0, 'ImprOrde' => 0, 'Autoriza' => 0,
+        ] + $ahora);
+        foreach ($d['items'] as $i => $it) {
+            hc_insertar($pdo, 'DetaOrde', [
+                'CodiInst' => CODI_INST, 'ConsAdmi' => $a['ConsAdmi'], 'ConsOrde' => $orde, 'Item' => $i + 1,
+                'CodiModu' => $modu, 'CodiProc' => $it['OrdProc'], 'CodiFina' => $it['OrdFina'],
+                'CantSumi' => $it['OrdCant'], 'ObseProc' => $it['OrdObse'], 'CantReal' => 0, 'CantFact' => 0,
+                'CodiDocu' => '', 'NumeLiqu' => 0, 'ConsDeFa' => 0, 'TipoHora' => '', 'CodiServ' => $a['ServEgre'],
+                'CodiProf' => $login, 'FechSusp' => '0000-00-00', 'HoraSusp' => '00:00:00', 'UsuaSusp' => '',
+            ] + $ahora);
+        }
+        return $orde;
+    });
+}
+
+function ordenes_de_admision(string $cons): array
+{
+    $st = db()->prepare('SELECT * FROM EncaOrde WHERE CodiInst = ? AND ConsAdmi = ? ORDER BY Fecha DESC, Hora DESC, ConsOrde DESC');
+    $st->execute([CODI_INST, $cons]);
+    $r = $st->fetchAll();
+    $det = db()->prepare('SELECT d.*, p.NombProc, f.NombFina FROM DetaOrde d
+                            LEFT JOIN CodiProc p ON p.CodiProc = d.CodiProc
+                            LEFT JOIN FinaProc f ON f.CodiFina = d.CodiFina
+                           WHERE d.CodiInst = ? AND d.ConsAdmi = ? AND d.ConsOrde = ? ORDER BY d.Item');
+    foreach ($r as &$o) {
+        $det->execute([CODI_INST, $cons, $o['ConsOrde']]);
+        $o['items'] = $det->fetchAll();
+    }
+    return $r;
+}
+
+// ---------------------------------------------------------------------
+// 6. Procedimientos realizados: HojaProc
+// ---------------------------------------------------------------------
+
+/** HojaProc guarda los usuarios en varchar(8): se recorta el login a 8 caracteres. */
+function login8(string $login): string
+{
+    return mb_substr($login, 0, 8);
+}
+
+function procedimiento_validar(array $a): array
+{
+    $d = [];
+    $e = [];
+    hc_fecha_hora($a, $d, $e, 'FechProc', 'HoraProc', 'procedimiento');
+    $d['CodiProc'] = hc_procedimiento('CodiProc', true, $e);
+    $d['CodiFina'] = hc_de_lista('FinaProc', 'CodiFina', true, $e, 'Seleccione la finalidad del procedimiento.', 1);
+    $d['DiagPrin'] = hc_diagnostico('DiagPrin', true, $e, 'el diagnóstico principal');
+    $d['TipoDiag'] = hc_de_lista('TipoDiag', 'ProcTipoDiag', true, $e, 'Seleccione el tipo de diagnóstico.', 1);
+    $d['DiagRela'] = hc_diagnostico('DiagRela', false, $e);
+    $d['IndiAdic'] = campo('IndiAdic', 5000);
+    return [$d, $e];
+}
+
+function procedimiento_guardar(array $a, array $d, string $login): int
+{
+    return hc_transaccion(function (PDO $pdo) use ($a, $d, $login) {
+        $cons = hc_siguiente($pdo, 'HojaProc', 'ConsHoPr', $a['ConsAdmi']);
+        $l8 = login8($login);
+        $dig = hc_digitacion($l8);
+        hc_insertar($pdo, 'HojaProc', [
+            'CodiInst' => CODI_INST, 'ConsAdmi' => $a['ConsAdmi'], 'ConsHoPr' => $cons, 'CodiModu' => hc_modulo($a),
+            'ConsCons' => min(99, hc_ultima_consulta($a['ConsAdmi'])), 'EsCrue' => 0,
+            'CodiProc' => $d['CodiProc'], 'CodiFina' => $d['CodiFina'],
+            'FechProc' => $d['FechProc'], 'HoraProc' => $d['HoraProc'],
+            'TipoDiag' => (int) $d['TipoDiag'], 'TipoDiaR' => 0, 'TipoDia1' => 0, 'TipoDia2' => 0, 'TipoDiaC' => 0,
+            'DiagPrin' => $d['DiagPrin'], 'DiagRela' => $d['DiagRela'], 'DiagRel1' => '', 'DiagRel2' => '', 'DiagRel3' => '',
+            'DiagComp' => '', 'IndiAdic' => $d['IndiAdic'], 'CodiProf' => $l8, 'UsuaAsis' => $l8,
+            'ProcReal' => 1, 'CantProc' => 1, 'CantFact' => 0, 'NumeOrde' => 0, 'Item' => 0,
+            'CentCost' => '0', 'ServEgre' => $a['ServEgre'], 'CodiDocu' => '', 'NumeLiqu' => 0, 'ConsDeFa' => 0,
+            'NumePiez' => 0, 'CuadPiez' => 0, 'CodiServ' => $a['ServEgre'],
+        ] + $dig);
+        return $cons;
+    });
+}
+
+function procedimientos_de_admision(string $cons): array
+{
+    $st = db()->prepare('SELECT h.*, p.NombProc, f.NombFina FROM HojaProc h
+                           LEFT JOIN CodiProc p ON p.CodiProc = h.CodiProc
+                           LEFT JOIN FinaProc f ON f.CodiFina = h.CodiFina
+                          WHERE h.CodiInst = ? AND h.ConsAdmi = ? ORDER BY h.FechProc DESC, h.HoraProc DESC, h.ConsHoPr DESC');
+    $st->execute([CODI_INST, $cons]);
+    return $st->fetchAll();
+}
+
+// ---------------------------------------------------------------------
+// 7. Notas de enfermería (HojaEnfe) y administración de medicamentos (HojaMedi)
+// ---------------------------------------------------------------------
+
+function nota_validar(array $a): array
+{
+    $d = [];
+    $e = [];
+    hc_fecha_hora($a, $d, $e, 'FechNota', 'HoraNota', 'nota');
+    $d['TipoNota'] = hc_de_lista('TipoNota', 'TipoNota', true, $e, 'Seleccione el tipo de nota.', 2);
+    $d['NotaEnfe'] = campo('NotaEnfe', 10000);
+    if ($d['NotaEnfe'] === '') $e['NotaEnfe'] = 'Escriba la nota.';
+    return [$d, $e];
+}
+
+function nota_guardar(array $a, array $d, string $login): int
+{
+    return hc_transaccion(function (PDO $pdo) use ($a, $d, $login) {
+        $cons = hc_siguiente($pdo, 'HojaEnfe', 'ConsHoEn', $a['ConsAdmi']);
+        hc_insertar($pdo, 'HojaEnfe', [
+            'CodiInst' => CODI_INST, 'ConsAdmi' => $a['ConsAdmi'], 'TipoNota' => (int) $d['TipoNota'], 'Procedim' => '',
+            'ConsHoEn' => $cons, 'CodiModu' => hc_modulo($a), 'CodiServ' => $a['ServEgre'], 'ConsCons' => 0,
+            'FechNota' => $d['FechNota'], 'HoraNota' => $d['HoraNota'], 'NotaEnfe' => $d['NotaEnfe'],
+            'Reviza' => 0, 'UsuaRevi' => '', 'HoraRevi' => '00:00:00', 'FechRevi' => '0000-00-00', 'DeclLeid' => 0,
+        ] + hc_digitacion($login));
+        return $cons;
+    });
+}
+
+function notas_de_admision(string $cons): array
+{
+    $st = db()->prepare('SELECT h.*, t.NombTipo FROM HojaEnfe h LEFT JOIN TipoNota t ON t.CodiTipo = h.TipoNota
+                          WHERE h.CodiInst = ? AND h.ConsAdmi = ? ORDER BY h.FechNota DESC, h.HoraNota DESC, h.ConsHoEn DESC');
+    $st->execute([CODI_INST, $cons]);
+    return $st->fetchAll();
+}
+
+/** Medicamentos prescritos en la admisión que no están suspendidos: ["ConsPres-Item" => fila]. */
+function medicamentos_prescritos(string $cons): array
+{
+    $st = db()->prepare("SELECT d.*, s.NombSumi FROM DetaPres d LEFT JOIN CodiSumi s ON s.CodiSumi = d.CodiSumi
+                          WHERE d.CodiInst = ? AND d.ConsAdmi = ? AND d.FechSusp = '0000-00-00'
+                          ORDER BY d.ConsPres DESC, d.Item");
+    $st->execute([CODI_INST, $cons]);
+    $r = [];
+    foreach ($st as $f) {
+        $r[$f['ConsPres'] . '-' . $f['Item']] = $f;
+    }
+    return $r;
+}
+
+function medicamento_validar(array $a): array
+{
+    $d = [];
+    $e = [];
+    hc_fecha_hora($a, $d, $e, 'FechMedi', 'HoraMedi', 'administración');
+    $clave = campo('MediPres', 10);
+    $pres = medicamentos_prescritos($a['ConsAdmi']);
+    if (!isset($pres[$clave])) {
+        $e['MediPres'] = 'Seleccione un medicamento prescrito.';
+    } else {
+        $d['det'] = $pres[$clave];
+    }
+    $cant = campo_numero('CantMedi');
+    if ($cant === null || $cant <= 0 || $cant > 99999) $e['CantMedi'] = 'Escriba la cantidad aplicada.';
+    $d['CantMedi'] = $cant ?? 0;
+    $d['IndiAdic'] = campo('MediObse', 255);
+    return [$d, $e];
+}
+
+/** Registra la aplicación del medicamento (HojaMedi) y suma la cantidad aplicada en DetaPres.CantApli. */
+function medicamento_guardar(array $a, array $d, string $login): int
+{
+    return hc_transaccion(function (PDO $pdo) use ($a, $d, $login) {
+        $det = $d['det'];
+        $cons = hc_siguiente($pdo, 'HojaMedi', 'ConsHoMe', $a['ConsAdmi']);
+        hc_insertar($pdo, 'HojaMedi', [
+            'CodiInst' => CODI_INST, 'ConsAdmi' => $a['ConsAdmi'], 'ConsHoMe' => $cons, 'CodiModu' => hc_modulo($a),
+            'CodiServ' => $a['ServEgre'], 'FechMedi' => $d['FechMedi'], 'HoraMedi' => $d['HoraMedi'],
+            'FechPlan' => $d['FechMedi'], 'HoraPlan' => $d['HoraMedi'], 'CodiMedi' => $det['CodiSumi'],
+            'ViaAdmi' => (int) $det['CodiVia'], 'EstaApli' => 1, 'CantMedi' => $d['CantMedi'],
+            'UnidMedi' => (int) ($det['UnidMedi'] ?: 1), 'IndiAdic' => $d['IndiAdic'], 'EsFact' => 1, 'CantFact' => 0,
+            'UsuaAsis' => $login, 'NumeOrde' => (int) $det['ConsPres'], 'Item' => (int) $det['Item'],
+            'CodiDocu' => '', 'NumeLiqu' => 0, 'ConsDeFa' => 0, 'ValoUnit' => 0, 'ValoTota' => 0, 'EstaFact' => 0,
+            'Despacha' => 0, 'DispMedi' => 0, 'Correctos' => 0, 'CentCost' => '0',
+        ] + hc_digitacion($login));
+        $pdo->prepare('UPDATE DetaPres SET CantApli = CantApli + ?, FechModi = CURDATE(), HoraModi = CURTIME(), UsuaModi = ?
+                        WHERE CodiInst = ? AND ConsAdmi = ? AND ConsPres = ? AND Item = ?')
+            ->execute([$d['CantMedi'], $login, CODI_INST, $a['ConsAdmi'], $det['ConsPres'], $det['Item']]);
+        return $cons;
+    });
+}
+
+function medicamentos_aplicados(string $cons): array
+{
+    $st = db()->prepare('SELECT h.*, s.NombSumi FROM HojaMedi h LEFT JOIN CodiSumi s ON s.CodiSumi = h.CodiMedi
+                          WHERE h.CodiInst = ? AND h.ConsAdmi = ? ORDER BY h.FechMedi DESC, h.HoraMedi DESC, h.ConsHoMe DESC');
+    $st->execute([CODI_INST, $cons]);
+    return $st->fetchAll();
+}
+
+// ---------------------------------------------------------------------
+// 8. Evolución: EvolInte
+// ---------------------------------------------------------------------
+
+function evolucion_validar(array $a): array
+{
+    $d = [];
+    $e = [];
+    hc_fecha_hora($a, $d, $e, 'FechEvol', 'HoraEvol', 'evolución');
+    foreach (['Subjetivo', 'Objetivo', 'Analisis', 'PlanMane'] as $c) {
+        $d[$c] = campo($c, 10000);
+    }
+    if ($d['Subjetivo'] === '' && $d['Objetivo'] === '') $e['Subjetivo'] = 'Escriba lo subjetivo o lo objetivo.';
+    if ($d['Analisis'] === '') $e['Analisis'] = 'Escriba el análisis.';
+    if ($d['PlanMane'] === '') $e['PlanMane'] = 'Escriba el plan de manejo.';
+    $d['CodiDiag'] = hc_diagnostico('EvolDiag', true, $e, 'el diagnóstico');
+    $d['TipoDiag'] = hc_de_lista('TipoDiag', 'EvolTipoDiag', true, $e, 'Seleccione el tipo de diagnóstico.', 1);
+    $d['CodiRel1'] = hc_diagnostico('EvolRel1', false, $e);
+    $d['TipoDiag1'] = $d['CodiRel1'] !== '' ? hc_de_lista('TipoDiag', 'EvolTipoRel1', true, $e, 'Seleccione el tipo del diagnóstico relacionado.', 1) : '0';
+    $d['CodiProc'] = hc_procedimiento('EvolProc', false, $e);
+    $d['ContSign'] = campo('ContSign', 1) === '1' ? 1 : 0;
+    $d['ContLiqu'] = campo('ContLiqu', 1) === '1' ? 1 : 0;
+    return [$d, $e];
+}
+
+function evolucion_guardar(array $a, array $d, string $login): int
+{
+    return hc_transaccion(function (PDO $pdo) use ($a, $d, $login) {
+        $cons = hc_siguiente($pdo, 'EvolInte', 'ConsEvol', $a['ConsAdmi']);
+        hc_insertar($pdo, 'EvolInte', [
+            'CodiInst' => CODI_INST, 'ConsAdmi' => $a['ConsAdmi'], 'ConsEvol' => $cons, 'CodiModu' => hc_modulo($a),
+            'FechEvol' => $d['FechEvol'], 'HoraEvol' => $d['HoraEvol'], 'CodiProc' => $d['CodiProc'],
+            'NumeOrde' => 0, 'Item' => 0, 'CodiDocu' => '', 'NumeLiqu' => 0, 'ConsDeFa' => 0,
+            'Subjetivo' => $d['Subjetivo'], 'Objetivo' => $d['Objetivo'],
+            'CodiDiag' => $d['CodiDiag'], 'CodiRel1' => $d['CodiRel1'], 'CodiRel2' => '', 'CodiRel3' => '', 'CodiRel4' => '',
+            'TipoDiag' => (int) $d['TipoDiag'], 'TipoDiag1' => (int) $d['TipoDiag1'], 'TipoDiag2' => 0, 'TipoDiag3' => 0, 'TipoDiag4' => 0,
+            'Analisis' => $d['Analisis'], 'ContSign' => $d['ContSign'], 'ContLiqu' => $d['ContLiqu'],
+            'ContRevi' => 0, 'MediRevi' => '', 'CentCost' => '', 'ServEgre' => $a['ServEgre'],
+            'FechRevi' => '0000-00-00', 'HoraRevi' => '00:00:00', 'PlanMane' => $d['PlanMane'], 'CodiServ' => $a['ServEgre'],
+        ] + hc_digitacion($login));
+        return $cons;
+    });
+}
+
+function evoluciones_de_admision(string $cons): array
+{
+    $st = db()->prepare('SELECT * FROM EvolInte WHERE CodiInst = ? AND ConsAdmi = ? ORDER BY FechEvol DESC, HoraEvol DESC, ConsEvol DESC');
+    $st->execute([CODI_INST, $cons]);
+    return $st->fetchAll();
+}
+
+// ---------------------------------------------------------------------
+// 9. Egreso: SaliInte y cierre de la admisión
+// ---------------------------------------------------------------------
+
+/** true si el estado a la salida (EstaSali) es "muerto" (se busca por nombre en el catálogo). */
+function estado_salida_muerto($codigo): bool
+{
+    return $codigo !== '' && stripos(lista_nombre('EstaSali', $codigo), 'MUERT') !== false;
+}
+
+function egreso_validar(array $a): array
+{
+    $d = [];
+    $e = [];
+    hc_fecha_hora($a, $d, $e, 'FechSali', 'HoraSali', 'salida');
+    $ce = modulo_de_servicio($a['ServEgre']) === 'ce';
+    if (campo('ConfEgre', 1) !== '1') {
+        $e['ConfEgre'] = 'Marque la confirmación: al guardar, la admisión queda cerrada y ya no se puede modificar.';
+    }
+    if ($ce) {
+        // En Consulta Externa solo se cierra la atención (ver supuestos en docs/REGLAS.md)
+        return [$d + ['solo_cierre' => true], $e];
+    }
+    $d['CausSali'] = hc_de_lista('CausSali', 'CausSali', true, $e, 'Seleccione la causa de salida.', 1);
+    $d['DestSali'] = hc_de_lista('DestSali', 'DestSali', true, $e, 'Seleccione el destino de salida.', 2);
+    $d['EstaSali'] = hc_de_lista('EstaSali', 'EstaSali', true, $e, 'Seleccione el estado a la salida.', 1);
+    $d['TipoEgre'] = hc_de_lista('TipoEgre', 'TipoEgre', true, $e, 'Seleccione el tipo de egreso.', 1);
+    $d['DiagEgre'] = hc_diagnostico('DiagEgre', true, $e, 'el diagnóstico de egreso');
+    $d['TipoDiag'] = hc_de_lista('TipoDiag', 'EgreTipoDiag', true, $e, 'Seleccione el tipo de diagnóstico.', 1);
+    $d['DiagRel1'] = hc_diagnostico('EgreRel1', false, $e);
+    $d['TipoDia1'] = $d['DiagRel1'] !== '' ? hc_de_lista('TipoDiag', 'EgreTipoRel1', true, $e, 'Seleccione el tipo del diagnóstico relacionado.', 1) : '0';
+    $inca = campo('DiasInca', 3);
+    $d['DiasInca'] = $inca === '' ? null : (int) $inca;
+    if ($inca !== '' && (!ctype_digit($inca) || (int) $inca > 99)) $e['DiasInca'] = 'Los días de incapacidad deben estar entre 0 y 99.';
+    $d['ObseSali'] = campo('ObseSali', 5000);
+    $d['DiagMuer'] = '';
+    $d['FechMuer'] = '0000-00-00';
+    $d['HoraMuer'] = '00:00:00';
+    if (!isset($e['EstaSali']) && estado_salida_muerto($d['EstaSali'])) {
+        // DiagMuer es varchar(4): se guarda el CIE-10 de 4 caracteres
+        $d['DiagMuer'] = hc_diagnostico('DiagMuer', true, $e, 'la causa de muerte');
+        if (strlen($d['DiagMuer']) > 4) $e['DiagMuer'] = 'La causa de muerte debe ser un código CIE-10 de 4 caracteres.';
+        hc_fecha_hora($a, $d, $e, 'FechMuer', 'HoraMuer', 'muerte');
+    }
+    return [$d, $e];
+}
+
+/** Guarda el egreso (SaliInte) y cierra la admisión (Admision.Cerrado = 1). La cama queda libre al cerrar. */
+function egreso_guardar(array $a, array $d, string $login): void
+{
+    hc_transaccion(function (PDO $pdo) use ($a, $d, $login) {
+        $st = $pdo->prepare('SELECT Cerrado FROM Admision WHERE CodiInst = ? AND ConsAdmi = ? FOR UPDATE');
+        $st->execute([CODI_INST, $a['ConsAdmi']]);
+        if ((int) $st->fetchColumn() === 1) {
+            throw new RuntimeException('La admisión ya estaba cerrada.');
+        }
+        if (empty($d['solo_cierre'])) {
+            $seg = max(0, strtotime($d['FechSali'] . ' ' . $d['HoraSali']) - strtotime($a['FechIngr'] . ' ' . $a['HoraIngr']));
+            hc_insertar($pdo, 'SaliInte', [
+                'CodiInst' => CODI_INST, 'ConsAdmi' => $a['ConsAdmi'], 'CodiModu' => hc_modulo($a),
+                'FechSali' => $d['FechSali'], 'HoraSali' => $d['HoraSali'],
+                'DiasEsta' => min(999, intdiv($seg, 86400)), 'HoraEsta' => intdiv($seg % 86400, 3600),
+                'CausSali' => (int) $d['CausSali'], 'DestSali' => $d['DestSali'], 'DiasInca' => $d['DiasInca'],
+                'DiagEgre' => $d['DiagEgre'], 'DiagRel1' => $d['DiagRel1'], 'DiagRel2' => '', 'DiagRel3' => '', 'DiagRel4' => '', 'DiagComp' => '',
+                'TipoDiag' => (int) $d['TipoDiag'], 'TipoDia1' => (int) $d['TipoDia1'], 'TipoDia2' => 0, 'TipoDia3' => 0, 'TipoDia4' => 0,
+                'EstaSali' => (int) $d['EstaSali'], 'DiagMuer' => $d['DiagMuer'] !== '' ? $d['DiagMuer'] : null,
+                'FechMuer' => $d['FechMuer'], 'HoraMuer' => $d['HoraMuer'], 'ObseSali' => $d['ObseSali'],
+                'CodiProf' => $login, 'UnidEdad' => $a['UnidEdad'], 'ValoEdad' => (int) $a['ValoEdad'],
+                'ServEgre' => $a['ServEgre'], 'CodiCama' => $a['CamaActu'] !== '' ? $a['CamaActu'] : null,
+                'TipoEgre' => (int) $d['TipoEgre'],
+            ] + hc_digitacion($login));
+        }
+        $pdo->prepare('UPDATE Admision SET Cerrado = 1, FechCier = CURDATE(), HoraCier = CURTIME(), UsuaCier = ?,
+                              FechEgre = ?, HoraEgre = ?, FechModi = CURDATE(), HoraModi = CURTIME(), UsuaModi = ?
+                        WHERE CodiInst = ? AND ConsAdmi = ?')
+            ->execute([$login, $d['FechSali'], $d['HoraSali'], $login, CODI_INST, $a['ConsAdmi']]);
+    });
+}
+
+function egreso_de_admision(string $cons): ?array
+{
+    $st = db()->prepare('SELECT * FROM SaliInte WHERE CodiInst = ? AND ConsAdmi = ?');
+    $st->execute([CODI_INST, $cons]);
+    return $st->fetch() ?: null;
+}

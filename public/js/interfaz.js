@@ -63,8 +63,19 @@
         };
         var mostrar = function (id) {
             if (!panel(id)) { return false; }
+            // "Continuar" lleva a la siguiente pestana disponible
             var c = document.querySelector('[data-continuar]');
-            if (c) { c.hidden = (c.dataset.desde !== id); }
+            if (c) {
+                var ids = enlaces.map(function (x) { return x.dataset.tab; });
+                var sig = ids[ids.indexOf(id) + 1];
+                c.hidden = !sig;
+                if (sig) {
+                    c.dataset.tab = sig;
+                    var u = new URL(c.href, window.location.href);
+                    u.searchParams.set('tab', sig);
+                    c.href = u.toString();
+                }
+            }
             enlaces.forEach(function (a) {
                 var activa = a.dataset.tab === id;
                 a.classList.toggle('actual', activa);
@@ -94,6 +105,12 @@
                     barra.scrollIntoView({ block: 'start', behavior: 'smooth' });
                 }
             });
+        }
+        // La pestana activa queda a la vista dentro de la barra (se desplaza de lado si hace falta)
+        var actual = barra.querySelector('.actual');
+        if (actual) {
+            var rb = barra.getBoundingClientRect(), ra = actual.getBoundingClientRect();
+            barra.scrollLeft += (ra.left - rb.left) - (rb.width - ra.width) / 2;
         }
         // Enlaces viejos con #triage o #signos
         if (window.location.hash) { mostrar(window.location.hash.slice(1)); }

@@ -1089,3 +1089,82 @@ tr[data-href] { cursor: pointer; }
     .et-acciones .boton { min-width: 0; }
     .et-ayuda { padding: 0 14px 14px; align-items: flex-start; }
 }
+
+/* ---------------------------------------------------------------------
+ * 15. Pestañas de la historia (bloque 2): registros, filas repetidas, sí/no
+ * ------------------------------------------------------------------- */
+.panel-dos { display: grid; gap: 22px; }
+.panel-dos > form + form { border-top: 1px solid var(--borde); padding-top: 20px; }
+.rejilla-sino { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 8px 18px; margin-top: 8px; }
+.sino {
+    display: grid; grid-template-columns: 1fr auto auto auto; align-items: center; gap: 4px 12px;
+    padding: 8px 0; border-bottom: 1px dashed var(--borde);
+}
+.sino-etiqueta { font-weight: 600; font-size: 13.5px; color: var(--texto-2); }
+.sino input[type="text"] { grid-column: 1 / -1; min-height: 36px; padding: 6px 10px; font-size: 14px; }
+.sino .error-campo { grid-column: 1 / -1; }
+.opcion { display: inline-flex; align-items: center; gap: 6px; margin: 0; font-weight: 500; font-size: 13.5px; color: var(--texto); cursor: pointer; }
+.opcion input { width: 17px; height: 17px; accent-color: var(--azul-texto); margin: 0; }
+.etiqueta-campo { display: block; font-weight: 600; font-size: 13.5px; margin: 16px 0 10px; color: var(--texto-2); }
+.etiqueta-campo ~ .opcion { margin-right: 14px; }
+.casillas { display: flex; flex-wrap: wrap; gap: 10px 24px; margin-top: 16px; }
+
+/* Filas repetidas (medicamentos, procedimientos ordenados) */
+[data-filas-cuerpo] { display: grid; gap: 10px; margin: 10px 0 12px; }
+.fila-item {
+    display: grid; grid-template-columns: auto 1fr auto; gap: 12px; align-items: start;
+    background: #fff; border: 1px solid var(--borde); border-radius: var(--radio); padding: 12px;
+}
+.fila-numero {
+    width: 26px; height: 26px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center;
+    background: var(--azul-suave); color: var(--azul-texto); font-weight: 700; font-size: 13px; margin-top: 22px;
+}
+.fila-campos { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 8px 12px; }
+.fila-campos label { margin: 0; font-size: 12px; font-weight: 700; letter-spacing: 0.03em; text-transform: uppercase; color: var(--texto-suave); }
+.fila-campos input, .fila-campos select { margin-top: 4px; min-height: 38px; padding: 6px 10px; font-size: 14px; text-transform: none; letter-spacing: 0; font-weight: 400; color: var(--texto); }
+.fila-campos select { padding-right: 28px; background-position: right 8px center; }
+.c-medicamento { grid-column: span 3; }
+.c-doble { grid-column: span 2; }
+.c-ancho { grid-column: span 6; }
+.doble { display: flex; gap: 4px; }
+.doble input { width: 56px; flex: none; }
+.doble select { flex: 1; min-width: 96px; }
+.fila-item [data-quitar-fila] { margin-top: 20px; width: 34px; height: 34px; }
+.c-ancho-rejilla { grid-column: span 2; }
+
+/* Registros guardados */
+.registros { display: grid; gap: 10px; padding: 0 20px 20px; }
+.registro { border: 1px solid var(--borde); border-radius: var(--radio); background: #fff; overflow: hidden; }
+.registro > summary, .registro-cabeza {
+    display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; padding: 12px 14px;
+    background: var(--superficie-2); font-size: 14px;
+}
+.registro > summary { cursor: pointer; list-style: none; }
+.registro > summary::-webkit-details-marker { display: none; }
+.registro > summary::after { content: "▾"; margin-left: auto; color: var(--texto-suave); }
+.registro[open] > summary::after { transform: rotate(180deg); }
+.registro small { color: var(--texto-suave); }
+.registro .datos { border: 0; border-radius: 0; box-shadow: none; border-top: 1px solid var(--borde); }
+.registro .tabla-contenedor { border: 0; border-radius: 0; box-shadow: none; border-top: 1px solid var(--borde); }
+.registro-nota { margin: 0; padding: 12px 14px; border-top: 1px solid var(--borde); font-size: 14px; }
+.panel > .alerta.vacio { margin: 0 20px 20px; }
+
+/* Egreso: confirmacion y boton de cierre */
+.confirmar { margin-top: 18px; padding: 12px 14px; border-radius: var(--radio); background: var(--aviso-fondo); border: 1px solid var(--aviso-borde); }
+.confirmar .opcion { align-items: flex-start; line-height: 1.45; }
+.confirmar .opcion input { margin-top: 2px; flex: none; }
+.confirmar.con-error { border-color: var(--error) !important; background: var(--error-fondo) !important; }
+.boton-peligro { background: var(--error); color: #fff; }
+.boton-peligro:hover { background: #8f1c13; color: #fff; }
+
+@media (max-width: 1023px) {
+    .fila-campos { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .c-medicamento, .c-ancho { grid-column: span 2; }
+}
+@media (max-width: 767px) {
+    .rejilla-sino { grid-template-columns: 1fr; }
+    .sino { grid-template-columns: 1fr auto auto; }
+    .sino .sino-etiqueta { grid-column: 1 / -1; }
+    .registros { padding: 0 12px 14px; }
+    .c-ancho-rejilla { grid-column: auto; }
+}
