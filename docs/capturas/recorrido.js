@@ -76,7 +76,9 @@ async function primeraOpcion(p, sel) {
   console.log('ADM', JSON.stringify(adm));
 
   // Triage en urgencias
-  await p.goto(B + 'triage.php?id=' + adm.urg);
+  // Triage dentro de la historia (pestana 1)
+  await p.goto(B + 'admision.php?id=' + adm.urg);
+  await p.click('a[data-tab=triage]');
   await p.selectOption('#ClasTria', '3');
   await p.fill('#MotiCons', 'ME DUELE EL ESTOMAGO DESDE AYER');
   await p.fill('#HallClin', 'Paciente consciente, abdomen blando, dolor en epigastrio. Datos inventados.');
@@ -84,15 +86,16 @@ async function primeraOpcion(p, sel) {
   await p.fill('#Respirac', '18'); await p.fill('#Temperat', '37.2'); await p.fill('#Saturaci', '97');
   await p.fill('#Peso', '72'); await p.fill('#Talla', '170'); await p.fill('#Dolor', '6');
   await foto(p, 'triage');
-  await p.click('main button[type=submit]'); await p.waitForLoadState(); await estado(p, 'triage guardado');
+  await p.click('#triage button[type=submit]'); await p.waitForLoadState(); await estado(p, 'triage guardado');
 
   // Signos
-  await p.goto(B + 'signos.php?id=' + adm.urg);
+  // Signos dentro de la historia (pestana 2): se cambia de pestana sin recargar
+  await p.click('a[data-tab=signos]');
   await p.fill('#PANume', '118'); await p.fill('#PADeno', '76'); await p.fill('#Pulso', '82');
   await p.fill('#Respirac', '17'); await p.fill('#Temperat', '36.8'); await p.fill('#Saturaci', '98');
   await p.fill('#Dolor', '3'); await p.fill('#GlucMetr', '105');
   await foto(p, 'signos');
-  await p.click('main button[type=submit]'); await p.waitForLoadState(); await estado(p, 'signos guardados');
+  await p.click('#signos button[type=submit]'); await p.waitForLoadState(); await estado(p, 'signos guardados');
   await foto(p, 'ficha_urg_con_triage_y_signos');
 
   for (const m of ['urg', 'obs', 'ce']) { await p.goto(B + 'admisiones.php?modulo=' + m); await foto(p, 'lista_' + m); }

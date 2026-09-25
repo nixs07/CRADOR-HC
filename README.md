@@ -17,7 +17,8 @@ E.S.E. Hospital Sagrado Corazón de Jesús.
 
 - Después del ingreso el profesional **elige el módulo** (Urgencias, Observación e Internación o Consulta
   Externa), como en SIHOS. La pantalla principal del módulo es **Historias abiertas**; cada historia muestra el
-  encabezado de la admisión y pestañas numeradas en el orden de SIHOS. El tablero es el inicio del administrador.
+  encabezado de la admisión y pestañas numeradas en el orden de SIHOS; el triage y los signos se registran
+  dentro de su pestaña, sin salir de la historia. El tablero es el inicio del administrador.
 - Funciona en PC, tableta y celular (menú lateral en cajón, tablas como tarjetas). Todo es local, sin CDN:
   fuente Plus Jakarta Sans (`public/fonts`, licencia OFL), íconos Lucide en `public/img/iconos.svg` (licencia
   ISC), CSS propio en `public/css/estilo.css` y JS propio en `public/js/`.

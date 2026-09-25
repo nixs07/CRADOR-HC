@@ -104,7 +104,7 @@ vista_inicio($mod['nombre']);
             <?php if ($mod['triage']): ?>
                 <td data-etiqueta="Triage"><?php if ($f['ClasTria']): ?>
                     <span class="etiqueta triage-<?= (int) $f['ClasTria'] ?>"><?= e(triage_romano($f['ClasTria'])) ?></span>
-                <?php else: ?><a href="triage.php?id=<?= e(urlencode($f['ConsAdmi'])) ?>" class="sin-triage"><?= icono('circle-alert') ?>Sin triage</a><?php endif; ?></td>
+                <?php else: ?><a href="<?= e($url) ?>&amp;tab=triage" class="sin-triage"><?= icono('circle-alert') ?>Sin triage</a><?php endif; ?></td>
             <?php endif; ?>
             <td data-etiqueta="Servicio"><?= e($f['NombServ'] ?? $f['ServEgre']) ?></td>
             <?php if ($mod['cama']): ?><td data-etiqueta="Cama"><?php if ($f['CamaActu']): ?><span class="chip"><?= icono('bed-double') ?><?= e($f['CamaActu']) ?></span><?php else: ?>—<?php endif; ?></td><?php endif; ?>

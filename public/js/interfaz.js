@@ -2,8 +2,7 @@
  * CRADOR-HC - comportamiento general de la interfaz (sin librerias externas).
  *  1. Menu lateral en celular y tableta (cajon que se abre y se cierra).
  *  2. Filas de tabla que abren la historia: <tr data-href="admision.php?id=...">.
- *  3. Pestanas de la historia: <nav data-pestanas> con enlaces a #seccion.
- *     Sin JavaScript todas las secciones se ven una debajo de otra.
+ *  3. Pestanas de la historia: <nav data-pestanas> con enlaces ?tab= y paneles data-panel.
  */
 (function () {
     'use strict';
@@ -46,34 +45,39 @@
     });
 
     // --- 3. Pestanas de la historia ------------------------------------------
+    // Cada pestana es <a href="admision.php?id=..&tab=X" data-tab="X"> y su panel <section data-panel="X">.
+    // Sin JavaScript el enlace recarga la pagina con ?tab=X; con JavaScript solo se cambia el panel
+    // y se actualiza la direccion, para que al recargar se quede en la misma pestana.
     var barra = document.querySelector('[data-pestanas]');
     if (barra) {
-        var enlaces = Array.prototype.slice.call(barra.querySelectorAll('a[href^="#"]'));
-        var secciones = enlaces.map(function (a) { return document.getElementById(a.getAttribute('href').slice(1)); });
+        var enlaces = Array.prototype.slice.call(barra.querySelectorAll('a[data-tab]'));
+        var panel = function (id) { return document.querySelector('[data-panel="' + id + '"]'); };
 
-        var mostrar = function (id, enfocar) {
-            var existe = secciones.some(function (s) { return s && s.id === id; });
-            if (!existe) { id = barra.dataset.inicial || (secciones[0] && secciones[0].id); }
-            enlaces.forEach(function (a, i) {
-                var activa = secciones[i] && secciones[i].id === id;
+        var mostrar = function (id) {
+            if (!panel(id)) { return false; }
+            enlaces.forEach(function (a) {
+                var activa = a.dataset.tab === id;
                 a.classList.toggle('actual', activa);
                 a.setAttribute('aria-selected', activa ? 'true' : 'false');
-                if (secciones[i]) { secciones[i].hidden = !activa; }
+                var p = panel(a.dataset.tab);
+                if (p) { p.hidden = !activa; }
             });
-            if (enfocar) { barra.scrollIntoView({ block: 'nearest' }); }
+            return true;
         };
 
         barra.setAttribute('role', 'tablist');
         enlaces.forEach(function (a) {
             a.setAttribute('role', 'tab');
             a.addEventListener('click', function (ev) {
+                if (!mostrar(a.dataset.tab)) { return; }
                 ev.preventDefault();
-                var id = a.getAttribute('href').slice(1);
-                history.replaceState(null, '', '#' + id);
-                mostrar(id, false);
+                var url = new URL(window.location.href);
+                url.searchParams.set('tab', a.dataset.tab);
+                url.hash = '';
+                history.replaceState(null, '', url.toString());
             });
         });
-        mostrar(window.location.hash.slice(1), true);
-        window.addEventListener('hashchange', function () { mostrar(window.location.hash.slice(1), true); });
+        // Enlaces viejos con #triage o #signos
+        if (window.location.hash) { mostrar(window.location.hash.slice(1)); }
     }
 })();

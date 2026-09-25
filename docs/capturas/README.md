@@ -13,7 +13,8 @@ OUT=docs/capturas NODE_PATH=$(npm root -g) node docs/capturas/recorrido.js
 
 Flujo: después del ingreso el profesional **elige el módulo** (23). Dentro del módulo la pantalla principal es
 **Historias abiertas** (15-17) y cada historia tiene el encabezado de la admisión y pestañas numeradas como en
-SIHOS (7, 9, 11, 14). El tablero (2, 18, 19) queda para el administrador y como opción "Tablero general".
+SIHOS (7, 9, 11, 14). El triage y los signos se llenan **dentro de la historia**, en su pestaña (12, 13):
+al guardar se vuelve a la misma pestaña (`admision.php?id=...&tab=triage|signos`). El tablero (2, 18, 19) queda para el administrador y como opción "Tablero general".
 
 | # | Pantalla | Archivo |
 | --- | --- | --- |
@@ -28,8 +29,8 @@ SIHOS (7, 9, 11, 14). El tablero (2, 18, 19) queda para el administrador y como 
 | 9 | Historia de Observación | `09_ficha_obs.png` |
 | 10 | Nueva admisión · Consulta Externa | `10_admision_nueva_ce.png` |
 | 11 | Historia de Consulta Externa | `11_ficha_ce.png` |
-| 12 | Triage (orden de SIHOS, signos en fila compacta, IMC y TM calculados) | `12_triage.png` |
-| 13 | Toma de signos vitales | `13_signos.png` |
+| 12 | Pestaña 1. Triage dentro de la historia (orden de SIHOS, signos en fila compacta, IMC y TM calculados) | `12_triage.png` |
+| 13 | Pestaña 2. Signos vitales: nueva toma arriba y tomas anteriores abajo | `13_signos.png` |
 | 14 | Historia de Urgencias con triage y dos tomas de signos | `14_ficha_urg_con_triage_y_signos.png` |
 | 15 | Historias abiertas · Urgencias | `15_lista_urg.png` |
 | 16 | Historias abiertas · Observación e Internación | `16_lista_obs.png` |

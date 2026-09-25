@@ -111,8 +111,9 @@
             return c ? parseFloat(String(c.value).replace(',', '.')) : NaN;
         }
         function calcular() {
-            var imc = document.getElementById('calc-imc');
-            var tm = document.getElementById('calc-tm');
+            // Resultado dentro del mismo formulario (puede haber dos formularios de signos en la historia)
+            var imc = form.querySelector('[data-calc="imc"]') || document.getElementById('calc-imc');
+            var tm = form.querySelector('[data-calc="tm"]') || document.getElementById('calc-tm');
             var peso = num('Peso'), talla = num('Talla'), pas = num('PANume'), pad = num('PADeno');
             if (imc) { imc.textContent = (peso > 0 && talla > 0) ? (peso / Math.pow(talla / 100, 2)).toFixed(2) : '—'; }
             if (tm) { tm.textContent = (pas > 0 && pad > 0) ? Math.round((pas + 2 * pad) / 3) : '—'; }

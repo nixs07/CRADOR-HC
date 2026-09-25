@@ -71,7 +71,7 @@ function vista_inicio(string $titulo): void
     <nav class="menu">
         <?php if ($modulo): ?>
             <div class="menu-grupo">Atención</div>
-            <a href="admisiones.php?modulo=<?= e($modulo) ?>"<?= $activo(in_array($pagina, ['admisiones.php', 'admision.php', 'triage.php', 'signos.php'], true)) ?>><?= icono('clipboard-list') ?><span>Historias abiertas</span></a>
+            <a href="admisiones.php?modulo=<?= e($modulo) ?>"<?= $activo(in_array($pagina, ['admisiones.php', 'admision.php'], true)) ?>><?= icono('clipboard-list') ?><span>Historias abiertas</span></a>
             <a href="pacientes.php"<?= $activo(in_array($pagina, ['pacientes.php', 'paciente_nuevo.php', 'admision_nueva.php'], true)) ?>><?= icono('user-plus') ?><span>Nueva admisión</span></a>
         <?php endif; ?>
 

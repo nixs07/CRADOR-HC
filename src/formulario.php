@@ -106,13 +106,13 @@ function encabezado_admision(array $a, bool $masDatos = false): void
 /**
  * Pestanas numeradas de la historia, en el orden de SIHOS. Las que aun no existen
  * (siguientes bloques de la fase 2) se ven deshabilitadas.
- * $activa: 'triage' o 'signos'. $enFicha: true en admision.php (las pestanas cambian
- * la seccion visible con JavaScript); en triage.php y signos.php llevan a la ficha.
+ * $activa: 'triage' o 'signos'. Cada pestana es un enlace a admision.php?id=...&tab=...
+ * (funciona sin JavaScript); con JavaScript cambia el panel sin recargar (js/interfaz.js).
  */
-function pestanas_historia(array $a, string $activa, int $nSignos, bool $enFicha = false): void
+function pestanas_historia(array $a, string $activa, int $nSignos): void
 {
     $mod = modulo_de_servicio($a['ServEgre']);
-    $base = $enFicha ? '' : 'admision.php?id=' . urlencode($a['ConsAdmi']);
+    $base = 'admision.php?id=' . urlencode($a['ConsAdmi']) . '&tab=';
     $pestanas = [];
     if ($mod && MODULOS_DETALLE[$mod]['triage']) {
         $pestanas[] = ['triage', 'Triage', 'siren'];
@@ -121,9 +121,9 @@ function pestanas_historia(array $a, string $activa, int $nSignos, bool $enFicha
     $proximas = ['Consulta', 'Prescripción', 'Órdenes médicas', 'Procedimientos', 'Notas de enfermería', 'Evolución', 'Egreso'];
     $n = 0;
     ?>
-    <nav class="pestanas" aria-label="Pestañas de la historia"<?= $enFicha ? ' data-pestanas data-inicial="' . e($activa) . '"' : '' ?>>
+    <nav class="pestanas" aria-label="Pestañas de la historia" data-pestanas>
         <?php foreach ($pestanas as [$id, $nombre, $ic]): $n++; ?>
-            <a href="<?= e($base) ?>#<?= e($id) ?>"<?= $id === $activa ? ' class="actual" aria-current="page"' : '' ?>>
+            <a href="<?= e($base . $id) ?>" data-tab="<?= e($id) ?>"<?= $id === $activa ? ' class="actual" aria-selected="true"' : ' aria-selected="false"' ?>>
                 <span class="pestana-numero"><?= $n ?></span><?= e($nombre) ?>
                 <?php if ($id === 'signos'): ?><span class="contador"><?= $nSignos ?></span><?php endif; ?>
             </a>
@@ -146,8 +146,9 @@ const SIGNOS_CORTOS = [
 /**
  * Campos de signos vitales (se usan en triage y en la toma de signos), en el orden de SIHOS:
  * Peso, Talla, IMC, FC, FR, Temp, PA, TM, Saturacion, Glucometria (y dolor).
+ * $prefijo: se antepone al id (nunca al name) cuando hay dos formularios de signos en la pagina.
  */
-function campos_signos(array $d, array $e): void
+function campos_signos(array $d, array $e, string $prefijo = ''): void
 {
     $orden = ['Peso', 'Talla', 'IMC', 'Pulso', 'Respirac', 'Temperat', 'PANume', 'PADeno', 'TM', 'Saturaci', 'GlucMetr', 'Dolor'];
     ?>
@@ -155,12 +156,12 @@ function campos_signos(array $d, array $e): void
         <?php foreach ($orden as $c):
             if ($c === 'IMC' || $c === 'TM'): ?>
                 <div class="calculado" title="<?= $c === 'IMC' ? 'Índice de masa corporal (se calcula solo)' : 'Presión arterial media (se calcula sola)' ?>">
-                    <span><?= $c === 'IMC' ? 'IMC' : 'TM (PAM)' ?></span><strong id="calc-<?= strtolower($c) ?>">—</strong></div>
+                    <span><?= $c === 'IMC' ? 'IMC' : 'TM (PAM)' ?></span><strong id="<?= e($prefijo) ?>calc-<?= strtolower($c) ?>" data-calc="<?= strtolower($c) ?>">—</strong></div>
             <?php continue; endif;
             [$etiqueta, $min, $max, $oblig] = SIGNOS_RANGOS[$c];
             $valor = (isset($d[$c]) && (float) $d[$c] != 0) ? (float) $d[$c] : ''; ?>
-            <div class="signo"><label for="<?= e($c) ?>" title="<?= e($etiqueta) ?>"><?= e(SIGNOS_CORTOS[$c] ?? $etiqueta) ?><?= $oblig ? ' <span class="obligatorio" aria-hidden="true">*</span>' : '' ?></label>
-                <input type="number" id="<?= e($c) ?>" name="<?= e($c) ?>" value="<?= e($valor) ?>" step="any"
+            <div class="signo"><label for="<?= e($prefijo . $c) ?>" title="<?= e($etiqueta) ?>"><?= e(SIGNOS_CORTOS[$c] ?? $etiqueta) ?><?= $oblig ? ' <span class="obligatorio" aria-hidden="true">*</span>' : '' ?></label>
+                <input type="number" id="<?= e($prefijo . $c) ?>" name="<?= e($c) ?>" value="<?= e($valor) ?>" step="any"
                        min="<?= e($min) ?>" max="<?= e($max) ?>" inputmode="decimal" class="<?= ce($e, $c) ?>"<?= $oblig ? ' required' : '' ?>
                        aria-label="<?= e($etiqueta) ?>">
                 <?= me($e, $c) ?></div>

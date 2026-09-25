@@ -929,3 +929,19 @@ tr[data-href] { cursor: pointer; }
 @media (max-width: 1150px) {
     .superior-contexto { display: none; }
 }
+
+/* Formularios dentro de los paneles de la historia */
+.formulario-panel .alerta.vacio { margin-bottom: 8px; }
+.formulario-panel .ayuda { display: flex; flex-wrap: wrap; gap: 4px 16px; margin-bottom: 4px; }
+.acciones-panel { margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--borde); }
+.titulo-form { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; font-size: 15px; margin: 0 0 4px; }
+.titulo-form .icono { color: var(--azul-texto); }
+.titulo-tabla {
+    display: flex; align-items: center; gap: 8px; font-size: 14px; color: var(--texto-2);
+    margin: 0; padding: 14px 20px 10px; border-top: 1px solid var(--borde);
+}
+.titulo-tabla .icono { width: 16px; height: 16px; color: var(--texto-suave); }
+.panel > .titulo-tabla + .tabla-contenedor { border-top: 1px solid var(--borde); }
+[hidden] { display: none !important; }
+.rejilla-signos { align-items: start; }
+.rejilla-signos .calculado { margin-top: 10px; min-height: 69px; justify-content: center; }
