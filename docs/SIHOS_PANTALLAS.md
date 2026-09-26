@@ -40,31 +40,34 @@ Debajo, la barra de pestañas con `<<` y `>>` (se desplaza) y el pie **Volver / 
 
 ## Pestañas por módulo
 
-Las pestañas con número entre paréntesis no se ven en ninguna captura (quedaron detrás de `>>`); se anotan como
-"no visible".
+Lista confirmada por el usuario contra SIHOS real (septiembre 2026).
 
-### Urgencias
+### Urgencias (CodiModu 6)
 
 1.Triage · 2.Consultas · 3.Atención del Menor · 4.Prescripción · 5.ORDENES MEDICAS · 6.Procedimientos ·
-7.Ordenación · 8.Evolución · 9.Notas Enfermería · 10.Notas Médicas · (11 no visible) · 12.Consentimiento ·
+7.Ordenación · 8.Evolución · 9.Notas Enfermería · 10.Notas Médicas · 11.Medicamentos · 12.Consentimiento ·
 13.Líquidos · 14.Oxígeno · 15.Remisiones · 16.Materiales · 17.Incapacidad · 18.Signos Vitales · 19.No POS ·
-(20, 21, 22 no visibles) · 23.Esquema de Quemaduras · 24.GLUCOMETRIA · 25.Devoluciones · 26.Egreso ·
-27.Cambio de Atención · 28.Imágenes
+20.Plan de Manejo · 21.Neurológico · 22.PROCEDIMIENTO TERAPIAS · 23.Esquema de Quemaduras · 24.GLUCOMETRIA ·
+25.Devoluciones · 26.Egreso · 27.Cambio de Atención · 28.Imágenes
 
-### Observación e Internación
+### Observación e Internación (CodiModu 8)
 
 1.Consultas · 2.Evolución · 3.Prescripción · 4.ORDENES MEDICAS · 5.Ordenación · 6.No POS · 7.Notas Enfermería ·
 8.Notas Médicas · 9.Procedimientos · 10.Medicamentos · 11.Consentimiento · 12.Cirugía · 13.Anestesia ·
-14.Signos Vitales · 15.Neurológico · (16 no visible) · 17.Líquidos · 18.Materiales · 19.Devoluciones ·
-20.Recién Nacidos · 21.Incapacidad · 22.Egreso · 23.Cambio de Atención
+14.Signos Vitales · 15.Neurológico · 16.Oxígeno · 17.Líquidos · 18.Materiales · 19.Devoluciones ·
+20.Recién Nacidos · 21.Incapacidad · 22.Egreso · 23.Cambio de Atención · 24.Remisiones · 25.Plan de Manejo ·
+26.GLUCOMETRIA · y después (sin número visible): PyP · Imágenes · Laboratorios y Diagnósticos · SALUD PUBLICA ·
+Atención del Menor (CRADOR-HC las numera 27 a 31).
 
-### Consulta Externa
+### Consulta Externa (CodiModu 5)
 
-1.Anamnesis · 2.Rev.Sistemas y Ex.Físico · 3.Antecedentes · 4.Laboratorios y Diagnósticos · 5.Prescripción A… ·
-6.Ordenación · (7 no visible) · 8.Control · 9.Tamizaje Riesgo Cardiovascular · 10.Consentimiento ·
-11.Procedimientos · 12.Incapacidad · 13.Atención del Menor · 14.Notas Médicas · 15.Imágenes
+1.Anamnesis · 2.Rev.Sistemas y Ex.Físico · 3.Antecedentes · 4.Laboratorios y Diagnósticos · 5.Prescripción A ·
+6.Ordenación · 7.Plan de Manejo · 8.Control · 9.Tamizaje Riesgo Cardiovascular · 10.Consentimiento ·
+11.Procedimientos · 12.Incapacidad · 13.Atención del Menor · 14.Notas Médicas · 15.Imágenes · y después:
+Medicamentos · No POS · Remisiones · Notas Enfermería · SALUD PUBLICA · Cambio de Atención (CRADOR-HC las
+numera 16 a 21).
 
-En Consulta Externa la consulta (RipsCons) está repartida en las pestañas 1 a 4 en vez de acordeones.
+En Consulta Externa la consulta (RipsCons) está repartida en las pestañas 1 a 4 y 7 en vez de acordeones.
 
 ### Procedimientos (módulo aparte de SIHOS, no está en CRADOR-HC)
 
@@ -91,7 +94,7 @@ Barra: Fecha, Hora, "Profesional: …".
 
 Botones: Guardar, Modificar, Imprimir, Consultar.
 
-### Consultas (Urgencias 2, Observación 1; Consulta Externa 1 a 4)
+### Consultas (Urgencias 2, Observación 1; Consulta Externa 1 a 4 y 7)
 
 Barra: **Nuevo**, selector de consultas anteriores, **Fecha**, **Hora**, **Cargos**, **Consultar**, **Imprimir**.
 Acordeones (en Consulta Externa, pestañas):
@@ -101,7 +104,7 @@ Acordeones (en Consulta Externa, pestañas):
 | Etiqueta SIHOS | Tipo | Tabla.columna |
 | --- | --- | --- |
 | Fecha / Hora | fecha / hora | RipsCons.FechCons / HoraCons |
-| Tipo (CE: Actividad) | código "…" + nombre | RipsCons.TipoCons (CodiProc) |
+| Tipo (CE: Actividad) | código "…" + nombre | RipsCons.TipoCons (CodiProc), obligatorio: 890701 Urg, 89060102 Obs, 890201 CE por defecto |
 | Finalidad | lista | RipsCons.FinaCons |
 | Motivo (CE: Motivo de Consulta) | texto largo | RipsCons.MotiCons |
 | Enfermedad Actual | texto largo | RipsCons.EnfeActu |
@@ -142,7 +145,7 @@ Acordeones (en Consulta Externa, pestañas):
 | Perímetro Abdominal (0-200) | número | RipsCons.PeriAbdo |
 | Perímetro Tórax (0-150) | número | RipsCons.PeriTorx |
 | Índice Cintura-Cadera: Perímetro Cintura, Perímetro Cadera, ICC (solo CE) | números | SignVita.PeriCint, PeriCade, ResCXC |
-| Cabeza, Ojos, Oídos, Nariz, Boca, Cuello, Tórax, Abdomen, G/U, Ano, Extremidades, Neurológico, Osteomuscular, Piel | lista Normal/Anormal + texto | EstaGene.Cabeza…Piel (+ *Desc); Tórax = CardPulm, G/U = GeniUrin |
+| Cabeza, Ojos, Oídos, Nariz, Boca, Cuello, Tórax, Abdomen, G/U, Ano, Extremidades, Neurológico, Osteomuscular, Piel | lista Normal/Anormal + texto | EstaGene.Cabeza…Piel (+ *Desc), Normal (1) por defecto; Tórax = CardPulm, G/U = GeniUrin |
 
 **Laboratorios y Diagnósticos** (CE: 4.Laboratorios y Diagnósticos)
 
@@ -151,11 +154,12 @@ Acordeones (en Consulta Externa, pestañas):
 | Análisis de Laboratorio e Imágenes Diagnósticas | texto largo | RipsCons.LaboImag |
 | Diagnósticos: Principal, Rela 1, Rela 2, Rela 3, Rela 4 (código "…", nombre, Tipo, Sivigila, Protocolo) | código + lista | RipsCons.CodiDiag, CodiRel1-4, TipoDiag, TipoDia1-4 |
 
-**Plan de Manejo y Recomendaciones**
+**Plan de Manejo y Recomendaciones** (además pestaña Plan de Manejo: Urgencias 20, Observación 25, CE 7).
+Obligatorio en Urgencias y Observación (lleno en el 100 % de las consultas).
 
 | Etiqueta SIHOS | Tipo | Tabla.columna |
 | --- | --- | --- |
-| Destino | lista | RipsCons.DestSali |
+| Destino | lista | RipsCons.DestSali (4 en Consulta Externa) |
 | Conducta | lista | RipsCons.Conducta (lista tipo 33, sin catálogo local) |
 | Plan de Manejo y Recomendaciones | texto largo | RipsCons.ObseReco |
 | Duración | texto calculado | — |
@@ -174,6 +178,7 @@ Barra: Nuevo, No. (prescripciones anteriores), **Tipo de Prescripción** (Regula
 | Tipo de prescripción | EncaPres.TipoPres (1 regular, 2 control) |
 | DXP / DXR 1 / DXR 2 | EncaPres.CodiDiag / CodiRel1 / CodiRel2 |
 | CE: Órdenes posfechadas (Cantidad, Periodicidad), Responsable de la entrega | sin columna identificada / EncaPres.PersEntr |
+| Fórmula de salida (casilla; en CE fija) | EncaPres.PresSali: 1 hospitalaria, 2 fórmula de salida (CE siempre 2) |
 
 ### ORDENES MEDICAS (Urgencias 5, Observación 4)
 
@@ -186,7 +191,7 @@ Barra: Nuevo, órdenes anteriores, Fecha, Hora.
 
 | Etiqueta SIHOS | Tipo | Tabla.columna |
 | --- | --- | --- |
-| (Solicitar Autorización Para EPS) | casilla | EncaOrde.Autoriza |
+| (Solicitar Autorización Para EPS) | casilla | EncaOrde.Autoriza: siempre 0 en SIHOS (verificado); CRADOR-HC no la muestra |
 | Finalidad | lista ("No Aplica") | EncaOrde.CodiFina (catálogo FinaCons) |
 | Ambulatoria | casilla | EncaOrde.OrdeAmbu |
 | DXP, DXR1, DXR2, DXR3, DXR4 | diagnósticos | EncaOrde.CodiDiag, CodiRel1-4 |
@@ -239,14 +244,14 @@ Notas Médicas tiene además la casilla **Revisada**.
 | Revisada (solo Notas Médicas) | HojaEnfe.Reviza (UsuaRevi, FechRevi, HoraRevi) |
 | (tipo, implícito por la pestaña) | HojaEnfe.TipoNota |
 
-### Medicamentos (Observación 10)
+### Medicamentos (Urgencias 11, Observación 10, CE después de Imágenes)
 
 Tabla de aplicación: Con, Fecha aplicación (fecha, hora), Fecha planeado (fecha, hora), Medicamento (código,
 nombre), Vía, Cantidad Aplicar, Unidad, Aplicar, Observaciones, Profesional, Módulo, Fecha/Hora Susp.,
 Disponible para aplicar, Entregado en farmacia, Devuelto en farmacia → HojaMedi (FechMedi, HoraMedi, FechPlan,
 HoraPlan, CodiMedi, ViaAdmi, CantMedi, UnidMedi, EstaApli, IndiAdic, UsuaAsis, CodiModu).
 
-### Remisiones (Urgencias 15)
+### Remisiones (Urgencias 15, Observación 24, CE después de Imágenes) — sin verificar
 
 Barra: Nuevo, No., Fecha, Hora, Autorización "…" (Remision.NumeAuto).
 

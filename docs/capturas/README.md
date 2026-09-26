@@ -21,7 +21,7 @@ OUT=docs/capturas NODE_PATH=$(npm root -g) node docs/capturas/recorrido.js
 3. **Nueva admisión** en el mismo encabezado: se escribe el documento y se pulsa Buscar. Si el paciente no
    existe se crea (4, 5) y se vuelve con el documento cargado; si existe, el encabezado queda editable (6, 8, 10).
 4. Con la admisión cargada, el encabezado queda en modo lectura y se trabaja por pestañas con los nombres, el
-   orden y la numeración de SIHOS en cada módulo (Urgencias 1-28, Observación 1-23, Consulta Externa 1-15; las
+   orden y la numeración de SIHOS en cada módulo (Urgencias 1-28, Observación 1-31, Consulta Externa 1-21; las
    que no tienen tablas: "No disponible en contingencia"). Cada pestaña tiene la barra de SIHOS (Nuevo,
    registros anteriores, fecha, hora; Imprimir y Cargos deshabilitados). Pie con **Volver a historias
    abiertas** y **Continuar**.
@@ -56,14 +56,15 @@ OUT=docs/capturas NODE_PATH=$(npm root -g) node docs/capturas/recorrido.js
 ## Pestañas de la historia (como SIHOS)
 
 El recorrido llena y guarda cada pestaña de Urgencias, hace la remisión, la incapacidad y el egreso en
-Observación, y en Consulta Externa guarda la consulta repartida en las pestañas 1 a 4 (primero sin enfermedad
-actual: el error abre la pestaña 1), una nota médica y "Cerrar Historia".
+Observación, y en Consulta Externa guarda la consulta repartida en las pestañas 1 a 4 y 7 (primero sin enfermedad
+actual: el error abre la pestaña 1), una Prescripción A (fórmula de salida), una nota médica y "Cerrar Historia".
 
 | Archivo | Pantalla |
 | --- | --- |
 | `12_triage.png` | Urgencias 1. Triage (con Continuar en el consultorio) |
 | `27_consulta_formulario.png` | Urgencias 2. Consultas: acordeones Anamnesis, Antecedentes, Revisión por Sistema y Exámen, Laboratorios y Diagnósticos, Plan de Manejo |
 | `27_consulta.png` | 2. Consultas guardada |
+| `49_plan_manejo.png` | Urgencias 20. Plan de Manejo (ObseReco de la consulta) |
 | `28_prescripcion_formulario.png` | 4. Prescripción: Tipo de prescripción, DXP/DXR y dos suministros |
 | `28_prescripcion.png` | 4. Prescripción guardada (dosis y cantidad total calculadas) |
 | `38_ordenes_medicas.png` | 5. ORDENES MEDICAS (texto libre) |
@@ -77,12 +78,13 @@ actual: el error abre la pestaña 1), una nota médica y "Cerrar Historia".
 | `42_remisiones.png` | 15. Remisiones (con fecha y hora de aceptación) |
 | `43_incapacidad.png` | 17. Incapacidad (fecha final calculada) |
 | `36_traslado.png` | Observación: traslado de cama desde el encabezado (HOSP09 → HOSP10) con el historial |
-| `44_obs_consultas.png` | Observación 1. Consultas |
-| `37_egreso_remision.png` | Observación 22. Egreso con la remisión registrada |
+| `44_obs_consultas.png` | Observación 1. Consultas guardada |
+| `37_obs_remisiones.png` | Observación 24. Remisiones |
 | `33_egreso.png` | 22. Egreso con la confirmación marcada |
 | `34_egreso_cerrado.png` | Admisión cerrada: egreso en modo consulta |
 | `45_ce_anamnesis.png` | Consulta Externa 1. Anamnesis |
-| `46_ce_revision.png` | Consulta Externa 2. Rev.Sistemas y Ex.Físico |
+| `46_ce_revision.png` | Consulta Externa 2. Rev.Sistemas y Ex.Físico (sistemas en Normal por defecto) |
+| `50_ce_plan.png` | Consulta Externa 7. Plan de Manejo (parte del formulario de la consulta) |
 | `47_ce_cerrar_historia.png` | Consulta Externa: ventana "Cerrar Historia" del encabezado |
 | `35_ce_cerrada.png` | Consulta Externa cerrada |
 | `48_movil_consulta.png` | Celular · 2. Consultas |

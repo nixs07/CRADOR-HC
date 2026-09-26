@@ -68,9 +68,9 @@ Abrir <http://localhost:8080>. Guía completa: [`docs/INSTALACION.md`](docs/INST
 - **Fase 2 — bloque 3 (hecho):** traslado de cama (TrasCama, Observación), materiales (HojaMate), remisión (Remision)
   e incapacidad (IncaPaci) en el egreso, y procedimientos ligados al ítem de la orden que atienden.
 - **Fase 2 — pestañas como SIHOS (hecho):** cada módulo tiene las pestañas de SIHOS con sus nombres, orden y
-  numeración (Urgencias 1-28, Observación 1-23, Consulta Externa 1-15) y los campos y etiquetas de cada una
+  numeración verificadas contra SIHOS (Urgencias 1-28, Observación 1-31, Consulta Externa 1-21) y los campos y etiquetas de cada una
   (mapa en [`docs/SIHOS_PANTALLAS.md`](docs/SIHOS_PANTALLAS.md)); las que no tienen tablas se ven deshabilitadas
-  "No disponible en contingencia". En Consulta Externa la consulta ocupa las pestañas 1 a 4 y la historia se
+  "No disponible en contingencia". En Consulta Externa la consulta ocupa las pestañas 1 a 4 y 7 (Plan de Manejo) y la historia se
   cierra con "Cerrar Historia" en el encabezado.
 - **Fase 3:** carga a SIHOS por el administrador (`cont_carga_sihos`).
 
