@@ -155,7 +155,7 @@ carga (fase 3)** comparando con una admisión real de cada módulo.
 | Materiales (HojaMate) | Pestaña Materiales (Urgencias 16, Observación 18). `CodiMate` de `CodiSumi`, `UnidMate` de `CodiUnid`; `EsFact = 1`, `CantFact = 0`, `NumeOrde = Item = 0`, `UsuaAsis` = login. `CentCost`: ver "Verificado contra SIHOS". |
 | Remisión (Remision) — **sin verificar** | SIHOS no tiene remisiones recientes para compararlas: todo lo de esta fila es supuesto. Pestaña Remisiones (Urgencias 15, Observación 24, Consulta Externa 18). `RemiMoti` = código del catálogo `MotiRemi`; `MotiRemi` (texto) = resumen clínico; `ModaSoli` del catálogo `ModaSoli`; `EspeRemi` de `CodiEspe` (opcional). **No hay catálogo local de instituciones receptoras**: `InstRemi` queda vacío y el nombre de la institución se escribe al inicio de `MotiRemi` ("INSTITUCION DESTINO: …"). `CodiRemi` = consecutivo por admisión; `FechSali/HoraSali` = fecha de la remisión; `FechAcep/HoraAcep` = Fecha y Hora Aceptación de SIHOS; si se dejan vacías y se escribe quién acepta, la de la remisión; `Cerrado = 0`; `TipoDiag` guarda el código de `TipoDiag` como texto. No cierra la admisión (el egreso se hace aparte). |
 | Incapacidad (IncaPaci) | Pestaña Incapacidad (Urgencias 17, Observación 21, Consulta Externa 12). La fecha final (inicial + días − 1) solo se muestra. `TipoInca` del catálogo; `OrigInca` 1 = común, 2 = laboral (comentario de la columna); días de 1 a 540; `ConsInca` = consecutivo por admisión. |
-| Procedimiento de una orden | En la pestaña Procedimientos se puede escoger un ítem de `DetaOrde` pendiente (`CantReal < CantSumi`): el procedimiento sale del ítem, `HojaProc.NumeOrde` = `EncaOrde.Consecut` (temporal, ver arriba) e `Item` = ítem, y `DetaOrde.CantReal` suma 1. |
+| Procedimiento de una orden | En la pestaña Procedimientos se puede escoger un ítem de `DetaOrde` pendiente (`CantReal < CantSumi`): el procedimiento sale del ítem, `HojaProc.NumeOrde` = `EncaOrde.ConsOrde` (número de la orden **dentro de la admisión**, no el `Consecut` global; verificado contra SIHOS: 500 de 500) e `Item` = ítem, y `DetaOrde.CantReal` suma 1 (se busca por `ConsAdmi` + `ConsOrde` + `Item`). `CentCost = ''`. |
 | Pestañas después de las visibles | Observación 27-31 (PyP, Imágenes, Laboratorios y Diagnósticos, SALUD PUBLICA, Atención del Menor) y Consulta Externa 16-21 (Medicamentos, No POS, Remisiones, Notas Enfermería, SALUD PUBLICA, Cambio de Atención) no tienen número visible en SIHOS: aquí se numeran a continuación. Las pestañas sin tablas en CRADOR-HC se muestran deshabilitadas "No disponible en contingencia" (Líquidos también: no hay captura de sus campos). |
 | Consulta en Consulta Externa | Las pestañas 1. Anamnesis, 2. Rev.Sistemas y Ex.Físico, 3. Antecedentes, 4. Laboratorios y Diagnósticos y 7. Plan de Manejo son **un solo formulario** (una fila de `RipsCons`). Si hay un error se abre la pestaña donde está. |
 | Barra de cada pestaña | Nuevo (formulario en blanco), No. (registros anteriores: lleva al registro), Fecha, Hora y campos propios (Tipo de prescripción, Tipo de incapacidad, Autorización, Profesional). Imprimir y Cargos están deshabilitados: no aplican en contingencia. |
@@ -168,22 +168,24 @@ carga (fase 3)** comparando con una admisión real de cada módulo.
 
 ## Verificado contra SIHOS (septiembre 2026)
 
-Revisado por el usuario contra registros reales de SIHOS. Tiene prioridad sobre los supuestos de arriba.
+Revisado por el usuario contra registros reales de SIHOS. Tiene prioridad sobre los supuestos de arriba. Resumen de la
+revisión del 26/09/2026 en [`REVISION_SIHOS.md`](REVISION_SIHOS.md), que manda sobre todo este documento.
 
 | Tema | Regla verificada |
 | --- | --- |
 | Pestañas por módulo | Nombres, orden y numeración exactos. Urgencias: 1 Triage … 20 Plan de Manejo, 21 Neurológico, 22 PROCEDIMIENTO TERAPIAS … 28 Imágenes. Observación: 1 Consultas … 16 Oxígeno … 24 Remisiones, 25 Plan de Manejo, 26 GLUCOMETRIA. Consulta Externa: 1 Anamnesis … 5 Prescripción A, 6 Ordenación, 7 Plan de Manejo … 15 Imágenes (lista completa en `docs/SIHOS_PANTALLAS.md`). |
 | Plan de Manejo (`RipsCons.ObseReco`) | Texto libre "Plan de Manejo y Recomendaciones". En Urgencias y Observación está lleno en el 100 % de las consultas: **obligatorio** en la consulta. |
 | `EncaPres.PresSali` | 1 = prescripción hospitalaria, **2 = fórmula de salida**. Urgencias y Observación: 1 por defecto, con la casilla "Fórmula de salida" (= 2). Prescripción A de Consulta Externa: siempre 2. |
-| `EncaPres.Consecut` / `EncaOrde.Consecut` | **Un solo contador global compartido** por las dos tablas (≈ 1.020.023 en septiembre 2026). En la contingencia se guarda temporal (= `ConsPres` / `ConsOrde`). **Fase 3**: al cargar, el siguiente = `GREATEST(MAX(EncaPres.Consecut), MAX(EncaOrde.Consecut)) + 1`, y se actualiza también `HojaProc.NumeOrde` de los procedimientos ligados a la orden. |
+| `EncaPres.Consecut` / `EncaOrde.Consecut` | **Un solo contador global compartido** por las dos tablas (≈ 1.020.023 en septiembre 2026). En la contingencia se guarda temporal (= `ConsPres` / `ConsOrde`). No es único. **Fase 3**: al cargar, el siguiente = `GREATEST(MAX(EncaPres.Consecut), MAX(EncaOrde.Consecut)) + 1`. `HojaProc.NumeOrde` **no** cambia (usa `ConsOrde`). |
 | `HojaEnfe.TipoNota` | Códigos fijos: **1 = nota de enfermería, 2 = nota médica**, 5 = consentimiento. No se busca por nombre. |
 | Cierre de `RipsCons` | Urgencias y Observación: se cierra al guardar (`FechCier/HoraCier/UsuaCier` llenos). Consulta Externa: `EstaReal = 1` **sin cierre** (`FechCier = '0000-00-00'`, `HoraCier = '00:00:00'`, `UsuaCier = ''`). |
 | `RipsCons.TipoCons` | Obligatorio y siempre lleno. Por defecto 890701 en Urgencias, 89060102 en Observación y 890201 en Consulta Externa (otros comunes: Observación 890601; Consulta Externa 890301, 890208). |
 | `RipsCons.DestSali` | 4 en Consulta Externa (no se pide). |
 | `EstaGene` (sistemas) | Normal (1) por defecto en todos los sistemas; Anormal (2) exige descripción. |
-| `HojaMate.CentCost` | `''` (vacío). |
+| `CentCost` de `HojaMate`, `HojaProc` y `HojaMedi` | `''` (vacío; en SIHOS aparece `''` casi siempre o `'0'`). |
 | `EncaOrde` | `CodiFina = '10'` por defecto; `Autoriza = 0` y `OrdeSali = 0` **siempre** (no hay casilla de autorización). |
 | `HojaMedi.NumeOrde` | = `EncaPres.ConsPres` de la prescripción aplicada. |
+| `HojaProc.NumeOrde` | = `EncaOrde.ConsOrde` de la orden atendida (número dentro de la admisión), **no** `EncaOrde.Consecut`. |
 | `HojaProc` usuarios | `UsuaDigi`, `UsuaModi`, `CodiProf` y `UsuaAsis` son `varchar(8)`: login recortado a 8 caracteres. |
 | Consulta Externa sin `SaliInte` | Solo "Cerrar Historia" (marca la admisión cerrada). |
 | `Triage.ConsTria` | Consecutivo por paciente (no por admisión). |

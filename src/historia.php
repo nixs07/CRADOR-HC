@@ -756,9 +756,10 @@ function procedimiento_guardar(array $a, array $d, string $login): int
             'DiagPrin' => $d['DiagPrin'], 'DiagRela' => $d['DiagRela'], 'DiagRel1' => $d['DiagRel1'], 'DiagRel2' => $d['DiagRel2'],
             'DiagRel3' => '', 'DiagComp' => $d['DiagComp'], 'IndiAdic' => $d['IndiAdic'], 'CodiProf' => $l8, 'UsuaAsis' => $l8,
             'ProcReal' => $d['ProcReal'], 'CantProc' => $d['CantProc'], 'CantFact' => 0,
-            // Orden que se atiende: NumeOrde = consecutivo general de la orden (EncaOrde.Consecut), Item = ítem
-            'NumeOrde' => $d['orden'] ? (int) $d['orden']['Consecut'] : 0, 'Item' => $d['orden'] ? (int) $d['orden']['Item'] : 0,
-            'CentCost' => '0', 'ServEgre' => $a['ServEgre'], 'CodiDocu' => '', 'NumeLiqu' => 0, 'ConsDeFa' => 0,
+            // Orden que se atiende: NumeOrde = número de la orden DENTRO de la admisión (EncaOrde.ConsOrde,
+            // verificado contra SIHOS; no es EncaOrde.Consecut), Item = ítem de DetaOrde
+            'NumeOrde' => $d['orden'] ? (int) $d['orden']['ConsOrde'] : 0, 'Item' => $d['orden'] ? (int) $d['orden']['Item'] : 0,
+            'CentCost' => '', 'ServEgre' => $a['ServEgre'], 'CodiDocu' => '', 'NumeLiqu' => 0, 'ConsDeFa' => 0,
             'NumePiez' => 0, 'CuadPiez' => 0, 'CodiServ' => $a['ServEgre'],
         ] + $dig);
         if ($d['orden']) {
@@ -883,7 +884,7 @@ function medicamento_guardar(array $a, array $d, string $login): int
             'UnidMedi' => (int) ($det['UnidMedi'] ?: 1), 'IndiAdic' => $d['IndiAdic'], 'EsFact' => 1, 'CantFact' => 0,
             'UsuaAsis' => $login, 'NumeOrde' => (int) $det['ConsPres'], 'Item' => (int) $det['Item'],
             'CodiDocu' => '', 'NumeLiqu' => 0, 'ConsDeFa' => 0, 'ValoUnit' => 0, 'ValoTota' => 0, 'EstaFact' => 0,
-            'Despacha' => 0, 'DispMedi' => 0, 'Correctos' => 0, 'CentCost' => '0',
+            'Despacha' => 0, 'DispMedi' => 0, 'Correctos' => 0, 'CentCost' => '',
         ] + hc_digitacion($login));
         $pdo->prepare('UPDATE DetaPres SET CantApli = CantApli + ?, FechModi = CURDATE(), HoraModi = CURTIME(), UsuaModi = ?
                         WHERE CodiInst = ? AND ConsAdmi = ? AND ConsPres = ? AND Item = ?')
@@ -1275,7 +1276,7 @@ function incapacidades_de_admision(string $cons): array
 /** Ítems de DetaOrde con cantidad pendiente (CantReal < CantSumi), no suspendidos: ["ConsOrde-Item" => fila]. */
 function ordenes_pendientes(string $cons): array
 {
-    $st = db()->prepare("SELECT d.*, e.Consecut, p.NombProc FROM DetaOrde d
+    $st = db()->prepare("SELECT d.*, p.NombProc FROM DetaOrde d
                            JOIN EncaOrde e ON e.CodiInst = d.CodiInst AND e.ConsAdmi = d.ConsAdmi AND e.ConsOrde = d.ConsOrde
                            LEFT JOIN CodiProc p ON p.CodiProc = d.CodiProc
                           WHERE d.CodiInst = ? AND d.ConsAdmi = ? AND d.CantReal < d.CantSumi AND d.FechSusp = '0000-00-00'
