@@ -304,13 +304,17 @@ function consulta_validar(array $a): array
     $d = [];
     $e = [];
     hc_fecha_hora($a, $d, $e, 'FechCons', 'HoraCons', 'consulta');
-    $d['TipoCons'] = hc_procedimiento('TipoCons', false, $e);
+    $ce = modulo_de_servicio($a['ServEgre']) === 'ce';
+    // TipoCons siempre lleno en SIHOS (obligatorio); por defecto el codigo de consulta del modulo
+    $d['TipoCons'] = hc_procedimiento('TipoCons', true, $e);
     $d['FinaCons'] = hc_de_lista('FinaCons', 'FinaCons', true, $e, 'Seleccione la finalidad de la consulta.', 2);
     foreach (['MotiCons', 'EnfeActu', 'ReviSist', 'ObseReco', 'LaboImag'] as $c) {
         $d[$c] = campo($c, 5000);
     }
     if ($d['MotiCons'] === '') $e['MotiCons'] = 'Escriba el motivo de consulta.';
     if ($d['EnfeActu'] === '') $e['EnfeActu'] = 'Escriba la enfermedad actual.';
+    // Plan de manejo: en Urgencias y Observacion SIHOS lo tiene lleno en el 100 % de las consultas
+    if (!$ce && $d['ObseReco'] === '') $e['ObseReco'] = 'Escriba el plan de manejo y recomendaciones.';
     hc_diagnosticos(['CodiDiag' => 'TipoDiag', 'CodiRel1' => 'TipoDia1', 'CodiRel2' => 'TipoDia2',
                      'CodiRel3' => 'TipoDia3', 'CodiRel4' => 'TipoDia4'], $d, $e);
     // Revision por sistemas: sintomaticos (1 = si, 2 = no) y perimetros
@@ -323,7 +327,9 @@ function consulta_validar(array $a): array
         if ($v !== '' && (!ctype_digit($v) || (int) $v > $max)) $e[$c] = "El perímetro $que debe estar entre $min y $max cm.";
     }
     // Plan de manejo: destino (catalogo DestSali; RipsCons.DestSali es numerico)
-    $d['DestSali'] = hc_de_lista('DestSali', 'ConsDest', false, $e, 'Seleccione un destino válido.', 2);
+    // En Consulta Externa el destino es siempre 4 (verificado en SIHOS)
+    $d['DestSali'] = $ce ? '' : hc_de_lista('DestSali', 'ConsDest', false, $e, 'Seleccione un destino válido.', 2);
+    $d['ce'] = $ce;
     // Antecedentes: 1 = si, 2 = no refiere
     foreach (ANTECEDENTES as $c => [$etq, $desc]) {
         $d[$c] = campo($c, 1) === '1' ? 1 : 2;
@@ -335,11 +341,10 @@ function consulta_validar(array $a): array
     // Signos vitales de la consulta (opcionales): toma de SignVita ligada con ConsCons
     [$d['signos'], $es] = hc_signos_opcionales();
     $e += $es;
-    // Examen físico: 1 = normal, 2 = anormal, vacío = no examinado
+    // Examen físico: 1 = normal (por defecto, como en SIHOS), 2 = anormal (con descripción)
     $d['EstaGene'] = campo('EstaGene', 5000);
     foreach (EXAMEN_SISTEMAS as $c => [$etq, $desc]) {
-        $v = campo($c, 1);
-        $d[$c] = in_array($v, ['1', '2'], true) ? (int) $v : null;
+        $d[$c] = campo($c, 1) === '2' ? 2 : 1;
         $d[$desc] = campo($desc, 2000);
         if ($d[$c] === 2 && $d[$desc] === '') $e[$desc] = "Describa el hallazgo anormal en $etq.";
     }
@@ -367,7 +372,9 @@ function consulta_guardar(array $a, array $d, array $u): int
             'PeriAbdo' => $d['PeriAbdo'], 'PeriTorx' => $d['PeriTorx'] ?? 0, 'LaboImag' => $d['LaboImag'],
             'CodiEspe' => $u['CodiEspe'] ?? null, 'ObseReco' => $d['ObseReco'],
             // La consulta queda realizada y cerrada al guardarla
-            'EstaReal' => 1, 'FechCier' => $ahora['FechDigi'], 'HoraCier' => $ahora['HoraDigi'], 'UsuaCier' => $login,
+            // Urgencias y Observacion: la consulta se cierra al guardarla. Consulta Externa: realizada, sin cierre
+            'EstaReal' => 1, 'FechCier' => $d['ce'] ? '0000-00-00' : $ahora['FechDigi'],
+            'HoraCier' => $d['ce'] ? '00:00:00' : $ahora['HoraDigi'], 'UsuaCier' => $d['ce'] ? '' : $login,
             'UsuaAsis' => $login, 'EstaCarg' => 0, 'NumeLiqu' => 0, 'ConsDeFa' => 0, 'CentCost' => '',
             'DestSali' => $d['DestSali'] !== '' ? (int) $d['DestSali'] : 4,
             'ServEgre' => $a['ServEgre'], 'CodiServ' => $a['ServEgre'],
@@ -385,8 +392,8 @@ function consulta_guardar(array $a, array $d, array $u): int
         }
         hc_insertar($pdo, 'Antecede', $fila + $ahora);
 
-        $examen = $d['EstaGene'] !== '' || array_filter(array_keys(EXAMEN_SISTEMAS), fn ($c) => $d[$c] !== null);
-        if ($examen) {
+        // Siempre hay examen: cada sistema es normal por defecto
+        if (true) {
             $fila = ['CodiInst' => CODI_INST, 'ConsAdmi' => $a['ConsAdmi'],
                      'ConsEsGe' => hc_siguiente($pdo, 'EstaGene', 'ConsEsGe', $a['ConsAdmi']),
                      'CodiModu' => $modu, 'ConsCons' => $cons, 'ConsHoPr' => 0,
@@ -423,6 +430,36 @@ function consultas_de_admision(string $cons): array
 }
 
 // ---------------------------------------------------------------------
+// Plan de Manejo (Urgencias 20, Observación 25): RipsCons.ObseReco de una consulta ya guardada
+// ---------------------------------------------------------------------
+
+function plan_validar(array $a): array
+{
+    $d = [];
+    $e = [];
+    $d['ConsCons'] = (int) campo('PlanCons', 6);
+    $st = db()->prepare('SELECT ConsCons FROM RipsCons WHERE CodiInst = ? AND ConsAdmi = ? AND ConsCons = ?');
+    $st->execute([CODI_INST, $a['ConsAdmi'], $d['ConsCons']]);
+    if ($st->fetchColumn() === false) {
+        $e['PlanCons'] = 'Registre primero la consulta.';
+    }
+    $d['ObseRecoPlan'] = campo('ObseRecoPlan', 5000);
+    if ($d['ObseRecoPlan'] === '') $e['ObseRecoPlan'] = 'Escriba el plan de manejo y recomendaciones.';
+    return [$d, $e];
+}
+
+/** Actualiza el plan de manejo de la consulta. Devuelve ConsCons. */
+function plan_guardar(array $a, array $d, string $login): int
+{
+    return hc_transaccion(function (PDO $pdo) use ($a, $d, $login) {
+        $pdo->prepare('UPDATE RipsCons SET ObseReco = ?, FechModi = CURDATE(), HoraModi = CURTIME(), UsuaModi = ?
+                        WHERE CodiInst = ? AND ConsAdmi = ? AND ConsCons = ?')
+            ->execute([$d['ObseRecoPlan'], $login, CODI_INST, $a['ConsAdmi'], $d['ConsCons']]);
+        return $d['ConsCons'];
+    });
+}
+
+// ---------------------------------------------------------------------
 // 4. Prescripción: EncaPres + DetaPres
 // ---------------------------------------------------------------------
 
@@ -438,7 +475,8 @@ function prescripcion_validar(array $a): array
     $d = [];
     $e = [];
     hc_fecha_hora($a, $d, $e, 'FechPres', 'HoraPres', 'prescripción');
-    $d['PresSali'] = campo('PresSali', 1) === '1' ? 1 : 2;
+    // PresSali (verificado en SIHOS): 1 = hospitalaria, 2 = fórmula de salida. En Consulta Externa siempre 2
+    $d['PresSali'] = (modulo_de_servicio($a['ServEgre']) === 'ce' || campo('PresSali', 1) === '2') ? 2 : 1;
     $d['ObseOrde'] = campo('ObseOrde', 5000);
     $d['CodiDiag'] = hc_diagnostico('PresDiag', false, $e);
     $d['CodiRel1'] = hc_diagnostico('PresRel1', false, $e);
@@ -597,7 +635,7 @@ function ordenes_validar(array $a): array
     // Finalidad de la orden (catalogo FinaCons, "No aplica" = 10 por defecto), autorizacion y ambulatoria
     $d['CodiFina'] = hc_de_lista('FinaCons', 'OrdeFina', false, $e, 'Seleccione una finalidad válida.', 2);
     if ($d['CodiFina'] === '') $d['CodiFina'] = '10';
-    $d['Autoriza'] = campo('Autoriza', 1) === '1' ? 1 : 0;
+    $d['Autoriza'] = 0;   // Verificado en SIHOS: siempre 0 (igual que OrdeSali)
     $d['OrdeAmbu'] = campo('OrdeAmbu', 1) === '1' ? 1 : 0;
     $d['items'] = hc_filas(ORDEN_CAMPOS, 'OrdProc');
     if (!$d['items']) {
@@ -748,17 +786,12 @@ function procedimientos_de_admision(string $cons): array
 
 /**
  * Tipo de nota (catalogo TipoNota) de cada pestana: en SIHOS "Notas Enfermeria" y "Notas Medicas" no tienen
- * selector de tipo. Se toma del catalogo por nombre; null si el catalogo no tiene ese tipo.
+ * selector de tipo: el tipo sale de la pestana.
  */
-function tipo_nota(string $pestana): ?string
+function tipo_nota(string $pestana): string
 {
-    $buscar = ['enfermeria' => 'ENFERMER', 'medica' => 'MEDIC'][$pestana] ?? null;
-    foreach (lista('TipoNota') as $c => $n) {
-        if ($buscar !== null && stripos($n, $buscar) !== false) {
-            return (string) $c;
-        }
-    }
-    return null;
+    // Codigos fijos de SIHOS (verificado): 1 = nota de enfermeria, 2 = nota medica, 5 = consentimiento
+    return $pestana === 'medica' ? '2' : '1';
 }
 
 function nota_validar(array $a): array
@@ -771,25 +804,10 @@ function nota_validar(array $a): array
     $d['FechNota'] = $d['FechNota' . $px];
     $d['HoraNota'] = $d['HoraNota' . $px];
     $d['TipoNota'] = tipo_nota($d['pestana']);
-    if ($d['TipoNota'] === null) {
-        $e['NotaEnfe' . $px] = 'El catálogo TipoNota no tiene el tipo de nota de esta pestaña.';
-    }
     $d['Reviza'] = $d['pestana'] === 'medica' && campo('Reviza', 1) === '1' ? 1 : 0;
     $d['NotaEnfe' . $px] = campo('NotaEnfe' . $px, 10000);
     if ($d['NotaEnfe' . $px] === '') $e['NotaEnfe' . $px] = 'Escriba la nota.';
     $d['NotaEnfe'] = $d['NotaEnfe' . $px];
-    return [$d, $e];
-}
-
-/* Validacion anterior (con selector de tipo), ya no se usa */
-function nota_validar_con_tipo(array $a): array
-{
-    $d = [];
-    $e = [];
-    hc_fecha_hora($a, $d, $e, 'FechNota', 'HoraNota', 'nota');
-    $d['TipoNota'] = hc_de_lista('TipoNota', 'TipoNota', true, $e, 'Seleccione el tipo de nota.', 2);
-    $d['NotaEnfe'] = campo('NotaEnfe', 10000);
-    if ($d['NotaEnfe'] === '') $e['NotaEnfe'] = 'Escriba la nota.';
     return [$d, $e];
 }
 
@@ -1132,7 +1150,7 @@ function material_guardar(array $a, array $d, string $login): int
             'CodiInst' => CODI_INST, 'ConsAdmi' => $a['ConsAdmi'], 'ConsHoMa' => $cons, 'CodiModu' => hc_modulo($a),
             'CodiServ' => $a['ServEgre'], 'FechMate' => $d['FechMate'], 'HoraMate' => $d['HoraMate'],
             'CodiMate' => $d['CodiMate'], 'UnidMate' => $d['UnidMate'], 'EsFact' => 1, 'IndiAdic' => $d['IndiAdic'],
-            'CantMate' => $d['CantMate'], 'CantFact' => 0, 'NumeOrde' => 0, 'Item' => 0, 'CentCost' => '0',
+            'CantMate' => $d['CantMate'], 'CantFact' => 0, 'NumeOrde' => 0, 'Item' => 0, 'CentCost' => '',
             'CodiDocu' => '', 'NumeLiqu' => 0, 'ConsDeFa' => 0, 'UsuaAsis' => $login,
         ] + hc_digitacion($login));
         return $cons;

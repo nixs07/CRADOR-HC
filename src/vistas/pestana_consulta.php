@@ -3,14 +3,16 @@
  * Consultas (RipsCons + Antecede + EstaGene + SignVita), como en SIHOS:
  *  - Urgencias (2.Consultas) y Observación (1.Consultas): una pestaña con acordeones Anamnesis, Antecedentes,
  *    Revisión por Sistema y Exámen, Laboratorios y Diagnósticos, Plan de Manejo y Recomendaciones.
- *  - Consulta Externa: pestañas 1.Anamnesis, 2.Rev.Sistemas y Ex.Físico, 3.Antecedentes y
- *    4.Laboratorios y Diagnósticos (con el plan de manejo), todas dentro del MISMO formulario.
+ *  - Consulta Externa: pestañas 1.Anamnesis, 2.Rev.Sistemas y Ex.Físico, 3.Antecedentes,
+ *    4.Laboratorios y Diagnósticos y 7.Plan de Manejo, todas dentro del MISMO formulario.
+ * TipoCons por defecto (el más usado en SIHOS): Urgencias 890701, Observación 89060102, Consulta Externa 890201.
  * Variables: $a, $mod, $editable, $aqui, $tab, $F, $E, $triage, $consultas, $u.
  */
 require_once __DIR__ . '/consulta_bloques.php';
 
 $esCE = $mod['clave'] === 'ce';
 $d = $F['consulta'] ?? ['FechCons' => date('Y-m-d'), 'HoraCons' => date('H:i'), 'FinaCons' => '10', 'TipoDiag' => '1',
+                        'TipoCons' => ['urg' => '890701', 'obs' => '89060102', 'ce' => '890201'][$mod['clave']],
                         'CodiDiag' => $a['DiagIngr'], 'MotiCons' => $triage['MotiCons'] ?? ''];
 $d += is_array($d['signos'] ?? null) ? $d['signos'] : [];   // signos escritos (si hubo errores)
 if (isset($d['DestSali']) && !isset($d['ConsDest'])) {
@@ -39,7 +41,7 @@ if (!$esCE): ?>
         <?= $abrir('Antecedentes', 'history', false) ?><?php consulta_bloque_antecedentes($d, $er); ?></div></details>
         <?= $abrir('Revisión por Sistema y Exámen', 'activity', false) ?><?php consulta_bloque_revision($d, $er, 'cons-'); ?></div></details>
         <?= $abrir('Laboratorios y Diagnósticos', 'clipboard-list', true) ?><?php consulta_bloque_laboratorios($d, $er); ?></div></details>
-        <?= $abrir('Plan de Manejo y Recomendaciones', 'clipboard-plus', true) ?><?php consulta_bloque_plan($d, $er); ?></div></details>
+        <?= $abrir('Plan de Manejo y Recomendaciones', 'clipboard-plus', true) ?><?php consulta_bloque_plan($d, $er, false); ?></div></details>
         <?= botones_panel('Guardar consulta') ?>
     </form>
     </div>
@@ -53,7 +55,8 @@ $bloques = [
     'anamnesis'    => ['file-text', 'Anamnesis'],
     'revision'     => ['activity', 'Revisión por sistemas y examen físico'],
     'antecedentes' => ['history', 'Antecedentes'],
-    'laboratorios' => ['clipboard-list', 'Laboratorios, diagnósticos y plan de manejo'],
+    'laboratorios' => ['clipboard-list', 'Laboratorios y diagnósticos'],
+    'plan'         => ['clipboard-plus', 'Plan de manejo y recomendaciones'],
 ];
 if ($editable): ?>
 <form method="post" action="<?= e($accion) ?>" class="formulario formulario-ce" id="form-consulta" data-signos data-una-vez novalidate>
@@ -72,12 +75,12 @@ foreach ($bloques as $id => [$icono, $sub]): ?>
             <?php consulta_bloque_revision($d, $er, 'cons-'); ?>
         <?php elseif ($id === 'antecedentes'): ?>
             <?php consulta_bloque_antecedentes($d, $er); ?>
-        <?php else: ?>
+        <?php elseif ($id === 'laboratorios'): ?>
             <?php consulta_bloque_laboratorios($d, $er); ?>
-            <h3 class="subtitulo-panel"><?= icono('clipboard-plus') ?>Plan de Manejo y Recomendaciones</h3>
-            <?php consulta_bloque_plan($d, $er); ?>
+        <?php else: ?>
+            <?php consulta_bloque_plan($d, $er, true); ?>
         <?php endif; ?>
-        <p class="ayuda">Las pestañas 1 a 4 son una sola consulta: se guardan juntas con el botón Guardar consulta.</p>
+        <p class="ayuda">Las pestañas 1 a 4 y 7 son una sola consulta: se guardan juntas con el botón Guardar consulta.</p>
         <?= botones_panel('Guardar consulta') ?>
         </div>
     <?php elseif ($id !== 'anamnesis'): ?>

@@ -84,6 +84,9 @@ function pestanas_lista(array $mod): array
             17 => ['incapacidad', 'Incapacidad', ''],
             18 => ['signos', 'Signos Vitales', ''],
             19 => ['nopos', 'No POS', $n],
+            20 => ['plan', 'Plan de Manejo', ''],
+            21 => ['neurologico', 'Neurológico', $n],
+            22 => ['terapias', 'PROCEDIMIENTO TERAPIAS', $n],
             23 => ['quemaduras', 'Esquema de Quemaduras', $n],
             24 => ['glucometria', 'GLUCOMETRIA', $n],
             25 => ['devoluciones', 'Devoluciones', $n],
@@ -109,6 +112,7 @@ function pestanas_lista(array $mod): array
             13 => ['anestesia', 'Anestesia', $n],
             14 => ['signos', 'Signos Vitales', ''],
             15 => ['neurologico', 'Neurológico', $n],
+            16 => ['oxigeno', 'Oxígeno', $n],
             17 => ['liquidos', 'Líquidos', $n],
             18 => ['materiales', 'Materiales', ''],
             19 => ['devoluciones', 'Devoluciones', $n],
@@ -116,18 +120,27 @@ function pestanas_lista(array $mod): array
             21 => ['incapacidad', 'Incapacidad', ''],
             22 => ['egreso', 'Egreso', ''],
             23 => ['cambio', 'Cambio de Atención', $n],
+            24 => ['remisiones', 'Remisiones', ''],
+            25 => ['plan', 'Plan de Manejo', ''],
+            26 => ['glucometria', 'GLUCOMETRIA', $n],
+            // En SIHOS siguen sin numero visible; aqui se numeran a continuacion
+            27 => ['pyp', 'PyP', $n],
+            28 => ['imagenes', 'Imágenes', $n],
+            29 => ['labdiag', 'Laboratorios y Diagnósticos', $n],
+            30 => ['saludpublica', 'SALUD PUBLICA', $n],
+            31 => ['menor', 'Atención del Menor', $n],
         ];
     }
-    // Consulta Externa: la consulta (RipsCons) va repartida en las pestañas 1 a 4; no hay pestaña de
-    // egreso: la atención se cierra con el botón "Cerrar Historia" del encabezado.
+    // Consulta Externa: la consulta (RipsCons) va repartida en las pestañas 1 a 4 y 7 (Plan de Manejo), un solo
+    // formulario; no hay pestaña de egreso: la atención se cierra con "Cerrar Historia" del encabezado.
     return [
         1 => ['anamnesis', 'Anamnesis', ''],
         2 => ['revision', 'Rev.Sistemas y Ex.Físico', ''],
         3 => ['antecedentes', 'Antecedentes', ''],
         4 => ['laboratorios', 'Laboratorios y Diagnósticos', ''],
-        5 => ['prescripcion', 'Prescripción Ambulatoria', ''],
+        5 => ['prescripcion', 'Prescripción A', ''],
         6 => ['ordenacion', 'Ordenación', ''],
-        7 => ['remisiones', 'Remisiones', ''],
+        7 => ['plan', 'Plan de Manejo', ''],
         8 => ['control', 'Control', $n],
         9 => ['tamizaje', 'Tamizaje Riesgo Cardiovascular', $n],
         10 => ['consentimiento', 'Consentimiento', $n],
@@ -136,6 +149,13 @@ function pestanas_lista(array $mod): array
         13 => ['menor', 'Atención del Menor', $n],
         14 => ['notas_medicas', 'Notas Médicas', ''],
         15 => ['imagenes', 'Imágenes', $n],
+        // En SIHOS siguen despues de Imagenes; aqui se numeran a continuacion
+        16 => ['medicamentos', 'Medicamentos', ''],
+        17 => ['nopos', 'No POS', $n],
+        18 => ['remisiones', 'Remisiones', ''],
+        19 => ['notas_enfermeria', 'Notas Enfermería', ''],
+        20 => ['saludpublica', 'SALUD PUBLICA', $n],
+        21 => ['cambio', 'Cambio de Atención', $n],
     ];
 }
 

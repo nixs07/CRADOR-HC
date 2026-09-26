@@ -99,8 +99,8 @@ const ACCIONES_HISTORIA = [
     'evolucion'     => [['evolucion'], 'evolucion_validar', 'evolucion_guardar', 'Evolución No. %d registrada.'],
     'egreso'        => [['egreso'], 'egreso_validar', 'egreso_guardar', 'Admisión cerrada: egreso registrado.'],
     'material'      => [['materiales'], 'material_validar', 'material_guardar', 'Material No. %d registrado.'],
-    // Remision: pestana propia (Urgencias, Consulta Externa) o dentro del egreso (Observacion)
-    'remision'      => [['remisiones', 'egreso'], 'remision_validar', 'remision_guardar', 'Remisión No. %d registrada.'],
+    'plan'          => [['plan'], 'plan_validar', 'plan_guardar', 'Plan de manejo de la consulta No. %d guardado.'],
+    'remision'      => [['remisiones'], 'remision_validar', 'remision_guardar', 'Remisión No. %d registrada.'],
     'incapacidad'   => [['incapacidad'], 'incapacidad_validar', 'incapacidad_guardar', 'Incapacidad No. %d registrada.'],
     // Desde el encabezado; vuelven a la pestana en la que se estaba:
     // traslado de cama (Observacion) y "Cerrar Historia" de Consulta Externa
@@ -108,7 +108,7 @@ const ACCIONES_HISTORIA = [
     'cierre'        => [[], 'egreso_validar', 'egreso_guardar', 'Historia cerrada.'],
 ];
 
-/** Pestana de Consulta Externa (1 a 4) donde esta el primer campo con error de la consulta. */
+/** Pestana de Consulta Externa (1 a 4 o 7) donde esta el primer campo con error de la consulta. */
 function consulta_ce_pestana(array $errores): string
 {
     $antecedentes = [];
@@ -120,6 +120,7 @@ function consulta_ce_pestana(array $errores): string
                             array_keys(EXAMEN_SISTEMAS), array_column(EXAMEN_SISTEMAS, 1));
     foreach (array_keys($errores) as $campo) {
         if (in_array($campo, ['FechCons', 'HoraCons', 'TipoCons', 'FinaCons', 'MotiCons', 'EnfeActu'], true)) return 'anamnesis';
+        if ($campo === 'ObseReco') return 'plan';
         if (in_array($campo, $revision, true)) return 'revision';
         if (in_array($campo, $antecedentes, true)) return 'antecedentes';
         return 'laboratorios';
@@ -457,7 +458,8 @@ if ($a) {
                 'notas_enfermeria' => count($notas) - $nMedicas, 'notas_medicas' => $nMedicas,
                 'medicamentos' => count($aplicados), 'materiales' => count($materiales), 'remisiones' => count($remisiones),
                 'incapacidad' => count($incapacidades), 'evolucion' => count($evoluciones),
-                'egreso' => ($egreso ? 1 : 0) + ($clave === 'obs' ? count($remisiones) : 0)];
+                'plan' => count(array_filter($consultas, fn ($c) => trim((string) $c['ObseReco']) !== '')),
+                'egreso' => $egreso ? 1 : 0];
 }
 pestanas_historia($a, $mod, $tab, $conteos ?? []);
 ?>
@@ -647,9 +649,10 @@ $vistas = ['consulta' => 'consulta', 'anamnesis' => 'consulta', 'prescripcion' =
            'ordenes_medicas' => 'ordenes_medicas', 'ordenacion' => 'ordenacion', 'procedimientos' => 'procedimientos',
            'evolucion' => 'evolucion', 'notas_enfermeria' => 'notas', 'notas_medicas' => 'notas',
            'medicamentos' => 'medicamentos', 'materiales' => 'materiales', 'remisiones' => 'remisiones',
-           'incapacidad' => 'incapacidad', 'egreso' => 'egreso'];
+           'incapacidad' => 'incapacidad', 'egreso' => 'egreso', 'plan' => 'plan'];
 foreach ($disponibles as $vista) {
-    if (!isset($vistas[$vista])) {
+    // En Consulta Externa el Plan de Manejo (7) lo pinta el formulario de la consulta
+    if (!isset($vistas[$vista]) || ($vista === 'plan' && $clave === 'ce')) {
         continue;
     }
     // Cada panel se pinta en su propia funcion para que sus variables no pisen las de esta pagina

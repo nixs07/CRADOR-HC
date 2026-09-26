@@ -2,9 +2,8 @@
 /**
  * Egreso (Urgencias 26, Observación 22): SaliInte y cierre de la admisión, con los campos de SIHOS en su orden:
  * Fecha, Hora, Estadía, Estado, Causa, Destino, Incapacidad (días), Diagnósticos (Egreso, Rela 1-3, Complic.)
- * y Plan de Manejo Ambulatorio y Observaciones. En Observación la remisión va aquí (la pestaña 16 de SIHOS
- * no se ve en las capturas). En Consulta Externa no hay egreso: se usa "Cerrar Historia" del encabezado.
- * Variables: $a, $mod, $editable, $aqui, $tab, $F, $E, $egreso, $remisiones.
+ * y Plan de Manejo Ambulatorio y Observaciones. En Consulta Externa no hay egreso: se usa "Cerrar Historia"
+ * del encabezado. Variables: $a, $mod, $editable, $aqui, $tab, $F, $E, $egreso.
  */
 $d = $F['egreso'] ?? ['FechSali' => date('Y-m-d'), 'HoraSali' => date('H:i'), 'CausSali' => '1', 'DestSali' => '01', 'EstaSali' => '1',
                       'TipoEgre' => '1', 'EgreTipoDiag' => '2', 'DiagEgre' => $a['DiagIngr']];
@@ -16,23 +15,11 @@ foreach (lista('EstaSali') as $c => $n) {
 }
 $seg = max(0, time() - strtotime($a['FechIngr'] . ' ' . $a['HoraIngr']));
 $estadia = intdiv($seg, 86400) . ' día(s), ' . intdiv($seg % 86400, 3600) . ' hora(s)';
-$conRemision = $mod['clave'] === 'obs';
-if ($conRemision) {
-    require_once __DIR__ . '/remision_bloques.php';
-    [$dr, $err] = remision_datos($a, $F, $E);
-}
 ?>
 <?= panel_abrir('egreso', pestana_titulo($mod, 'egreso'), 'log-out', $tab,
     (int) $a['Cerrado'] === 1 ? 'Admisión cerrada' : 'Salida del paciente y cierre de la historia') ?>
 <?php if ($editable): ?>
     <div class="panel-cuerpo panel-dos">
-    <?php if ($conRemision): ?>
-    <details class="subseccion"<?= $err ? ' open' : '' ?>>
-        <summary><?= icono('hospital') ?>Remisión a otra institución</summary>
-        <?php remision_formulario($aqui . '&tab=egreso', $dr, $err, remision_anteriores($remisiones)); ?>
-    </details>
-    <?php endif; ?>
-
     <?= errores_resumen($er) ?>
     <form method="post" action="<?= e($aqui) ?>&amp;tab=egreso" class="formulario formulario-panel" data-una-vez>
         <?= csrf_campo() ?>
@@ -87,5 +74,4 @@ if ($conRemision) {
     <?= panel_vacio('La admisión no se puede modificar.') ?>
 <?php endif; ?>
 
-<?php if ($conRemision) { remision_lista($remisiones); } ?>
 </section>

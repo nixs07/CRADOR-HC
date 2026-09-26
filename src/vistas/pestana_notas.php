@@ -1,7 +1,7 @@
 <?php
 /**
  * Notas Enfermería (Urgencias 9, Observación 7) y Notas Médicas (Urgencias 10, Observación 8, Consulta Externa 14):
- * HojaEnfe. Como en SIHOS no hay selector de tipo: el tipo (TipoNota) sale de la pestaña. Notas Médicas tiene
+ * HojaEnfe. Como en SIHOS no hay selector de tipo: TipoNota fijo 1 (enfermería) o 2 (médica). Notas Médicas tiene
  * además la casilla "Revisada" (Reviza, UsuaRevi, FechRevi, HoraRevi). Los campos de Notas Médicas llevan el
  * sufijo "Med" para que los dos formularios puedan estar en la misma página.
  * Variables: $vista (notas_enfermeria | notas_medicas), $a, $mod, $editable, $aqui, $tab, $F, $E, $notas, $u.
@@ -9,7 +9,6 @@
 $medica = $vista === 'notas_medicas';
 $px = $medica ? 'Med' : '';
 $pestana = $medica ? 'medica' : 'enfermeria';
-$tipo = tipo_nota($pestana);
 $enviada = ($F['nota']['pestana'] ?? '') === $pestana;
 $d = $enviada ? $F['nota'] : ['FechNota' . $px => date('Y-m-d'), 'HoraNota' . $px => date('H:i')];
 $er = $enviada ? ($E['nota'] ?? []) : [];
@@ -27,9 +26,6 @@ foreach ($propias as $n) {
 <?php if ($editable): ?>
     <div class="panel-cuerpo">
     <?= errores_resumen($er) ?>
-    <?php if ($tipo === null): ?>
-        <div class="alerta alerta-aviso"><?= icono('triangle-alert') ?><div>El catálogo TipoNota no tiene el tipo <?= $medica ? 'NOTA MÉDICA' : 'NOTA DE ENFERMERÍA' ?>: no se pueden guardar notas en esta pestaña.</div></div>
-    <?php endif; ?>
     <form method="post" action="<?= e($aqui) ?>&amp;tab=<?= e($vista) ?>" class="formulario formulario-panel" data-una-vez>
         <?= csrf_campo() ?>
         <input type="hidden" name="accion" value="nota">

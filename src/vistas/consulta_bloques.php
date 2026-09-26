@@ -9,7 +9,7 @@
 function consulta_bloque_anamnesis(array $d, array $er, bool $esCE): void
 { ?>
     <div class="rejilla">
-        <?= campo_buscador('TipoCons', $esCE ? 'Actividad' : 'Tipo', $d, $er, 'procedimientos') ?>
+        <?= campo_buscador('TipoCons', $esCE ? 'Actividad' : 'Tipo', $d, $er, 'procedimientos', true) ?>
         <?= campo_lista('FinaCons', 'Finalidad', 'FinaCons', $d, $er) ?>
     </div>
     <?= campo_texto('MotiCons', $esCE ? 'Motivo de Consulta' : 'Motivo', $d, $er, 2, true, 5000, 'ConsMoti') ?>
@@ -51,12 +51,11 @@ function consulta_bloque_revision(array $d, array $er, string $prefijo): void
             <input type="number" id="PeriTorx" name="PeriTorx" value="<?= v($d, 'PeriTorx') ?>" min="0" max="150" class="<?= ce($er, 'PeriTorx') ?>"><?= me($er, 'PeriTorx') ?></div>
     </div>
     <div class="rejilla-examen">
-        <?php foreach (EXAMEN_SISTEMAS as $c => [$etq, $desc]): $val = (string) ($d[$c] ?? ''); ?>
+        <?php foreach (EXAMEN_SISTEMAS as $c => [$etq, $desc]): $val = (string) ($d[$c] ?? '1'); ?>
             <div class="examen">
                 <label for="ex-<?= e($c) ?>"><?= e($etq) ?></label>
                 <select id="ex-<?= e($c) ?>" name="<?= e($c) ?>">
-                    <option value=""<?= $val === '' ? ' selected' : '' ?>>Sin examinar</option>
-                    <option value="1"<?= $val === '1' ? ' selected' : '' ?>>Normal</option>
+                    <option value="1"<?= $val !== '2' ? ' selected' : '' ?>>Normal</option>
                     <option value="2"<?= $val === '2' ? ' selected' : '' ?>>Anormal</option>
                 </select>
                 <input type="text" name="<?= e($desc) ?>" value="<?= v($d, $desc) ?>" maxlength="2000" aria-label="Hallazgos en <?= e($etq) ?>" placeholder="Hallazgos" class="<?= ce($er, $desc) ?>">
@@ -74,13 +73,18 @@ function consulta_bloque_laboratorios(array $d, array $er): void
                             ['Rela 3', 'CodiRel3', 'TipoDia3'], ['Rela 4', 'CodiRel4', 'TipoDia4']], $d, $er, true, 'cons-') ?>
 <?php }
 
-/** Plan de Manejo y Recomendaciones: destino y plan. */
-function consulta_bloque_plan(array $d, array $er): void
+/**
+ * Plan de Manejo y Recomendaciones (RipsCons.ObseReco): obligatorio en Urgencias y Observación. En Consulta
+ * Externa el destino no se pide (siempre 4).
+ */
+function consulta_bloque_plan(array $d, array $er, bool $esCE): void
 { ?>
+    <?php if (!$esCE): ?>
     <div class="rejilla">
         <?= campo_lista('ConsDest', 'Destino', 'DestSali', $d, $er, false) ?>
     </div>
-    <?= campo_texto('ObseReco', 'Plan de Manejo y Recomendaciones', $d, $er, 3) ?>
+    <?php endif; ?>
+    <?= campo_texto('ObseReco', 'Plan de Manejo y Recomendaciones', $d, $er, 4, !$esCE) ?>
 <?php }
 
 /** Consultas registradas (lista con detalle desplegable). */
@@ -130,6 +134,7 @@ function consulta_registros(array $consultas): void
                     <dt>Diagnósticos</dt><dd><?= e(diag_texto($c['CodiDiag'])) ?> (<?= e(lista_nombre('TipoDiag', $c['TipoDiag'])) ?>)<?php
                         foreach ([1, 2, 3, 4] as $i) { if (trim((string) $c["CodiRel$i"]) !== '') echo '<br>' . e(diag_texto($c["CodiRel$i"])); } ?></dd>
                     <dt>Destino</dt><dd><?= e(lista_nombre('DestSali', sprintf('%02d', (int) $c['DestSali']))) ?: '—' ?></dd>
+                    <dt>Tipo</dt><dd><?= e($c['TipoCons'] . ' · ' . (procedimiento_nombre($c['TipoCons']) ?? '')) ?></dd>
                     <dt>Plan de manejo</dt><dd class="texto-largo"><?= texto_registro($c['ObseReco']) ?></dd>
                 </dl>
             </details>

@@ -223,4 +223,14 @@
         ini.addEventListener('input', calcular);
         calcular();
     });
+
+    // --- 9. Plan de Manejo: al cambiar la consulta se carga su plan ----------
+    document.querySelectorAll('select[data-plan-consulta]').forEach(function (sel) {
+        var texto = sel.form && sel.form.querySelector('[name="ObseRecoPlan"]');
+        if (!texto) { return; }
+        sel.addEventListener('change', function () {
+            var o = sel.options[sel.selectedIndex];
+            texto.value = o ? (o.dataset.texto || '') : '';
+        });
+    });
 })();

@@ -4,7 +4,7 @@
  * Barra de SIHOS: Nuevo, No., Tipo de Prescripción, Fecha, Hora; DXP, DXR 1 y DXR 2; varios medicamentos.
  * Variables: $a, $mod, $editable, $aqui, $tab, $F, $E, $prescripciones.
  */
-$d = $F['prescripcion'] ?? ['FechPres' => date('Y-m-d'), 'HoraPres' => date('H:i'), 'PresSali' => '2', 'TipoPres' => '1', 'items' => []];
+$d = $F['prescripcion'] ?? ['FechPres' => date('Y-m-d'), 'HoraPres' => date('H:i'), 'PresSali' => $mod['clave'] === 'ce' ? '2' : '1', 'TipoPres' => '1', 'items' => []];
 $er = $E['prescripcion'] ?? [];
 $items = $d['items'] ?: [['CodiSumi' => '', 'CantSumi' => '', 'UnidMedi' => '', 'CodiVia' => '', 'CantFrec' => '8', 'TiemFrec' => '1', 'CantPeDu' => '1', 'TiemPeDu' => '2', 'PresMedi' => '']];
 
@@ -54,9 +54,12 @@ $filaMedicamento = function (array $it) {
             <?= campo_buscador('PresDiag', 'DXP', $d + ['PresDiag' => $d['CodiDiag'] ?? $a['DiagIngr']], $er, 'diagnosticos') ?>
             <?= campo_buscador('PresRel1', 'DXR 1', $d + ['PresRel1' => $d['CodiRel1'] ?? ''], $er, 'diagnosticos') ?>
             <?= campo_buscador('PresRel2', 'DXR 2', $d + ['PresRel2' => $d['CodiRel2'] ?? ''], $er, 'diagnosticos') ?>
-            <div><span class="etiqueta-campo">¿Fórmula de salida?</span>
-                <label class="opcion"><input type="radio" name="PresSali" value="1"<?= (string) $d['PresSali'] === '1' ? ' checked' : '' ?>> Sí</label>
-                <label class="opcion"><input type="radio" name="PresSali" value="2"<?= (string) $d['PresSali'] !== '1' ? ' checked' : '' ?>> No</label></div>
+            <?php if ($mod['clave'] === 'ce'): ?>
+                <div><span class="etiqueta-campo">Fórmula</span><p class="nota-campo">Fórmula de salida (ambulatoria)</p></div>
+            <?php else: ?>
+                <div><span class="etiqueta-campo">Fórmula</span>
+                    <div class="casillas"><label class="opcion" for="PresSali"><input type="checkbox" id="PresSali" name="PresSali" value="2"<?= (string) $d['PresSali'] === '2' ? ' checked' : '' ?>> Fórmula de salida</label></div></div>
+            <?php endif; ?>
         </div>
         <div class="subgrupo" data-filas>
             <h3><?= icono('clipboard-list') ?>Suministros</h3>
@@ -84,7 +87,7 @@ $filaMedicamento = function (array $it) {
                 <span class="contador"><?= (int) $p['ConsPres'] ?></span>
                 <strong><?= e(fecha_hora($p['Fecha'] . ' ' . $p['Hora'])) ?></strong>
                 <span class="etiqueta"><?= (int) $p['TipoPres'] === 2 ? 'Control' : 'Regular' ?></span>
-                <?php if ((int) $p['PresSali'] === 1): ?><span class="etiqueta etiqueta-curso">Fórmula de salida</span><?php endif; ?>
+                <?php if ((int) $p['PresSali'] === 2): ?><span class="etiqueta etiqueta-curso">Fórmula de salida</span><?php endif; ?>
                 <small><?= e($p['UsuaDigi']) ?> · <?= e(diag_texto($p['CodiDiag'])) ?></small>
             </div>
             <div class="tabla-contenedor">

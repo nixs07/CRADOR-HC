@@ -1,8 +1,8 @@
 <?php
 /**
  * Ordenación (Urgencias 7, Observación 5, Consulta Externa 6): órdenes de procedimientos, laboratorios e
- * imágenes (EncaOrde + DetaOrde), con los campos de SIHOS: Solicitar autorización para EPS, Finalidad,
- * Ambulatoria, DXP y DXR1 a DXR4; ítems Código, Nombre, Cant y Nota.
+ * imágenes (EncaOrde + DetaOrde), con los campos de SIHOS: Finalidad, Ambulatoria (Autoriza y OrdeSali siempre 0),
+ * DXP y DXR1 a DXR4; ítems Código, Nombre, Cant y Nota.
  * Variables: $a, $mod, $editable, $aqui, $tab, $F, $E, $ordenes.
  */
 $do = $F['ordenes'] ?? ['FechOrde' => date('Y-m-d'), 'HoraOrde' => date('H:i'), 'CodiFina' => '10', 'items' => []];
@@ -43,7 +43,6 @@ foreach ([1, 2, 3, 4] as $i) {
         <input type="hidden" name="accion" value="ordenes">
         <?= barra_registro('Nuevo', $anteriores, 'FechOrde', 'HoraOrde', $do, $eo) ?>
         <div class="rejilla">
-            <div class="casillas"><?= casilla('Autoriza', 'Solicitar Autorización Para EPS', $do) ?></div>
             <?= campo_lista('OrdeFina', 'Finalidad', 'FinaCons', $do + ['OrdeFina' => $do['CodiFina'] ?? '10'], $eo, false) ?>
             <div class="casillas"><?= casilla('OrdeAmbu', 'Ambulatoria', $do) ?></div>
         </div>
@@ -76,7 +75,7 @@ foreach ([1, 2, 3, 4] as $i) {
         <?php foreach ($ordenes as $o): foreach ($o['items'] as $k => $it): ?>
             <tr<?= $k === 0 ? ' id="reg-orden-' . (int) $o['ConsOrde'] . '"' : '' ?>>
                 <td><span class="contador"><?= (int) $o['ConsOrde'] ?></span> <small>ítem <?= (int) $it['Item'] ?></small>
-                    <?php if ($k === 0 && ((int) $o['Autoriza'] || (int) $o['OrdeAmbu'])): ?><small class="bloque"><?= (int) $o['Autoriza'] ? 'Autorización EPS ' : '' ?><?= (int) $o['OrdeAmbu'] ? 'Ambulatoria' : '' ?></small><?php endif; ?></td>
+                    <?php if ($k === 0 && (int) $o['OrdeAmbu']): ?><small class="bloque"><?= (int) $o['OrdeAmbu'] ? 'Ambulatoria' : '' ?></small><?php endif; ?></td>
                 <td class="sin-salto"><?= e(fecha_hora($o['Fecha'] . ' ' . $o['Hora'])) ?></td>
                 <td><strong><?= e($it['CodiProc']) ?></strong></td>
                 <td><?= e($it['NombProc'] ?? '') ?></td>
