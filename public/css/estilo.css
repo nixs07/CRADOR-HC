@@ -1257,3 +1257,38 @@ tr[data-href] { cursor: pointer; }
     .td-fila { grid-template-columns: 1fr; }
     .td-etiqueta { padding-top: 4px; }
 }
+
+/* ---------------------------------------------------------------------
+   Pestanas de la historia: barra azul, pestanas grandes y letra grande
+   (pedido del hospital: que se vean como la barra de SIHOS y se lean bien)
+   --------------------------------------------------------------------- */
+.pestanas {
+    gap: 6px; padding: 8px;
+    background: var(--azul-texto); border-color: var(--azul-texto); border-radius: 14px;
+}
+.pestanas a, .pestana-proxima {
+    padding: 12px 18px; font-size: 16px; font-weight: 700; border-radius: 10px;
+    color: #fff;
+}
+.pestanas a .icono, .pestana-proxima .icono { width: 18px; height: 18px; }
+.pestanas a:hover { background: rgba(255, 255, 255, 0.16); color: #fff; box-shadow: none; }
+.pestanas a.actual { background: #fff; color: var(--azul-texto); border-color: #fff; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.18); }
+.pestanas a:focus-visible { outline: 3px solid #fff; outline-offset: 2px; }
+.pestana-numero {
+    width: 26px; height: 26px; font-size: 13.5px;
+    background: rgba(255, 255, 255, 0.22); color: #fff;
+}
+.pestanas a.actual .pestana-numero { background: var(--azul-texto); color: #fff; }
+.pestanas .contador { background: rgba(255, 255, 255, 0.22); color: #fff; }
+.pestanas a.actual .contador { background: var(--azul-suave); color: var(--azul-texto); }
+.pestana-proxima { color: rgba(255, 255, 255, 0.62); font-weight: 600; }
+.pestana-proxima .icono { color: rgba(255, 255, 255, 0.55); }
+.pestana-proxima .pestana-numero { background: transparent; border: 1px solid rgba(255, 255, 255, 0.4); color: rgba(255, 255, 255, 0.7); }
+.pestana-proxima small { background: rgba(255, 255, 255, 0.14); color: rgba(255, 255, 255, 0.8); }
+/* En PC y tableta todas las pestanas quedan a la vista (varias filas si hace falta) */
+@media (min-width: 768px) {
+    .pestanas { flex-wrap: wrap; overflow-x: visible; -webkit-mask-image: none; mask-image: none; padding-right: 8px; }
+}
+/* Las no disponibles quedan compactas dentro de la barra (el aviso sale al pasar el mouse) */
+.pestanas .pestana-proxima { padding: 12px 12px; font-size: 14.5px; }
+.pestanas .pestana-proxima small { display: none; }
