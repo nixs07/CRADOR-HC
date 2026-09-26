@@ -18,7 +18,8 @@ E.S.E. Hospital Sagrado Corazón de Jesús.
 - Después del ingreso el profesional **elige el módulo** (Urgencias, Observación e Internación o Consulta
   Externa), como en SIHOS. Cada módulo tiene **una sola pantalla de trabajo** (`public/atencion.php`): encabezado
   de la admisión arriba (buscar documento, nueva admisión, historias abiertas) y pestañas numeradas en el orden de
-  SIHOS debajo; el triage y los signos se registran dentro de su pestaña. El tablero es solo del administrador.
+  SIHOS debajo, cada una con la barra de SIHOS (Nuevo, registros anteriores, fecha y hora). El tablero es solo
+  del administrador.
 - Funciona en PC, tableta y celular (menú lateral en cajón, tablas como tarjetas). Todo es local, sin CDN:
   fuente Plus Jakarta Sans (`public/fonts`, licencia OFL), íconos Lucide en `public/img/iconos.svg` (licencia
   ISC), CSS propio en `public/css/estilo.css` y JS propio en `public/js/`.
@@ -66,7 +67,11 @@ Abrir <http://localhost:8080>. Guía completa: [`docs/INSTALACION.md`](docs/INST
   8. Evolución (EvolInte) y 9. Egreso (SaliInte y cierre). Supuestos en `docs/REGLAS.md`.
 - **Fase 2 — bloque 3 (hecho):** traslado de cama (TrasCama, Observación), materiales (HojaMate), remisión (Remision)
   e incapacidad (IncaPaci) en el egreso, y procedimientos ligados al ítem de la orden que atienden.
-  procedimientos, fórmula y medicamentos, materiales, notas de enfermería, evolución, traslado de cama y egreso.
+- **Fase 2 — pestañas como SIHOS (hecho):** cada módulo tiene las pestañas de SIHOS con sus nombres, orden y
+  numeración (Urgencias 1-28, Observación 1-23, Consulta Externa 1-15) y los campos y etiquetas de cada una
+  (mapa en [`docs/SIHOS_PANTALLAS.md`](docs/SIHOS_PANTALLAS.md)); las que no tienen tablas se ven deshabilitadas
+  "No disponible en contingencia". En Consulta Externa la consulta ocupa las pestañas 1 a 4 y la historia se
+  cierra con "Cerrar Historia" en el encabezado.
 - **Fase 3:** carga a SIHOS por el administrador (`cont_carga_sihos`).
 
 ## Stack
