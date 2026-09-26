@@ -30,6 +30,9 @@ datos = json.dumps({'paginas': paginas, 'api': d['api'], 'catalogo': d['catalogo
 datos = datos.replace('</', '<\\/')
 
 plantilla = open('plantilla.html', encoding='utf-8').read()
+# Prefijo de las admisiones del recorrido (C + AAMMDD), tomado de las paginas recogidas
+hoy = next((re.search(r'id=(C\d{6})', k).group(1) for k in d['paginas'] if re.search(r'id=C\d{6}', k)), 'C000000')
+plantilla = plantilla.replace('/*HOY*/', hoy)
 salida = (plantilla.replace('/*CSS*/', css)
           .replace('<!--SPRITE-->', sprite)
           .replace('/*DATOS*/', 'var DATOS = ' + datos + ';')

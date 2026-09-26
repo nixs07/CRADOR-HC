@@ -3,6 +3,8 @@ const { chromium } = require('playwright');
 const fs = require('fs');
 const B = 'http://localhost:8080/';
 const paginas = {}; const api = {};
+// Prefijo de las admisiones que crea el recorrido hoy: C + AAMMDD (hora de Colombia)
+const HOY = 'C' + new Date(Date.now() - 5 * 3600e3).toISOString().slice(2, 10).replace(/-/g, '');
 async function tomar(p, clave, url) {
   const r = await p.goto(B + url); await p.waitForLoadState('networkidle');
   const d = await p.evaluate(() => ({ cls: document.body.className, html: document.body.innerHTML, title: document.title }));
@@ -20,9 +22,9 @@ async function ingresar(p, login) {
   await tomar(p, 'login.php', 'login.php');
   await ingresar(p, 'MEDPRUEBA');
   await tomar(p, 'modulo.php', 'modulo.php');
-  const ids = { urg: ['C26092500001', 'PRUEBA000001', 'PRUEBA000002', 'PRUEBA000003'],
-                obs: ['C26092500002', 'PRUEBA000005', 'PRUEBA000006'],
-                ce: ['C26092500003', 'PRUEBA000007', 'PRUEBA000008', 'PRUEBA000009'] };
+  const ids = { urg: [HOY + '00001', 'PRUEBA000001', 'PRUEBA000002', 'PRUEBA000003'],
+                obs: [HOY + '00002', 'PRUEBA000005', 'PRUEBA000006'],
+                ce: [HOY + '00003', 'PRUEBA000007', 'PRUEBA000008', 'PRUEBA000009'] };
   for (const m of Object.keys(ids)) {
     await tomar(p, 'atencion.php?modulo=' + m, 'atencion.php?modulo=' + m + '&historias=1');
     await tomar(p, 'atencion.php?modulo=' + m + '&nueva=1', 'atencion.php?modulo=' + m + '&nueva=1');
