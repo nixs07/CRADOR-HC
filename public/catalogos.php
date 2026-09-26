@@ -39,7 +39,12 @@ $tablas = catalogo_tablas();
 
 vista_inicio('Catálogos');
 ?>
-<h1>Catálogos</h1>
+<div class="cabecera-pagina">
+    <div>
+        <div class="antetitulo"><?= icono('database') ?>Administración</div>
+        <h1>Catálogos</h1>
+    </div>
+</div>
 <p class="ayuda">
     Copia desde SIHOS (<?= e(config('SIHOS_HOST', 'sin configurar')) ?>) las <?= count($tablas) ?> tablas de catálogos
     de <code>sql/02_catalogos.sql</code> y <code>sql/03_catalogos_listas.sql</code>.
@@ -51,7 +56,7 @@ vista_inicio('Catálogos');
       onsubmit="this.querySelector('button').disabled = true; this.querySelector('button').textContent = 'Actualizando... no cierre esta página';">
     <?= csrf_campo() ?>
     <input type="hidden" name="accion" value="actualizar">
-    <button type="submit" class="boton boton-primario">Actualizar catálogos ahora</button>
+    <button type="submit" class="boton boton-primario"><?= icono('refresh-cw') ?>Actualizar catálogos ahora</button>
 </form>
 
 <?php if ($ejecucion): ?>
@@ -80,7 +85,7 @@ vista_inicio('Catálogos');
     <?php endif; ?>
 <?php endif; ?>
 
-<h2>Historial</h2>
+<h2><?= icono('history') ?> Historial</h2>
 <?php if (!$ejecuciones): ?>
     <p>Todavía no se han actualizado los catálogos.</p>
 <?php else: ?>

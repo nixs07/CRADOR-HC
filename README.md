@@ -13,6 +13,18 @@ E.S.E. Hospital Sagrado Corazón de Jesús.
 - **Usuarios:** los profesionales entran con su mismo login y clave de SIHOS.
 - **Carga a SIHOS:** solo el administrador (NIXON07), directo a la base de datos.
 
+## Interfaz
+
+- Después del ingreso el profesional **elige el módulo** (Urgencias, Observación e Internación o Consulta
+  Externa), como en SIHOS. Cada módulo tiene **una sola pantalla de trabajo** (`public/atencion.php`): encabezado
+  de la admisión arriba (buscar documento, nueva admisión, historias abiertas) y pestañas numeradas en el orden de
+  SIHOS debajo, cada una con la barra de SIHOS (Nuevo, registros anteriores, fecha y hora). El tablero es solo
+  del administrador.
+- Funciona en PC, tableta y celular (menú lateral en cajón, tablas como tarjetas). Todo es local, sin CDN:
+  fuente Plus Jakarta Sans (`public/fonts`, licencia OFL), íconos Lucide en `public/img/iconos.svg` (licencia
+  ISC), CSS propio en `public/css/estilo.css` y JS propio en `public/js/`.
+- Capturas y recorrido de prueba: [`docs/capturas/`](docs/capturas/README.md).
+
 ## Regla principal
 
 Las tablas tienen **exactamente los mismos nombres y columnas que SIHOS** (ver `sql/`). Así la carga es un
@@ -27,8 +39,8 @@ Las tablas tienen **exactamente los mismos nombres y columnas que SIHOS** (ver `
 | `sql/02_catalogos.sql` | 24 catálogos principales que se copian de SIHOS (Paciente, Contrato, CodiAdmi, CausMorb, CodiProc...) |
 | `sql/03_catalogos_listas.sql` | 37 catálogos de listas desplegables (TipoDocu, ViaIngre, ViaAdmi, UnidMedi, CausSali, DestSali...) |
 | `sql/99_datos_prueba.sql` | Datos inventados para pruebas. **No** se cargan solos; nunca en producción. |
-| `public/` | Páginas web (lo único que publica Apache): login, tablero, catálogos, CSS |
-| `src/` | Código PHP común: configuración, conexión PDO, sesión/CSRF, catálogos, tablero |
+| `public/` | Páginas web (lo único que publica Apache): login, tablero, pacientes, admisiones, triage, signos, CSS/JS |
+| `src/` | Código PHP común: configuración, conexión PDO, sesión/CSRF, catálogos, listas, atención clínica |
 | `bin/` | Tareas por línea de comandos (`actualizar_catalogos.php` y su `.bat` para el Programador de tareas) |
 | `docker/` | Dockerfile de la app y scripts de la base (datos de prueba, respaldo, restauración) |
 | `docs/` | Reglas de negocio (`REGLAS.md`) e instalación (`INSTALACION.md`) |
@@ -46,7 +58,20 @@ Abrir <http://localhost:8080>. Guía completa: [`docs/INSTALACION.md`](docs/INST
 ## Estado
 
 - **Fase 1 (hecha):** Docker, login con usuarios de SIHOS, tablero, actualización de catálogos, tablas de control.
-- **Fase 2:** módulos clínicos (admisión, triage, signos vitales, órdenes, prescripción, notas, evolución, egreso...).
+- **Fase 2 — bloque 1 (hecho):** buscar y crear pacientes, nueva admisión con encabezado completo (EPS, contrato
+  activo, categoría, vía de ingreso, causa externa, cama en Observación, acompañante), lista de pacientes abiertos
+  por módulo, ficha de la admisión, triage (Urgencias) y signos vitales.
+- **Fase 2 — bloque 2 (hecho):** pestañas de la historia: 2. Consultas (RipsCons, Antecede, EstaGene),
+  4. Prescripción (EncaPres/DetaPres), 5. Órdenes médicas (texto libre EncaData/DetaData y órdenes EncaOrde/DetaOrde),
+  6. Procedimientos (HojaProc), 7. Notas de enfermería (HojaEnfe) y administración de medicamentos (HojaMedi),
+  8. Evolución (EvolInte) y 9. Egreso (SaliInte y cierre). Supuestos en `docs/REGLAS.md`.
+- **Fase 2 — bloque 3 (hecho):** traslado de cama (TrasCama, Observación), materiales (HojaMate), remisión (Remision)
+  e incapacidad (IncaPaci) en el egreso, y procedimientos ligados al ítem de la orden que atienden.
+- **Fase 2 — pestañas como SIHOS (hecho):** cada módulo tiene las pestañas de SIHOS con sus nombres, orden y
+  numeración (Urgencias 1-28, Observación 1-23, Consulta Externa 1-15) y los campos y etiquetas de cada una
+  (mapa en [`docs/SIHOS_PANTALLAS.md`](docs/SIHOS_PANTALLAS.md)); las que no tienen tablas se ven deshabilitadas
+  "No disponible en contingencia". En Consulta Externa la consulta ocupa las pestañas 1 a 4 y la historia se
+  cierra con "Cerrar Historia" en el encabezado.
 - **Fase 3:** carga a SIHOS por el administrador (`cont_carga_sihos`).
 
 ## Stack

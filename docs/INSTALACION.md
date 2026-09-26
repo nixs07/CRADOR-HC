@@ -166,3 +166,14 @@ Los datos de MySQL viven en el volumen de Docker `db_datos` (no en la carpeta), 
 | Tarjeta "Conexión con SIHOS: Caída" | SIHOS apagado, sin red, o datos `SIHOS_*` del `.env` errados. El mensaje dice cuál. Tras cambiar el `.env`: `docker compose up -d` (recrea la app con los nuevos valores). |
 | Error al crear la base "Invalid default value" | MySQL sin `explicit_defaults_for_timestamp`: usar el `docker-compose.yml` del proyecto sin cambios. |
 | Se quiere empezar de cero (borra TODO) | `docker compose down -v` y luego `docker compose up -d`. |
+
+## Actualizar una instalación que ya existía
+
+Los scripts de `sql/` solo se ejecutan solos la primera vez. Si la base ya estaba creada y una versión nueva
+agrega tablas de control (por ejemplo `cont_paciente` en la fase 2), ejecute de nuevo `sql/00_control.sql`
+(usa `CREATE TABLE IF NOT EXISTS`, no borra nada):
+
+```powershell
+Get-Content sql/00_control.sql | docker compose exec -T db sh -c 'mysql -uroot -p"$MYSQL_ROOT_PASSWORD" "$MYSQL_DATABASE"'
+```
+
