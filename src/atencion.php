@@ -431,6 +431,7 @@ function triage_validar(): array
         'CodiDiag' => strtoupper(campo('CodiDiag', 8)),
         'ClasTria' => campo('ClasTria', 1),
         'CondTria' => campo('CondTria', 2),
+        'CodiCons' => campo('CodiCons', 5),
         'Conducta' => campo('Conducta', 5000),
     ];
     $e = [];
@@ -444,6 +445,8 @@ function triage_validar(): array
     }
     if (!lista_valida('ClasTria', $d['ClasTria'])) $e['ClasTria'] = 'Seleccione la clasificación del triage.';
     if (!lista_valida('CondTria', $d['CondTria'])) $e['CondTria'] = 'Seleccione la conducta.';
+    // "Continuar en el consultorio" (opcional), del catalogo de consultorios
+    if ($d['CodiCons'] !== '' && !lista_valida('Cons', $d['CodiCons'])) $e['CodiCons'] = 'Seleccione un consultorio válido.';
     return [$d, $e];
 }
 
@@ -466,10 +469,10 @@ function triage_guardar(array $a, array $t, array $s, string $login): void
         $st = $pdo->prepare('INSERT INTO Triage (CodiInst, ConsAdmi, ConsTria, TipoDocu, NumeUsua, FechTria, HoraTria, MotiCons,
                                     HallClin, CodiDiag, ClasTria, CondTria, Conducta, Realizad, CodiAdmi, NumeCont, TipoUsua,
                                     FechDigi, HoraDigi, UsuaDigi, FechModi, HoraModi, UsuaModi, CodiCons)
-                             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?, ?, CURDATE(), CURTIME(), ?, CURDATE(), CURTIME(), ?, \'\')');
+                             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?, ?, CURDATE(), CURTIME(), ?, CURDATE(), CURTIME(), ?, ?)');
         $st->execute([CODI_INST, $a['ConsAdmi'], $consTria, $a['TipoDocu'], $a['NumeUsua'], $t['FechTria'], $t['HoraTria'],
             $t['MotiCons'], $t['HallClin'], $t['CodiDiag'], (int) $t['ClasTria'], $t['CondTria'], $t['Conducta'],
-            $a['CodiAdmi'], $a['NumeCont'], $a['TipoUsua'], $login, $login]);
+            $a['CodiAdmi'], $a['NumeCont'], $a['TipoUsua'], $login, $login, $t['CodiCons'] ?? '']);
 
         signos_insertar($pdo, $a, $s + ['FechToma' => $t['FechTria'], 'HoraToma' => $t['HoraTria']], $login, 2);
 
@@ -500,6 +503,8 @@ const SIGNOS_RANGOS = [
     'Saturaci' => ['Saturación O₂ (%)', 40, 100, false],
     'Peso'     => ['Peso (kg)', 0.3, 350, false],
     'Talla'    => ['Talla (cm)', 20, 250, false],
+    'FetoCard' => ['Fetocardia (lat/min)', 60, 220, false],
+    'Oximetria' => ['Oximetría (%)', 40, 100, false],
     'Dolor'    => ['Dolor (0 a 10)', 0, 10, false],
     'GlucMetr' => ['Glucometría (mg/dL)', 10, 999, false],
 ];
@@ -541,7 +546,7 @@ function signos_validar(bool $conFecha): array
  * como SIHOS: IMC = peso / talla(m)^2 ; TM = (sistolica + 2 x diastolica) / 3.
  * $sintomas = valor de SintResp/SintPiel (SIHOS guarda 2 en triage y 0 en tomas posteriores).
  */
-function signos_insertar(PDO $pdo, array $a, array $s, string $login, int $sintomas = 0): int
+function signos_insertar(PDO $pdo, array $a, array $s, string $login, int $sintomas = 0, int $consCons = 0, int $consEvol = 0): int
 {
     $st = $pdo->prepare('SELECT IFNULL(MAX(ConsSign), 0) + 1 FROM SignVita WHERE CodiInst = ? AND ConsAdmi = ?');
     $st->execute([CODI_INST, $a['ConsAdmi']]);
@@ -552,15 +557,15 @@ function signos_insertar(PDO $pdo, array $a, array $s, string $login, int $sinto
     $mod = MODULOS_DETALLE[modulo_de_servicio($a['ServEgre'])] ?? null;
 
     $st = $pdo->prepare('INSERT INTO SignVita (CodiInst, ConsAdmi, ConsSign, ConsEvol, CodiModu, FechToma, ConsCons, id_clap,
-                                HoraToma, Peso, Talla, MasaCorp, Pulso, Respirac, Temperat, PANume, PADeno, Saturaci,
+                                HoraToma, Peso, Talla, MasaCorp, Pulso, Respirac, Temperat, PANume, PADeno, FetoCard, Saturaci,
                                 SintResp, SintPiel, UnidEdad, ValoEdad, Dolor, TM, Oximetria, GlucMetr,
                                 FechDigi, HoraDigi, UsuaDigi, FechModi, HoraModi, UsuaModi)
-                         VALUES (?, ?, ?, 0, ?, ?, 0, 0, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?,
+                         VALUES (?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
                                  CURDATE(), CURTIME(), ?, CURDATE(), CURTIME(), ?)');
-    $st->execute([CODI_INST, $a['ConsAdmi'], $cons, $mod['CodiModu'] ?? 0, $s['FechToma'], $s['HoraToma'],
+    $st->execute([CODI_INST, $a['ConsAdmi'], $cons, $consEvol, $mod['CodiModu'] ?? 0, $s['FechToma'], $consCons, $s['HoraToma'],
         $s['Peso'], $s['Talla'], $imc, (int) $s['Pulso'], (int) $s['Respirac'], $s['Temperat'], (int) $s['PANume'],
-        (int) $s['PADeno'], $s['Saturaci'], $sintomas, $sintomas, $a['UnidEdad'], $a['ValoEdad'], $s['Dolor'], $tm,
-        (int) $s['GlucMetr'], $login, $login]);
+        (int) $s['PADeno'], (int) ($s['FetoCard'] ?? 0), $s['Saturaci'], $sintomas, $sintomas, $a['UnidEdad'], $a['ValoEdad'],
+        $s['Dolor'], $tm, (int) ($s['Oximetria'] ?? 0) > 0 ? (int) $s['Oximetria'] : null, (int) $s['GlucMetr'], $login, $login]);
     return $cons;
 }
 

@@ -123,7 +123,10 @@ REPLACE INTO UnidMedi (CodiUnid, NombUnid, ViaAdmi) VALUES (1, 'MG', 1), (2, 'ML
 REPLACE INTO CodiTiem (CodiTiem, codigo, NombTiem, activo) VALUES (1, '1', 'HORA(S)', 1), (2, '2', 'DIA(S)', 1), (3, '3', 'MES(ES)', 1);
 REPLACE INTO FinaProc (CodiFina, NombFina, FinaProcSispro, Activo) VALUES (1, 'DIAGNOSTICO', 15, 1), (2, 'TERAPEUTICO', 16, 1),
  (3, 'PROTECCION ESPECIFICA', 17, 1), (4, 'DETECCION TEMPRANA', 18, 1);
-REPLACE INTO TipoNota (CodiTipo, NombTipo) VALUES (1, 'NOTA DE ENFERMERIA'), (2, 'NOTA DE TRASLADO'), (5, 'CONSENTIMIENTO INFORMADO');
+-- Consultorios (inventados) para "Continuar en el consultorio" del triage
+REPLACE INTO CodiCons (CodiCons, NombCons, UrgeCons, EstaCons) VALUES
+  ('U01', 'CONSULTORIO URGENCIAS 1', 1, 1), ('U02', 'CONSULTORIO URGENCIAS 2', 1, 1), ('P01', 'SALA DE PROCEDIMIENTOS', 1, 1);
+REPLACE INTO TipoNota (CodiTipo, NombTipo) VALUES (1, 'NOTA DE ENFERMERIA'), (2, 'NOTA DE TRASLADO'), (3, 'NOTA MEDICA'), (5, 'CONSENTIMIENTO INFORMADO');
 REPLACE INTO CausSali (CodiCaus, NombCaus) VALUES (1, 'ALTA MEDICA'), (2, 'REMISION'), (3, 'ALTA VOLUNTARIA'), (4, 'FUGA'), (5, 'MUERTE');
 REPLACE INTO DestSali (CodiDest, NombDest, Activo) VALUES ('01', 'DOMICILIO', 1), ('02', 'REMITIDO A OTRA INSTITUCION', 1),
  ('03', 'HOSPITALIZACION', 1), ('04', 'OBSERVACION', 1);

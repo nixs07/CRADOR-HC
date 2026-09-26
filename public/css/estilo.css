@@ -1184,3 +1184,76 @@ tr[data-href] { cursor: pointer; }
 }
 .subtitulo-panel svg { width: 18px; height: 18px; color: var(--azul-texto); }
 .panel > .tabla-triage { margin: 0 20px 20px; border: 1px solid var(--borde); border-radius: var(--radio); }
+
+/* ---------------------------------------------------------------------
+ * Pestañas como en SIHOS: barra del registro, acordeones de la consulta,
+ * tabla de diagnósticos, antecedentes y examen físico
+ * ------------------------------------------------------------------- */
+.barra-registro {
+    display: flex; flex-wrap: wrap; align-items: flex-end; gap: 8px 14px;
+    padding: 10px 12px 12px; margin: 0 0 8px; background: var(--superficie-2);
+    border: 1px solid var(--borde); border-radius: var(--radio);
+}
+.barra-registro label, .barra-registro .etiqueta-campo { margin: 0 0 4px; font-size: 12.5px; }
+.barra-registro > .boton { margin: 0; align-self: flex-end; }
+.barra-registro select, .barra-registro input { min-height: 36px; padding-top: 4px; padding-bottom: 4px; }
+.br-campo { display: flex; flex-direction: column; min-width: 130px; }
+.br-campo > span { min-height: 36px; display: flex; align-items: center; font-size: 14px; color: var(--texto-2); }
+.br-fecha { display: flex; gap: 10px; }
+.br-fecha > div { width: 150px; }
+.br-fecha > div:last-child { width: 135px; }
+.br-profesional > span { font-weight: 600; }
+.br-derecha { margin-left: auto; display: flex; align-items: center; flex-wrap: wrap; gap: 4px; }
+.br-derecha .boton { margin: 0; }
+.br-derecha small { width: 100%; text-align: right; color: var(--texto-suave); font-size: 11.5px; }
+
+.acordeon { border: 1px solid var(--borde); border-radius: var(--radio); margin: 10px 0; background: #fff; }
+.acordeon > summary {
+    display: flex; align-items: center; gap: 8px; padding: 11px 14px; cursor: pointer; list-style: none;
+    font-weight: 700; color: var(--azul-texto); background: var(--azul-suave); border-radius: var(--radio);
+}
+.acordeon > summary::-webkit-details-marker { display: none; }
+.acordeon > summary::after { content: "▾"; margin-left: auto; color: var(--texto-suave); }
+.acordeon:not([open]) > summary::after { content: "▸"; }
+.acordeon[open] > summary { border-radius: var(--radio) var(--radio) 0 0; border-bottom: 1px solid var(--azul-borde); }
+.acordeon > summary .icono { width: 18px; height: 18px; }
+.acordeon-cuerpo { padding: 2px 14px 14px; }
+
+.rejilla-4 { grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); }
+.rejilla-antecedentes { display: grid; grid-template-columns: repeat(auto-fill, minmax(360px, 1fr)); gap: 0 18px; }
+.antecedente { display: grid; grid-template-columns: 170px 1fr; gap: 0 10px; align-items: end; }
+.antecedente .campo-sino:only-child { grid-column: 1 / 2; }
+.rejilla-examen { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 0 18px; }
+.examen { display: grid; grid-template-columns: 110px 140px 1fr; gap: 0 8px; align-items: center; padding: 6px 0; border-bottom: 1px dashed var(--borde); }
+.examen label { margin: 0; }
+.examen select, .examen input { min-height: 36px; padding-top: 4px; padding-bottom: 4px; font-size: 14px; }
+.examen .error-campo { grid-column: 1 / -1; }
+
+.tabla-diag { border: 1px solid var(--borde); border-radius: var(--radio); overflow: hidden; margin: 8px 0 4px; }
+.td-cabeza, .td-fila { display: grid; grid-template-columns: 110px minmax(0, 1fr) 200px; gap: 0 12px; align-items: start; padding: 6px 12px; }
+.td-cabeza { background: var(--superficie-3); font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .03em; color: var(--texto-2); }
+.td-fila + .td-fila { border-top: 1px solid var(--borde); }
+.td-etiqueta { font-weight: 700; padding-top: 10px; font-size: 13.5px; }
+.td-fila label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.td-fila .nota-campo { margin-top: 2px; }
+
+.formulario-ce > .panel { margin-bottom: 16px; }
+.registro.resaltado, tr.resaltado { outline: 3px solid var(--azul-borde); outline-offset: 2px; transition: outline-color .3s; }
+.ventana-chica { max-width: 560px; }
+.ventana-chica .ventana-cuerpo { padding-top: 8px; }
+.pestana-proxima small { white-space: nowrap; }
+
+@media (max-width: 767px) {
+    .barra-registro { align-items: stretch; }
+    .br-fecha { width: 100%; }
+    .br-fecha > div, .br-fecha > div:last-child { width: auto; flex: 1; }
+    .br-derecha { margin-left: 0; width: 100%; }
+    .br-derecha small { text-align: left; }
+    .rejilla-antecedentes, .rejilla-examen { grid-template-columns: 1fr; }
+    .antecedente { grid-template-columns: 1fr; }
+    .examen { grid-template-columns: 1fr 1fr; }
+    .examen input { grid-column: 1 / -1; }
+    .td-cabeza { display: none; }
+    .td-fila { grid-template-columns: 1fr; }
+    .td-etiqueta { padding-top: 4px; }
+}

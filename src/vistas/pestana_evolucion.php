@@ -1,36 +1,41 @@
 <?php
 /**
- * Pestaña 8. Evolución (EvolInte), formato SOAP. No aplica en Consulta Externa.
- * Variables: $a, $editable, $aqui, $tab, $F, $E, $evoluciones.
+ * Evolución (Urgencias 8, Observación 2): EvolInte, con los campos de SIHOS en su orden: Subjetivo, Objetivo,
+ * fila de Signos Vitales (toma de SignVita ligada con ConsEvol), Diagnósticos Principal y Rela 1-4, Análisis,
+ * Plan de Manejo y Controles Especiales. No existe en Consulta Externa.
+ * Variables: $a, $mod, $editable, $aqui, $tab, $F, $E, $evoluciones, $u.
  */
 $d = $F['evolucion'] ?? ['FechEvol' => date('Y-m-d'), 'HoraEvol' => date('H:i'), 'EvolTipoDiag' => '2', 'EvolDiag' => $a['DiagIngr']];
+$d += is_array($d['signos'] ?? null) ? $d['signos'] : [];
 $er = $E['evolucion'] ?? [];
+$anteriores = [];
+foreach ($evoluciones as $v) {
+    $anteriores['reg-evol-' . (int) $v['ConsEvol']] = (int) $v['ConsEvol'] . ' · ' . fecha_hora($v['FechEvol'] . ' ' . $v['HoraEvol']);
+}
 ?>
-<?= panel_abrir('evolucion', '8. Evolución', 'history', $tab, count($evoluciones) . ' ' . (count($evoluciones) === 1 ? 'evolución' : 'evoluciones')) ?>
+<?= panel_abrir('evolucion', pestana_titulo($mod, 'evolucion'), 'history', $tab, count($evoluciones) . ' ' . (count($evoluciones) === 1 ? 'evolución' : 'evoluciones')) ?>
 <?php if ($editable): ?>
     <div class="panel-cuerpo">
     <?= errores_resumen($er) ?>
-    <form method="post" action="<?= e($aqui) ?>&amp;tab=evolucion" class="formulario formulario-panel" data-una-vez>
+    <form method="post" action="<?= e($aqui) ?>&amp;tab=evolucion" class="formulario formulario-panel" data-signos data-una-vez>
         <?= csrf_campo() ?>
         <input type="hidden" name="accion" value="evolucion">
-        <h3 class="titulo-form"><?= icono('plus') ?>Nueva evolución <span class="legend-nota">Subjetivo, objetivo, análisis y plan</span></h3>
-        <div class="rejilla">
-            <?= campos_fecha_hora('FechEvol', 'HoraEvol', $d, $er) ?>
-            <?= campo_buscador('EvolProc', 'Código de la atención (CUPS, opcional)', $d, $er, 'procedimientos') ?>
-        </div>
+        <?= barra_registro('Nueva', $anteriores, 'FechEvol', 'HoraEvol', $d, $er, '', $u['Nombre'] ?? $u['Login']) ?>
         <?= campo_texto('Subjetivo', 'Subjetivo', $d, $er, 3) ?>
         <?= campo_texto('Objetivo', 'Objetivo', $d, $er, 3) ?>
-        <?= campo_texto('Analisis', 'Análisis', $d, $er, 3, true) ?>
-        <?= campo_texto('PlanMane', 'Plan de manejo', $d, $er, 3, true) ?>
-        <div class="rejilla">
-            <?= campo_buscador('EvolDiag', 'Diagnóstico (CIE-10)', $d, $er, 'diagnosticos', true) ?>
-            <?= campo_lista('EvolTipoDiag', 'Tipo de diagnóstico', 'TipoDiag', $d, $er) ?>
-            <?= campo_buscador('EvolRel1', 'Relacionado', $d, $er, 'diagnosticos') ?>
-            <?= campo_lista('EvolTipoRel1', 'Tipo relacionado', 'TipoDiag', $d, $er, false) ?>
+        <div class="subgrupo">
+            <h3><?= icono('heart-pulse') ?>Signos Vitales <small class="legend-nota">Opcional: si escribe alguno se guarda una toma ligada a la evolución</small></h3>
+            <?php campos_signos($d, $er, 'evol-', false); ?>
         </div>
-        <div class="casillas">
-            <label class="opcion"><input type="checkbox" name="ContSign" value="1"<?= !empty($d['ContSign']) ? ' checked' : '' ?>> Control de signos vitales</label>
-            <label class="opcion"><input type="checkbox" name="ContLiqu" value="1"<?= !empty($d['ContLiqu']) ? ' checked' : '' ?>> Control de líquidos</label>
+        <h3 class="subtitulo-panel"><?= icono('file-text') ?>Diagnósticos</h3>
+        <?= tabla_diagnosticos([['Principal', 'EvolDiag', 'EvolTipoDiag'], ['Rela 1', 'EvolRel1', 'EvolTipoRel1'], ['Rela 2', 'EvolRel2', 'EvolTipoRel2'],
+                                ['Rela 3', 'EvolRel3', 'EvolTipoRel3'], ['Rela 4', 'EvolRel4', 'EvolTipoRel4']], $d, $er, true, 'evol-') ?>
+        <?= campo_texto('Analisis', 'Análisis', $d, $er, 3, true) ?>
+        <?= campo_texto('PlanMane', 'Plan de Manejo', $d, $er, 3, true) ?>
+        <div class="rejilla">
+            <?= campo_buscador('EvolProc', 'Código de la atención (CUPS, opcional)', $d, $er, 'procedimientos') ?>
+            <div><span class="etiqueta-campo">Controles Especiales</span>
+                <div class="casillas"><?= casilla('ContSign', 'Signos Vitales', $d) ?><?= casilla('ContLiqu', 'Líquidos', $d) ?></div></div>
         </div>
         <?= botones_panel('Guardar evolución') ?>
     </form>
@@ -43,10 +48,10 @@ $er = $E['evolucion'] ?? [];
 <?php else: ?>
     <div class="registros">
     <?php foreach ($evoluciones as $v): ?>
-        <details class="registro"<?= $v === $evoluciones[0] ? ' open' : '' ?>>
+        <details class="registro" id="reg-evol-<?= (int) $v['ConsEvol'] ?>"<?= $v === $evoluciones[0] ? ' open' : '' ?>>
             <summary><span class="contador"><?= (int) $v['ConsEvol'] ?></span>
                 <strong><?= e(fecha_hora($v['FechEvol'] . ' ' . $v['HoraEvol'])) ?></strong>
-                <span><?= e(diag_texto($v['CodiDiag'])) ?></span><small><?= e($v['UsuaDigi']) ?></small></summary>
+                <span><?= e(diag_texto($v['CodiDiag'])) ?><?php foreach ([1, 2, 3, 4] as $i) { if (trim((string) ($v["CodiRel$i"] ?? '')) !== '') echo ' · ' . e($v["CodiRel$i"]); } ?></span><small><?= e($v['UsuaDigi']) ?></small></summary>
             <dl class="datos">
                 <dt>Subjetivo</dt><dd class="texto-largo"><?= texto_registro($v['Subjetivo']) ?></dd>
                 <dt>Objetivo</dt><dd class="texto-largo"><?= texto_registro($v['Objetivo']) ?></dd>

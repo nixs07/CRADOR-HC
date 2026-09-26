@@ -10,8 +10,10 @@
  *   atencion.php?id=C26092500001&tab=triage       admision cargada, en la pestana indicada
  *
  * Los formularios envian a esta misma pagina: accion=admision | triage | signos | consulta | prescripcion |
- * orden_medica | ordenes | procedimiento | nota | medicamento | evolucion | egreso.
- * Los paneles de las pestanas 2 y 4 a 9 estan en src/vistas/pestana_*.php.
+ * orden_medica | ordenes | procedimiento | nota | medicamento | evolucion | egreso | cierre | material |
+ * remision | incapacidad | traslado.
+ * Las pestanas de cada modulo (nombres, orden y numeracion de SIHOS) estan en pestanas_lista() de
+ * src/formulario.php; sus paneles en src/vistas/pestana_*.php (triage y signos vitales, aqui mismo).
  * Siempre se vuelve a esta pantalla (POST y redireccion).
  */
 require __DIR__ . '/../src/inicio.php';
@@ -73,8 +75,9 @@ $signos = $a ? signos_de_admision($a['ConsAdmi']) : [];
 $tieneTriage = (bool) $mod['triage'];
 
 $disponibles = $a ? pestanas_disponibles($mod) : [];
-$tab = in_array($_GET['tab'] ?? '', $disponibles, true) ? $_GET['tab']
-     : (($tieneTriage && $a && !$triage) ? 'triage' : 'signos');
+// Pestana por defecto: el triage si falta (Urgencias); si no, la primera despues del triage
+$porDefecto = $disponibles ? (($disponibles[0] === 'triage' && $triage) ? $disponibles[1] : $disponibles[0]) : '';
+$tab = in_array($_GET['tab'] ?? '', $disponibles, true) ? $_GET['tab'] : $porDefecto;
 
 $t  = ['FechTria' => date('Y-m-d'), 'HoraTria' => date('H:i'), 'CodiDiag' => $a['DiagIngr'] ?? '', 'CondTria' => '1'];
 $st = [];
@@ -83,23 +86,46 @@ $ultima = $signos[0] ?? null;
 $sv = ['FechToma' => date('Y-m-d'), 'HoraToma' => date('H:i'), 'Peso' => $ultima['Peso'] ?? '', 'Talla' => $ultima['Talla'] ?? ''];
 $eS = [];
 
-// Acciones de las pestanas nuevas: accion => [pestana, validar, guardar, mensaje]
+// Acciones de las pestanas: accion => [pestanas donde se guarda (la primera del modulo que exista), validar, guardar, mensaje]
 const ACCIONES_HISTORIA = [
-    'consulta'      => ['consulta', 'consulta_validar', 'consulta_guardar', 'Consulta No. %d registrada.'],
-    'prescripcion'  => ['prescripcion', 'prescripcion_validar', 'prescripcion_guardar', 'Prescripción No. %d registrada.'],
-    'orden_medica'  => ['ordenes', 'orden_medica_validar', 'orden_medica_guardar', 'Orden médica No. %d registrada.'],
-    'ordenes'       => ['ordenes', 'ordenes_validar', 'ordenes_guardar', 'Orden No. %d registrada.'],
-    'procedimiento' => ['procedimientos', 'procedimiento_validar', 'procedimiento_guardar', 'Procedimiento No. %d registrado.'],
-    'nota'          => ['notas', 'nota_validar', 'nota_guardar', 'Nota No. %d registrada.'],
-    'medicamento'   => ['notas', 'medicamento_validar', 'medicamento_guardar', 'Aplicación de medicamento No. %d registrada.'],
-    'evolucion'     => ['evolucion', 'evolucion_validar', 'evolucion_guardar', 'Evolución No. %d registrada.'],
-    'egreso'        => ['egreso', 'egreso_validar', 'egreso_guardar', 'Admisión cerrada: egreso registrado.'],
-    'material'      => ['notas', 'material_validar', 'material_guardar', 'Material No. %d registrado.'],
-    'remision'      => ['egreso', 'remision_validar', 'remision_guardar', 'Remisión No. %d registrada.'],
-    'incapacidad'   => ['egreso', 'incapacidad_validar', 'incapacidad_guardar', 'Incapacidad No. %d registrada.'],
-    // Traslado de cama: se hace desde el encabezado; vuelve a la pestaña en la que se estaba
-    'traslado'      => ['', 'traslado_validar', 'traslado_guardar', 'Traslado de cama No. %d registrado.'],
+    'consulta'      => [['consulta', 'anamnesis'], 'consulta_validar', 'consulta_guardar', 'Consulta No. %d registrada.'],
+    'prescripcion'  => [['prescripcion'], 'prescripcion_validar', 'prescripcion_guardar', 'Prescripción No. %d registrada.'],
+    'orden_medica'  => [['ordenes_medicas'], 'orden_medica_validar', 'orden_medica_guardar', 'Orden médica No. %d registrada.'],
+    'ordenes'       => [['ordenacion'], 'ordenes_validar', 'ordenes_guardar', 'Orden No. %d registrada.'],
+    'procedimiento' => [['procedimientos'], 'procedimiento_validar', 'procedimiento_guardar', 'Procedimiento No. %d registrado.'],
+    // Notas: la pestana sale del campo NotaPestana (enfermeria | medica)
+    'nota'          => [['notas_enfermeria', 'notas_medicas'], 'nota_validar', 'nota_guardar', 'Nota No. %d registrada.'],
+    'medicamento'   => [['medicamentos'], 'medicamento_validar', 'medicamento_guardar', 'Aplicación de medicamento No. %d registrada.'],
+    'evolucion'     => [['evolucion'], 'evolucion_validar', 'evolucion_guardar', 'Evolución No. %d registrada.'],
+    'egreso'        => [['egreso'], 'egreso_validar', 'egreso_guardar', 'Admisión cerrada: egreso registrado.'],
+    'material'      => [['materiales'], 'material_validar', 'material_guardar', 'Material No. %d registrado.'],
+    // Remision: pestana propia (Urgencias, Consulta Externa) o dentro del egreso (Observacion)
+    'remision'      => [['remisiones', 'egreso'], 'remision_validar', 'remision_guardar', 'Remisión No. %d registrada.'],
+    'incapacidad'   => [['incapacidad'], 'incapacidad_validar', 'incapacidad_guardar', 'Incapacidad No. %d registrada.'],
+    // Desde el encabezado; vuelven a la pestana en la que se estaba:
+    // traslado de cama (Observacion) y "Cerrar Historia" de Consulta Externa
+    'traslado'      => [[], 'traslado_validar', 'traslado_guardar', 'Traslado de cama No. %d registrado.'],
+    'cierre'        => [[], 'egreso_validar', 'egreso_guardar', 'Historia cerrada.'],
 ];
+
+/** Pestana de Consulta Externa (1 a 4) donde esta el primer campo con error de la consulta. */
+function consulta_ce_pestana(array $errores): string
+{
+    $antecedentes = [];
+    foreach (ANTECEDENTES as $c => [, $desc]) {
+        $antecedentes[] = $c;
+        if ($desc !== null) $antecedentes[] = $desc;
+    }
+    $revision = array_merge(['ReviSist', 'EstaGene', 'PeriAbdo', 'PeriTorx'], array_keys(SINTOMATICOS), array_keys(SIGNOS_RANGOS),
+                            array_keys(EXAMEN_SISTEMAS), array_column(EXAMEN_SISTEMAS, 1));
+    foreach (array_keys($errores) as $campo) {
+        if (in_array($campo, ['FechCons', 'HoraCons', 'TipoCons', 'FinaCons', 'MotiCons', 'EnfeActu'], true)) return 'anamnesis';
+        if (in_array($campo, $revision, true)) return 'revision';
+        if (in_array($campo, $antecedentes, true)) return 'antecedentes';
+        return 'laboratorios';
+    }
+    return 'anamnesis';
+}
 $F = [];   // datos enviados por formulario (para volver a mostrarlos si hay errores)
 $E = [];   // errores por formulario
 
@@ -120,29 +146,44 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             redirigir('atencion.php?id=' . urlencode($cons));
         }
     } elseif ($a && isset(ACCIONES_HISTORIA[$accion])) {
-        // Pestanas 2 y 4 a 9: validar en src/historia.php, guardar en una transaccion y volver a la pestana
-        [$pest, $validar, $guardar, $mensaje] = ACCIONES_HISTORIA[$accion];
-        if ($pest === '') {
+        // Pestanas de la historia: validar en src/historia.php, guardar en una transaccion y volver a la pestana
+        [$candidatas, $validar, $guardar, $mensaje] = ACCIONES_HISTORIA[$accion];
+        if ($accion === 'nota') {
+            $candidatas = [($_POST['NotaPestana'] ?? '') === 'medica' ? 'notas_medicas' : 'notas_enfermeria'];
+        }
+        $pest = null;
+        foreach ($candidatas as $c) {
+            if (in_array($c, $disponibles, true)) { $pest = $c; break; }
+        }
+        if (!$candidatas) {
+            // Acciones del encabezado: se queda en la pestana actual
             $pest = $tab;
-            if (!$mod['cama']) {
+            if ($accion === 'traslado' && !$mod['cama']) {
                 flash('error', 'El traslado de cama solo aplica en Observación e Internación.');
                 redirigir($aqui);
             }
+            if ($accion === 'cierre' && $clave !== 'ce') {
+                flash('error', 'En este módulo la historia se cierra con el egreso.');
+                redirigir($aqui);
+            }
         }
-        $tab = $pest;
         if (!$editable) {
             flash('error', 'La admisión no se puede modificar.');
-            redirigir($aqui . '&tab=' . $pest);
+            redirigir($aqui . '&tab=' . ($pest ?? $tab));
         }
-        if (!in_array($pest, $disponibles, true)) {
+        if ($pest === null) {
             flash('error', 'Esa pestaña no aplica en este módulo.');
             redirigir($aqui);
         }
+        $tab = $pest;
         [$F[$accion], $E[$accion]] = $validar($a);
         if (!$E[$accion]) {
             $n = $guardar($a, $F[$accion], $accion === 'consulta' ? $u : $u['Login']);
             flash('ok', sprintf($mensaje, $n));
             redirigir($aqui . '&tab=' . $pest);
+        }
+        if ($accion === 'consulta' && $clave === 'ce') {
+            $tab = consulta_ce_pestana($E[$accion]);
         }
     } elseif ($a && ($accion === 'triage' || $accion === 'signos')) {
         $ingreso = $a['FechIngr'] . ' ' . $a['HoraIngr'];
@@ -204,7 +245,7 @@ $filas = array_values(array_filter($todas, function ($f) use ($serv, $q) {
 $historiasAbiertas = isset($_GET['historias']) || (!$a && !$buscado && !isset($_GET['nueva']));
 
 // Campos de signos con prefijo en el id cuando conviven los formularios de triage y signos
-$prefijoSignos = ($a && $tieneTriage && !$triage && $editable) ? 'toma-' : '';
+$prefijoSignos = 'toma-';
 
 // Datos del paciente para el encabezado
 $p = $a ?? $pac;
@@ -232,6 +273,9 @@ vista_inicio($a ? 'Admisión ' . $a['ConsAdmi'] : $mod['nombre']);
             <a href="<?= e($base) ?>&amp;historias=1" class="boton boton-claro" data-abrir-ventana="historias"><?= icono('clipboard-list') ?>Historias abiertas <span class="contador"><?= count($todas) ?></span></a>
             <a href="<?= e($base) ?>&amp;nueva=1" class="boton boton-claro"><?= icono('user-plus') ?>Nueva admisión</a>
             <a href="<?= e($base) ?>&amp;nueva=1" class="boton boton-claro" title="Vaciar el encabezado"><?= icono('x') ?>Limpiar</a>
+            <?php if ($a && $clave === 'ce' && $editable): ?>
+                <a href="<?= e($aqui) ?>&amp;tab=<?= e($tab) ?>&amp;cerrar=1" class="boton boton-peligro" data-abrir-ventana="cerrar-historia"><?= icono('log-out') ?>Cerrar Historia</a>
+            <?php endif; ?>
         </div>
     </div>
 
@@ -405,10 +449,15 @@ if ($a) {
     $remisiones = remisiones_de_admision($a['ConsAdmi']);
     $incapacidades = incapacidades_de_admision($a['ConsAdmi']);
     $pendientes = $editable ? ordenes_pendientes($a['ConsAdmi']) : [];
-    $conteos = ['triage' => $triage ? 1 : 0, 'consulta' => count($consultas), 'signos' => count($signos),
-                'prescripcion' => count($prescripciones), 'ordenes' => count($ordenesMedicas) + count($ordenes),
-                'procedimientos' => count($procedimientos), 'notas' => count($notas) + count($aplicados) + count($materiales),
-                'evolucion' => count($evoluciones), 'egreso' => ($egreso ? 1 : 0) + count($remisiones) + count($incapacidades)];
+    $tipoMedica = tipo_nota('medica');
+    $nMedicas = count(array_filter($notas, fn ($n) => (string) $n['TipoNota'] === (string) $tipoMedica));
+    $conteos = ['triage' => $triage ? 1 : 0, 'consulta' => count($consultas), 'anamnesis' => count($consultas),
+                'signos' => count($signos), 'prescripcion' => count($prescripciones), 'ordenes_medicas' => count($ordenesMedicas),
+                'ordenacion' => count($ordenes), 'procedimientos' => count($procedimientos),
+                'notas_enfermeria' => count($notas) - $nMedicas, 'notas_medicas' => $nMedicas,
+                'medicamentos' => count($aplicados), 'materiales' => count($materiales), 'remisiones' => count($remisiones),
+                'incapacidad' => count($incapacidades), 'evolucion' => count($evoluciones),
+                'egreso' => ($egreso ? 1 : 0) + ($clave === 'obs' ? count($remisiones) : 0)];
 }
 pestanas_historia($a, $mod, $tab, $conteos ?? []);
 ?>
@@ -425,7 +474,7 @@ pestanas_historia($a, $mod, $tab, $conteos ?? []);
 <?php if ($tieneTriage): ?>
 <section id="triage" class="seccion panel" data-panel="triage"<?= $tab === 'triage' ? '' : ' hidden' ?>>
     <div class="panel-cabeza">
-        <h2><?= icono('siren') ?>1. Triage</h2>
+        <h2><?= icono('siren') ?><?= e(pestana_titulo($mod, 'triage')) ?></h2>
         <?php if ($triage): ?><span class="etiqueta etiqueta-abierta"><?= icono('circle-check') ?>Registrado</span>
         <?php else: ?><span class="legend-nota">Profesional: <?= e($u['Nombre']) ?></span><?php endif; ?>
     </div>
@@ -439,6 +488,9 @@ pestanas_historia($a, $mod, $tab, $conteos ?? []);
             <dt>Impresión diagnóstica</dt><dd><?= e($triage['CodiDiag'] ? $triage['CodiDiag'] . ' · ' . (diagnostico_nombre($triage['CodiDiag']) ?? '') : '—') ?></dd>
             <?php if (trim((string) $triage['Conducta']) !== ''): ?>
                 <dt>Observaciones de conducta</dt><dd class="texto-largo"><?= e($triage['Conducta']) ?></dd>
+            <?php endif; ?>
+            <?php if (trim((string) ($triage['CodiCons'] ?? '')) !== ''): ?>
+                <dt>Continuar en el consultorio</dt><dd><?= e(lista_nombre('Cons', $triage['CodiCons'])) ?></dd>
             <?php endif; ?>
         </dl>
         <?php
@@ -457,7 +509,7 @@ pestanas_historia($a, $mod, $tab, $conteos ?? []);
         <?php else: $st1 = $signoTriage; ?>
         <div class="tabla-contenedor tabla-triage">
         <table class="tabla">
-            <thead><tr><th>Peso</th><th>Talla</th><th>IMC</th><th>FC</th><th>FR</th><th>T °C</th><th>PA</th><th>TM</th><th>SatO₂</th><th>Gluco</th><th>Dolor</th></tr></thead>
+            <thead><tr><th>Peso</th><th>Talla</th><th>IMC</th><th>FC</th><th>FR</th><th>T °C</th><th>PA</th><th>TM</th><th>Feto</th><th>SatO₂</th><th>Oxim.</th><th>Gluco</th><th>Dolor</th></tr></thead>
             <tbody><tr>
                 <td class="num"><?= (float) $st1['Peso'] > 0 ? e((float) $st1['Peso']) . ' kg' : '—' ?></td>
                 <td class="num"><?= (float) $st1['Talla'] > 0 ? e((float) $st1['Talla']) . ' cm' : '—' ?></td>
@@ -467,7 +519,9 @@ pestanas_historia($a, $mod, $tab, $conteos ?? []);
                 <td class="num"><?= e((float) $st1['Temperat']) ?></td>
                 <td class="num sin-salto"><?= (int) $st1['PANume'] ?>/<?= (int) $st1['PADeno'] ?></td>
                 <td class="num"><?= (int) $st1['TM'] ?></td>
+                <td class="num"><?= (int) ($st1['FetoCard'] ?? 0) > 0 ? (int) $st1['FetoCard'] : '—' ?></td>
                 <td class="num"><?= (float) $st1['Saturaci'] > 0 ? e((float) $st1['Saturaci']) . '%' : '—' ?></td>
+                <td class="num"><?= (float) ($st1['Oximetria'] ?? 0) > 0 ? e((float) $st1['Oximetria']) . '%' : '—' ?></td>
                 <td class="num"><?= (int) $st1['GlucMetr'] > 0 ? (int) $st1['GlucMetr'] : '—' ?></td>
                 <td class="num"><?= e((float) $st1['Dolor']) ?></td>
             </tr></tbody>
@@ -490,16 +544,16 @@ pestanas_historia($a, $mod, $tab, $conteos ?? []);
                 <div><label for="HoraTria">Hora</label>
                     <input type="time" id="HoraTria" name="HoraTria" value="<?= e(substr($t['HoraTria'] ?? '', 0, 5)) ?>" class="<?= ce($eT, 'HoraTria') ?>" required><?= me($eT, 'HoraTria') ?></div>
             </div>
-            <label for="MotiCons">Motivo de consulta (palabras del paciente) <span class="obligatorio" aria-hidden="true">*</span></label>
+            <label for="MotiCons">Motivo <span class="obligatorio" aria-hidden="true">*</span></label>
             <textarea id="MotiCons" name="MotiCons" rows="2" maxlength="5000" class="<?= ce($eT, 'MotiCons') ?>" required><?= v($t, 'MotiCons') ?></textarea><?= me($eT, 'MotiCons') ?>
             <div class="subgrupo">
                 <h3><?= icono('heart-pulse') ?>Signos vitales</h3>
                 <?php campos_signos($st, $eT); ?>
             </div>
-            <label for="HallClin">Hallazgos clínicos <span class="obligatorio" aria-hidden="true">*</span></label>
+            <label for="HallClin">Hallazgos Clínicos <span class="obligatorio" aria-hidden="true">*</span></label>
             <textarea id="HallClin" name="HallClin" rows="4" maxlength="5000" class="<?= ce($eT, 'HallClin') ?>" required><?= v($t, 'HallClin') ?></textarea><?= me($eT, 'HallClin') ?>
             <div class="rejilla">
-                <div><label for="CodiDiag">Impresión diagnóstica (CIE-10)</label>
+                <div><label for="CodiDiag">Impresión Diagnóstica (CIE-10)</label>
                     <input type="text" id="CodiDiag" name="CodiDiag" value="<?= v($t, 'CodiDiag') ?>" maxlength="8" data-diagnostico autocomplete="off" class="<?= ce($eT, 'CodiDiag') ?>" placeholder="Código o nombre">
                     <div class="nota-campo" id="CodiDiag-nombre"><?= e(diagnostico_nombre($t['CodiDiag'] ?? '') ?? '') ?></div><?= me($eT, 'CodiDiag') ?></div>
                 <div><label for="ClasTria">Clasificación</label>
@@ -509,6 +563,9 @@ pestanas_historia($a, $mod, $tab, $conteos ?? []);
             </div>
             <label for="Conducta">Observaciones de la conducta</label>
             <textarea id="Conducta" name="Conducta" rows="2" maxlength="5000"><?= v($t, 'Conducta') ?></textarea>
+            <div class="rejilla">
+                <?= campo_lista('CodiCons', 'Continuar en el consultorio', 'Cons', $t, $eT, false) ?>
+            </div>
             <div class="acciones acciones-panel">
                 <button type="submit" class="boton boton-primario"><?= icono('save') ?>Guardar triage</button>
                 <button type="reset" class="boton boton-claro"><?= icono('refresh-cw') ?>Limpiar</button>
@@ -522,7 +579,7 @@ pestanas_historia($a, $mod, $tab, $conteos ?? []);
 <section id="signos" class="seccion panel" data-panel="signos"<?= $tab === 'signos' ? '' : ' hidden' ?>>
     <div class="panel-cabeza">
         <div>
-            <h2><?= icono('heart-pulse') ?>3. Signos vitales</h2>
+            <h2><?= icono('heart-pulse') ?><?= e(pestana_titulo($mod, 'signos')) ?></h2>
             <p><?= count($signos) ?> <?= count($signos) === 1 ? 'toma registrada' : 'tomas registradas' ?></p>
         </div>
     </div>
@@ -532,13 +589,12 @@ pestanas_historia($a, $mod, $tab, $conteos ?? []);
         <form method="post" action="<?= e($aqui) ?>&amp;tab=signos" class="formulario formulario-panel" data-signos data-una-vez>
             <?= csrf_campo() ?>
             <input type="hidden" name="accion" value="signos">
-            <h3 class="titulo-form"><?= icono('plus') ?>Nueva toma <span class="legend-nota">Peso y talla se proponen con los de la última toma</span></h3>
-            <div class="rejilla rejilla-fecha">
-                <div><label for="FechToma">Fecha</label>
-                    <input type="date" id="FechToma" name="FechToma" value="<?= v($sv, 'FechToma') ?>" max="<?= date('Y-m-d') ?>" class="<?= ce($eS, 'FechToma') ?>" required><?= me($eS, 'FechToma') ?></div>
-                <div><label for="HoraToma">Hora</label>
-                    <input type="time" id="HoraToma" name="HoraToma" value="<?= e(substr((string) ($sv['HoraToma'] ?? ''), 0, 5)) ?>" class="<?= ce($eS, 'HoraToma') ?>" required><?= me($eS, 'HoraToma') ?></div>
-            </div>
+            <?php
+            $tomasAnt = [];
+            foreach ($signos as $s) { $tomasAnt['reg-signos-' . (int) $s['ConsSign']] = (int) $s['ConsSign'] . ' · ' . fecha_hora($s['FechToma'] . ' ' . $s['HoraToma']); }
+            ?>
+            <?= barra_registro('Nueva', $tomasAnt, 'FechToma', 'HoraToma', $sv, $eS) ?>
+            <p class="ayuda">Peso y talla se proponen con los de la última toma.</p>
             <div class="subgrupo">
                 <?php campos_signos($sv, $eS, $prefijoSignos); ?>
             </div>
@@ -557,11 +613,12 @@ pestanas_historia($a, $mod, $tab, $conteos ?? []);
     <div class="tabla-contenedor">
     <table class="tabla tabla-signos">
         <thead><tr><th>Toma</th><th>Fecha y hora</th><th class="num">Peso</th><th class="num">Talla</th><th class="num">IMC</th><th class="num">FC</th><th class="num">FR</th><th class="num">T °C</th>
-            <th>PA</th><th class="num">TM</th><th class="num">SatO₂</th><th class="num">Gluco</th><th class="num">Dolor</th><th>Registró</th></tr></thead>
+            <th>PA</th><th class="num">TM</th><th class="num">Feto</th><th class="num">SatO₂</th><th class="num">Oxim.</th><th class="num">Gluco</th><th class="num">Dolor</th><th>Registró</th></tr></thead>
         <tbody>
         <?php foreach ($signos as $s): ?>
-            <tr>
-                <td><span class="contador"><?= (int) $s['ConsSign'] ?></span></td>
+            <tr id="reg-signos-<?= (int) $s['ConsSign'] ?>">
+                <td><span class="contador"><?= (int) $s['ConsSign'] ?></span>
+                    <?php if ((int) ($s['ConsCons'] ?? 0)): ?><small class="bloque">Consulta <?= (int) $s['ConsCons'] ?></small><?php elseif ((int) ($s['ConsEvol'] ?? 0)): ?><small class="bloque">Evolución <?= (int) $s['ConsEvol'] ?></small><?php endif; ?></td>
                 <td class="sin-salto"><?= e(fecha_hora($s['FechToma'] . ' ' . $s['HoraToma'])) ?></td>
                 <td class="num"><?= (float) $s['Peso'] > 0 ? e((float) $s['Peso']) : '—' ?></td>
                 <td class="num"><?= (float) $s['Talla'] > 0 ? e((float) $s['Talla']) : '—' ?></td>
@@ -571,7 +628,9 @@ pestanas_historia($a, $mod, $tab, $conteos ?? []);
                 <td class="num"><?= e((float) $s['Temperat']) ?></td>
                 <td class="sin-salto"><strong><?= (int) $s['PANume'] ?>/<?= (int) $s['PADeno'] ?></strong></td>
                 <td class="num"><?= (int) $s['TM'] ?></td>
+                <td class="num"><?= (int) ($s['FetoCard'] ?? 0) > 0 ? (int) $s['FetoCard'] : '—' ?></td>
                 <td class="num"><?= (float) $s['Saturaci'] > 0 ? e((float) $s['Saturaci']) . '%' : '—' ?></td>
+                <td class="num"><?= (float) ($s['Oximetria'] ?? 0) > 0 ? e((float) $s['Oximetria']) . '%' : '—' ?></td>
                 <td class="num"><?= (int) $s['GlucMetr'] > 0 ? (int) $s['GlucMetr'] : '—' ?></td>
                 <td class="num"><?= e((float) $s['Dolor']) ?></td>
                 <td><?= e($s['UsuaDigi']) ?></td>
@@ -583,15 +642,22 @@ pestanas_historia($a, $mod, $tab, $conteos ?? []);
     <?php endif; ?>
 </section>
 <?php
-foreach (['consulta', 'prescripcion', 'ordenes', 'procedimientos', 'notas', 'evolucion', 'egreso'] as $vista) {
-    if (in_array($vista, $disponibles, true)) {
-        // Cada panel se pinta en su propia funcion para que sus variables no pisen las de esta pagina
-        (function () use ($vista, $a, $mod, $editable, $aqui, $tab, $F, $E, $triage, $consultas, $prescripciones,
-                          $ordenesMedicas, $ordenes, $procedimientos, $notas, $prescritos, $aplicados, $evoluciones, $egreso,
-                          $materiales, $remisiones, $incapacidades, $pendientes) {
-            require __DIR__ . '/../src/vistas/pestana_' . $vista . '.php';
-        })();
+// Panel de cada pestana disponible (triage y signos estan arriba). Archivo de la vista por pestana:
+$vistas = ['consulta' => 'consulta', 'anamnesis' => 'consulta', 'prescripcion' => 'prescripcion',
+           'ordenes_medicas' => 'ordenes_medicas', 'ordenacion' => 'ordenacion', 'procedimientos' => 'procedimientos',
+           'evolucion' => 'evolucion', 'notas_enfermeria' => 'notas', 'notas_medicas' => 'notas',
+           'medicamentos' => 'medicamentos', 'materiales' => 'materiales', 'remisiones' => 'remisiones',
+           'incapacidad' => 'incapacidad', 'egreso' => 'egreso'];
+foreach ($disponibles as $vista) {
+    if (!isset($vistas[$vista])) {
+        continue;
     }
+    // Cada panel se pinta en su propia funcion para que sus variables no pisen las de esta pagina
+    (function () use ($vista, $vistas, $a, $mod, $u, $editable, $aqui, $tab, $F, $E, $triage, $consultas, $prescripciones,
+                      $ordenesMedicas, $ordenes, $procedimientos, $notas, $prescritos, $aplicados, $evoluciones, $egreso,
+                      $materiales, $remisiones, $incapacidades, $pendientes) {
+        require __DIR__ . '/../src/vistas/pestana_' . $vistas[$vista] . '.php';
+    })();
 }
 ?>
 <?php endif; ?>
@@ -603,6 +669,33 @@ foreach (['consulta', 'prescripcion', 'ordenes', 'procedimientos', 'notas', 'evo
         <a href="<?= e($aqui) ?>&amp;tab=<?= e($siguiente ?? '') ?>" class="boton boton-primario" data-continuar data-tab="<?= e($siguiente ?? '') ?>"<?= $siguiente ? '' : ' hidden' ?>>Continuar <?= icono('chevron-right') ?></a>
     <?php endif; ?>
 </div>
+
+<?php if ($a && $clave === 'ce' && $editable): $eC = $E['cierre'] ?? []; $dC = $F['cierre'] ?? ['FechSali' => date('Y-m-d'), 'HoraSali' => date('H:i')]; ?>
+<!-- Ventana "Cerrar Historia" de Consulta Externa (boton del encabezado, como en SIHOS) -->
+<div class="ventana" id="cerrar-historia" role="dialog" aria-modal="true" aria-labelledby="cerrar-titulo"<?= ($eC || isset($_GET['cerrar'])) ? '' : ' hidden' ?>>
+    <div class="ventana-caja ventana-chica">
+        <div class="ventana-cabeza">
+            <h2 id="cerrar-titulo"><?= icono('log-out') ?>Cerrar Historia</h2>
+            <a href="<?= e($aqui) ?>&amp;tab=<?= e($tab) ?>" class="boton-icono" data-cerrar-ventana aria-label="Cerrar"><?= icono('x') ?></a>
+        </div>
+        <form method="post" action="<?= e($aqui) ?>&amp;tab=<?= e($tab) ?>" class="formulario ventana-cuerpo" data-una-vez>
+            <?= csrf_campo() ?>
+            <input type="hidden" name="accion" value="cierre">
+            <?= errores_resumen($eC) ?>
+            <div class="rejilla rejilla-fecha"><?= campos_fecha_hora('FechSali', 'HoraSali', $dC, $eC) ?></div>
+            <div class="confirmar <?= ce($eC, 'ConfEgre') ?>">
+                <label class="opcion"><input type="checkbox" name="ConfEgre" value="1" required>
+                    <strong>Confirmo el cierre de la historia:</strong> la admisión <?= e($a['ConsAdmi']) ?> quedará cerrada y ya no se podrá modificar.</label>
+                <?= me($eC, 'ConfEgre') ?>
+            </div>
+            <div class="acciones">
+                <button type="submit" class="boton boton-peligro"><?= icono('log-out') ?>Cerrar Historia</button>
+                <a href="<?= e($aqui) ?>&amp;tab=<?= e($tab) ?>" class="boton boton-claro" data-cerrar-ventana>Cancelar</a>
+            </div>
+        </form>
+    </div>
+</div>
+<?php endif; ?>
 
 <!-- Ventana "Historias abiertas" del modulo (como la de SIHOS) -->
 <div class="ventana" id="historias" role="dialog" aria-modal="true" aria-labelledby="historias-titulo"<?= $historiasAbiertas ? '' : ' hidden' ?>>

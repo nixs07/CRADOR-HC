@@ -1,119 +1,91 @@
 <?php
 /**
- * Pestaña 2. Consultas: motivo, enfermedad actual, antecedentes, examen físico, diagnósticos y plan
- * (RipsCons + Antecede + EstaGene). Variables: $a, $editable, $aqui, $tab, $F, $E, $consultas.
+ * Consultas (RipsCons + Antecede + EstaGene + SignVita), como en SIHOS:
+ *  - Urgencias (2.Consultas) y Observación (1.Consultas): una pestaña con acordeones Anamnesis, Antecedentes,
+ *    Revisión por Sistema y Exámen, Laboratorios y Diagnósticos, Plan de Manejo y Recomendaciones.
+ *  - Consulta Externa: pestañas 1.Anamnesis, 2.Rev.Sistemas y Ex.Físico, 3.Antecedentes y
+ *    4.Laboratorios y Diagnósticos (con el plan de manejo), todas dentro del MISMO formulario.
+ * Variables: $a, $mod, $editable, $aqui, $tab, $F, $E, $triage, $consultas, $u.
  */
+require_once __DIR__ . '/consulta_bloques.php';
+
+$esCE = $mod['clave'] === 'ce';
 $d = $F['consulta'] ?? ['FechCons' => date('Y-m-d'), 'HoraCons' => date('H:i'), 'FinaCons' => '10', 'TipoDiag' => '1',
                         'CodiDiag' => $a['DiagIngr'], 'MotiCons' => $triage['MotiCons'] ?? ''];
+$d += is_array($d['signos'] ?? null) ? $d['signos'] : [];   // signos escritos (si hubo errores)
+if (isset($d['DestSali']) && !isset($d['ConsDest'])) {
+    $d['ConsDest'] = $d['DestSali'];
+}
 $er = $E['consulta'] ?? [];
-?>
-<?= panel_abrir('consulta', '2. Consultas', 'stethoscope', $tab, count($consultas) . ' ' . (count($consultas) === 1 ? 'consulta registrada' : 'consultas registradas')) ?>
+$sub = count($consultas) . ' ' . (count($consultas) === 1 ? 'consulta registrada' : 'consultas registradas');
+$anteriores = consulta_anteriores($consultas);
+$accion = $aqui . '&tab=' . ($esCE ? 'anamnesis' : 'consulta');
+
+if (!$esCE): ?>
+<?= panel_abrir('consulta', pestana_titulo($mod, 'consulta'), 'stethoscope', $tab, $sub) ?>
 <?php if ($editable): ?>
     <div class="panel-cuerpo">
     <?= errores_resumen($er) ?>
-    <form method="post" action="<?= e($aqui) ?>&amp;tab=consulta" class="formulario formulario-panel" data-una-vez>
+    <form method="post" action="<?= e($accion) ?>" class="formulario formulario-panel" data-signos data-una-vez>
         <?= csrf_campo() ?>
         <input type="hidden" name="accion" value="consulta">
-        <h3 class="titulo-form"><?= icono('plus') ?>Nueva consulta <span class="legend-nota">Anamnesis, antecedentes, examen físico y diagnóstico</span></h3>
-        <div class="rejilla">
-            <?= campos_fecha_hora('FechCons', 'HoraCons', $d, $er) ?>
-            <?= campo_lista('FinaCons', 'Finalidad de la consulta', 'FinaCons', $d, $er) ?>
-            <?= campo_buscador('TipoCons', 'Código de la consulta (CUPS)', $d, $er, 'procedimientos') ?>
-        </div>
-        <?= campo_texto('MotiCons', 'Motivo de consulta', $d, $er, 2, true, 5000, 'ConsMoti') ?>
-        <?= campo_texto('EnfeActu', 'Enfermedad actual', $d, $er, 4, true) ?>
-        <?= campo_texto('ReviSist', 'Revisión por sistemas', $d, $er, 2, false, 5000, 'ConsRevi') ?>
-
-        <div class="subgrupo">
-            <h3><?= icono('history') ?>Antecedentes <small class="legend-nota">Marque "Sí" y describa</small></h3>
-            <div class="rejilla-sino">
-                <?php foreach (ANTECEDENTES + ['AlerSiNo' => ['Alérgicos', 'AlerDesc']] as $c => [$etq, $desc]): $si = (string) ($d[$c] ?? '') === '1'; ?>
-                    <div class="sino">
-                        <span class="sino-etiqueta"><?= e($etq) ?></span>
-                        <label class="opcion"><input type="radio" name="<?= e($c) ?>" value="1"<?= $si ? ' checked' : '' ?>> Sí</label>
-                        <label class="opcion"><input type="radio" name="<?= e($c) ?>" value="2"<?= $si ? '' : ' checked' ?>> No refiere</label>
-                        <input type="text" name="<?= e($desc) ?>" value="<?= v($d, $desc) ?>" maxlength="2000" aria-label="Descripción de antecedentes <?= e($etq) ?>" placeholder="Descripción" class="<?= ce($er, $desc) ?>">
-                        <?= me($er, $desc) ?>
-                    </div>
-                <?php endforeach; ?>
-            </div>
-        </div>
-
-        <div class="subgrupo">
-            <h3><?= icono('activity') ?>Examen físico <small class="legend-nota">Normal, anormal (describa) o sin examinar</small></h3>
-            <?= campo_texto('EstaGene', 'Estado general', $d, $er, 2) ?>
-            <div class="rejilla-sino">
-                <?php foreach (EXAMEN_SISTEMAS as $c => [$etq, $desc]): $val = (string) ($d[$c] ?? ''); ?>
-                    <div class="sino">
-                        <span class="sino-etiqueta"><?= e($etq) ?></span>
-                        <label class="opcion"><input type="radio" name="<?= e($c) ?>" value="1"<?= $val === '1' ? ' checked' : '' ?>> Normal</label>
-                        <label class="opcion"><input type="radio" name="<?= e($c) ?>" value="2"<?= $val === '2' ? ' checked' : '' ?>> Anormal</label>
-                        <label class="opcion"><input type="radio" name="<?= e($c) ?>" value=""<?= $val === '' ? ' checked' : '' ?>> Sin examinar</label>
-                        <input type="text" name="<?= e($desc) ?>" value="<?= v($d, $desc) ?>" maxlength="2000" aria-label="Hallazgos en <?= e($etq) ?>" placeholder="Hallazgos" class="<?= ce($er, $desc) ?>">
-                        <?= me($er, $desc) ?>
-                    </div>
-                <?php endforeach; ?>
-            </div>
-        </div>
-
-        <div class="subgrupo">
-            <h3><?= icono('file-text') ?>Diagnósticos</h3>
-            <div class="rejilla">
-                <?= campo_buscador('CodiDiag', 'Diagnóstico principal (CIE-10)', $d, $er, 'diagnosticos', true, '', 'ConsDiag') ?>
-                <?= campo_lista('TipoDiag', 'Tipo de diagnóstico', 'TipoDiag', $d, $er) ?>
-                <?= campo_buscador('CodiRel1', 'Relacionado 1', $d, $er, 'diagnosticos') ?>
-                <?= campo_lista('TipoDia1', 'Tipo relacionado 1', 'TipoDiag', $d, $er, false) ?>
-                <?= campo_buscador('CodiRel2', 'Relacionado 2', $d, $er, 'diagnosticos') ?>
-                <?= campo_lista('TipoDia2', 'Tipo relacionado 2', 'TipoDiag', $d, $er, false) ?>
-            </div>
-        </div>
-        <?= campo_texto('ObseReco', 'Plan de manejo y recomendaciones', $d, $er, 3) ?>
+        <?= barra_registro('Nuevo', $anteriores, 'FechCons', 'HoraCons', $d, $er) ?>
+        <?php
+        $abrir = function (string $titulo, string $icono, bool $abierto) use ($er) {
+            return '<details class="acordeon"' . ($abierto || $er ? ' open' : '') . '><summary>' . icono($icono) . e($titulo) . '</summary><div class="acordeon-cuerpo">';
+        };
+        ?>
+        <?= $abrir('Anamnesis', 'file-text', true) ?><?php consulta_bloque_anamnesis($d, $er, false); ?></div></details>
+        <?= $abrir('Antecedentes', 'history', false) ?><?php consulta_bloque_antecedentes($d, $er); ?></div></details>
+        <?= $abrir('Revisión por Sistema y Exámen', 'activity', false) ?><?php consulta_bloque_revision($d, $er, 'cons-'); ?></div></details>
+        <?= $abrir('Laboratorios y Diagnósticos', 'clipboard-list', true) ?><?php consulta_bloque_laboratorios($d, $er); ?></div></details>
+        <?= $abrir('Plan de Manejo y Recomendaciones', 'clipboard-plus', true) ?><?php consulta_bloque_plan($d, $er); ?></div></details>
         <?= botones_panel('Guardar consulta') ?>
     </form>
     </div>
 <?php endif; ?>
-
-<h3 class="titulo-tabla"><?= icono('history') ?>Consultas registradas</h3>
-<?php if (!$consultas): ?>
-    <?= panel_vacio('No hay consultas registradas.') ?>
-<?php else: ?>
-    <div class="registros">
-    <?php foreach ($consultas as $c): ?>
-        <details class="registro">
-            <summary>
-                <span class="contador"><?= (int) $c['ConsCons'] ?></span>
-                <strong><?= e(fecha_hora($c['FechCons'] . ' ' . $c['HoraCons'])) ?></strong>
-                <span><?= e(diag_texto($c['CodiDiag'])) ?></span>
-                <small><?= e($c['NombFina'] ?? $c['FinaCons']) ?> · <?= e($c['UsuaCons']) ?></small>
-            </summary>
-            <dl class="datos">
-                <dt>Motivo de consulta</dt><dd class="texto-largo"><?= texto_registro($c['MotiCons']) ?></dd>
-                <dt>Enfermedad actual</dt><dd class="texto-largo"><?= texto_registro($c['EnfeActu']) ?></dd>
-                <?php if (trim((string) $c['ReviSist']) !== ''): ?><dt>Revisión por sistemas</dt><dd class="texto-largo"><?= texto_registro($c['ReviSist']) ?></dd><?php endif; ?>
-                <?php if ($c['antecedentes']): $an = $c['antecedentes']; ?>
-                    <dt>Antecedentes</dt><dd><?php
-                        $lista = [];
-                        foreach (ANTECEDENTES + ['AlerSiNo' => ['Alérgicos', 'AlerDesc']] as $col => [$etq, $desc]) {
-                            if ((int) $an[$col] === 1) $lista[] = $etq . ': ' . $an[$desc];
-                        }
-                        echo $lista ? e(implode(' · ', $lista)) : 'No refiere';
-                    ?></dd>
-                <?php endif; ?>
-                <?php if ($c['examen']): $ex = $c['examen']; ?>
-                    <dt>Examen físico</dt><dd><?= texto_registro($ex['EstaGene']) ?><?php
-                        $anor = [];
-                        foreach (EXAMEN_SISTEMAS as $col => [$etq, $desc]) {
-                            if ((int) $ex[$col] === 2) $anor[] = $etq . ': ' . $ex[$desc];
-                        }
-                        echo $anor ? '<br><strong>Anormal:</strong> ' . e(implode(' · ', $anor)) : '';
-                    ?></dd>
-                <?php endif; ?>
-                <dt>Diagnósticos</dt><dd><?= e(diag_texto($c['CodiDiag'])) ?> (<?= e(lista_nombre('TipoDiag', $c['TipoDiag'])) ?>)<?php
-                    foreach ([1, 2, 3, 4] as $i) { if (trim((string) $c["CodiRel$i"]) !== '') echo '<br>' . e(diag_texto($c["CodiRel$i"])); } ?></dd>
-                <dt>Plan de manejo</dt><dd class="texto-largo"><?= texto_registro($c['ObseReco']) ?></dd>
-            </dl>
-        </details>
-    <?php endforeach; ?>
-    </div>
-<?php endif; ?>
+<?php consulta_registros($consultas); ?>
 </section>
+<?php return; endif;
+
+// --- Consulta Externa: cuatro pestañas de un mismo formulario -----------------------------
+$bloques = [
+    'anamnesis'    => ['file-text', 'Anamnesis'],
+    'revision'     => ['activity', 'Revisión por sistemas y examen físico'],
+    'antecedentes' => ['history', 'Antecedentes'],
+    'laboratorios' => ['clipboard-list', 'Laboratorios, diagnósticos y plan de manejo'],
+];
+if ($editable): ?>
+<form method="post" action="<?= e($accion) ?>" class="formulario formulario-ce" id="form-consulta" data-signos data-una-vez novalidate>
+    <?= csrf_campo() ?>
+    <input type="hidden" name="accion" value="consulta">
+<?php endif;
+foreach ($bloques as $id => [$icono, $sub]): ?>
+    <?= panel_abrir($id, pestana_titulo($mod, $id), $icono, $tab, $sub) ?>
+    <?php if ($editable): ?>
+        <div class="panel-cuerpo formulario-panel">
+        <?= errores_resumen($er) ?>
+        <?php if ($id === 'anamnesis'): ?>
+            <?= barra_registro('Nuevo', $anteriores, 'FechCons', 'HoraCons', $d, $er) ?>
+            <?php consulta_bloque_anamnesis($d, $er, true); ?>
+        <?php elseif ($id === 'revision'): ?>
+            <?php consulta_bloque_revision($d, $er, 'cons-'); ?>
+        <?php elseif ($id === 'antecedentes'): ?>
+            <?php consulta_bloque_antecedentes($d, $er); ?>
+        <?php else: ?>
+            <?php consulta_bloque_laboratorios($d, $er); ?>
+            <h3 class="subtitulo-panel"><?= icono('clipboard-plus') ?>Plan de Manejo y Recomendaciones</h3>
+            <?php consulta_bloque_plan($d, $er); ?>
+        <?php endif; ?>
+        <p class="ayuda">Las pestañas 1 a 4 son una sola consulta: se guardan juntas con el botón Guardar consulta.</p>
+        <?= botones_panel('Guardar consulta') ?>
+        </div>
+    <?php elseif ($id !== 'anamnesis'): ?>
+        <?= panel_vacio('Las consultas registradas se ven completas en la pestaña 1. Anamnesis.') ?>
+    <?php endif; ?>
+    <?php if ($id === 'anamnesis') { consulta_registros($consultas); } ?>
+    </section>
+<?php endforeach;
+if ($editable): ?>
+</form>
+<?php endif;

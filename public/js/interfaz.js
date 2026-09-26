@@ -162,4 +162,65 @@
             if (ev.key === 'Escape' && !ventana.hidden) { cerrarVentana(); }
         });
     }
+
+    // --- 6. Otras ventanas (p. ej. "Cerrar Historia" de Consulta Externa) ---
+    document.querySelectorAll('.ventana:not(#historias)').forEach(function (v) {
+        var cerrar = function () {
+            v.hidden = true;
+            cuerpo.classList.remove('con-ventana');
+            var url = new URL(window.location.href);
+            if (url.searchParams.has('cerrar')) { url.searchParams.delete('cerrar'); history.replaceState(null, '', url.toString()); }
+        };
+        if (!v.hidden) { cuerpo.classList.add('con-ventana'); }
+        document.querySelectorAll('[data-abrir-ventana="' + v.id + '"]').forEach(function (b) {
+            b.addEventListener('click', function (ev) {
+                ev.preventDefault();
+                v.hidden = false;
+                cuerpo.classList.add('con-ventana');
+                var f = v.querySelector('input, select, textarea, button');
+                if (f) { f.focus(); }
+            });
+        });
+        v.querySelectorAll('[data-cerrar-ventana]').forEach(function (b) {
+            b.addEventListener('click', function (ev) { ev.preventDefault(); cerrar(); });
+        });
+        v.addEventListener('click', function (ev) { if (ev.target === v) { cerrar(); } });
+        document.addEventListener('keydown', function (ev) { if (ev.key === 'Escape' && !v.hidden) { cerrar(); } });
+    });
+
+    // --- 7. Barra de la pestana: ir a un registro anterior --------------------
+    // <select data-ir-registro> con el id del registro: abre su pestana, lo despliega y lo muestra.
+    document.querySelectorAll('select[data-ir-registro]').forEach(function (sel) {
+        sel.addEventListener('change', function () {
+            var el = sel.value && document.getElementById(sel.value);
+            if (!el) { return; }
+            var p = el.closest('[data-panel]');
+            if (p && p.hidden) {
+                var a = document.querySelector('[data-pestanas] a[data-tab="' + p.dataset.panel + '"]');
+                if (a) { a.click(); }
+            }
+            if (el.tagName === 'DETAILS') { el.open = true; }
+            el.scrollIntoView({ block: 'center', behavior: 'smooth' });
+            el.classList.add('resaltado');
+            setTimeout(function () { el.classList.remove('resaltado'); }, 2000);
+            sel.value = '';
+        });
+    });
+
+    // --- 8. Incapacidad: fecha final = fecha inicial + dias - 1 ---------------
+    document.querySelectorAll('[data-fecha-final]').forEach(function (dias) {
+        var form = dias.form;
+        var ini = form && form.querySelector('[name="' + dias.dataset.fechaFinal + '"]');
+        var out = form && form.querySelector('[data-calc-final]');
+        if (!ini || !out) { return; }
+        var calcular = function () {
+            var n = parseInt(dias.value, 10), f = ini.value ? new Date(ini.value + 'T00:00:00') : null;
+            if (!f || !(n > 0)) { out.textContent = '—'; return; }
+            f.setDate(f.getDate() + n - 1);
+            out.textContent = ('0' + f.getDate()).slice(-2) + '/' + ('0' + (f.getMonth() + 1)).slice(-2) + '/' + f.getFullYear();
+        };
+        dias.addEventListener('input', calcular);
+        ini.addEventListener('input', calcular);
+        calcular();
+    });
 })();

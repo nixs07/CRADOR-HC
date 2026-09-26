@@ -45,6 +45,7 @@ const LISTAS = [
     'ModaSoli' => ['ModaSoli', 'CodiModa', 'NombModa', ''],
     'TipoInca' => ['TipoInca', 'CodiTipo', 'NombTipo', ''],
     'Espe'     => ['CodiEspe', 'CodiEspe', 'NombEspe', ''],
+    'Cons'     => ['CodiCons', 'CodiCons', 'NombCons', '(EstaCons = 1 OR EstaCons IS NULL)'],
 ];
 
 /** Devuelve [codigo => nombre] de una lista, ordenada por nombre (se guarda en memoria por peticion). */
