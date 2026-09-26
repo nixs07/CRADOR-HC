@@ -1176,3 +1176,11 @@ tr[data-href] { cursor: pointer; }
 .subseccion > summary::after { content: "▾"; margin-left: auto; color: var(--texto-suave); }
 .subseccion[open] > summary { border-radius: var(--radio) var(--radio) 0 0; border-bottom: 1px solid var(--borde); }
 .subseccion > form { padding: 4px 14px 14px; }
+
+/* Subtitulo dentro de un panel (p. ej. signos vitales del triage registrado) */
+.subtitulo-panel {
+    display: flex; align-items: center; gap: 8px;
+    margin: 20px 20px 10px; font-size: 15px; font-weight: 600;
+}
+.subtitulo-panel svg { width: 18px; height: 18px; color: var(--azul-texto); }
+.panel > .tabla-triage { margin: 0 20px 20px; border: 1px solid var(--borde); border-radius: var(--radio); }

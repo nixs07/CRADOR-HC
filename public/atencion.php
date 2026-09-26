@@ -441,6 +441,39 @@ pestanas_historia($a, $mod, $tab, $conteos ?? []);
                 <dt>Observaciones de conducta</dt><dd class="texto-largo"><?= e($triage['Conducta']) ?></dd>
             <?php endif; ?>
         </dl>
+        <?php
+        // Signos tomados en el triage: la toma con la misma fecha y hora (en SIHOS, toma No. 1)
+        $signoTriage = null;
+        foreach ($signos as $tomaSv) {
+            if ($tomaSv['FechToma'] === $triage['FechTria'] && $tomaSv['HoraToma'] === $triage['HoraTria']) { $signoTriage = $tomaSv; }
+        }
+        if (!$signoTriage) {
+            foreach ($signos as $tomaSv) { if ((int) $tomaSv['ConsSign'] === 1) { $signoTriage = $tomaSv; } }
+        }
+        ?>
+        <h3 class="subtitulo-panel"><?= icono('heart-pulse') ?>Signos vitales del triage</h3>
+        <?php if (!$signoTriage): ?>
+            <div class="alerta vacio"><?= icono('info') ?><div>No se encontró la toma de signos del triage.</div></div>
+        <?php else: $st1 = $signoTriage; ?>
+        <div class="tabla-contenedor tabla-triage">
+        <table class="tabla">
+            <thead><tr><th>Peso</th><th>Talla</th><th>IMC</th><th>FC</th><th>FR</th><th>T °C</th><th>PA</th><th>TM</th><th>SatO₂</th><th>Gluco</th><th>Dolor</th></tr></thead>
+            <tbody><tr>
+                <td class="num"><?= (float) $st1['Peso'] > 0 ? e((float) $st1['Peso']) . ' kg' : '—' ?></td>
+                <td class="num"><?= (float) $st1['Talla'] > 0 ? e((float) $st1['Talla']) . ' cm' : '—' ?></td>
+                <td class="num"><?= (float) $st1['MasaCorp'] > 0 ? e((float) $st1['MasaCorp']) : '—' ?></td>
+                <td class="num"><?= (int) $st1['Pulso'] ?></td>
+                <td class="num"><?= (int) $st1['Respirac'] ?></td>
+                <td class="num"><?= e((float) $st1['Temperat']) ?></td>
+                <td class="num sin-salto"><?= (int) $st1['PANume'] ?>/<?= (int) $st1['PADeno'] ?></td>
+                <td class="num"><?= (int) $st1['TM'] ?></td>
+                <td class="num"><?= (float) $st1['Saturaci'] > 0 ? e((float) $st1['Saturaci']) . '%' : '—' ?></td>
+                <td class="num"><?= (int) $st1['GlucMetr'] > 0 ? (int) $st1['GlucMetr'] : '—' ?></td>
+                <td class="num"><?= e((float) $st1['Dolor']) ?></td>
+            </tr></tbody>
+        </table>
+        </div>
+        <?php endif; ?>
     <?php elseif (!$editable): ?>
         <div class="alerta vacio"><?= icono('info') ?><div>El paciente aún no tiene triage.</div></div>
     <?php else: ?>
