@@ -236,3 +236,69 @@ revisión del 26/09/2026 en [`REVISION_SIHOS.md`](REVISION_SIHOS.md), que manda 
 - Pendiente del usuario: correr `docs/consultas_sihos.sql` en SIHOS (sección 1), reemplazar las definiciones
   provisionales, ajustar la consulta de `pestanas_usuario()` y copiar los catálogos con
   `bin/actualizar_catalogos.php --tablas=UsuaGrup,Permisos,ModuObje,Objetos` (ya los incluye).
+
+## Pestañas con los campos y botones de SIHOS (`docs/RECORRIDO_SIHOS.md` §3 a §5)
+
+- **Botonera**: barra Nuevo/Nueva · No. · Fecha · Hora (y los campos propios de cada pestaña) y abajo los botones de
+  SIHOS en su orden. Guardar (y Modificar donde aplica) funcionan; Imprimir, Consultar, Cargos, Eliminar, Sugerido,
+  Protocolo, Plantilla y Experiencia se ven **deshabilitados** (no aplican en contingencia).
+- **Consultas (Urgencias/Observación)**: cinco acordeones, cada uno con su Guardar sobre la misma consulta
+  (`RipsCons` + `Antecede` + `EstaGene` + la toma de `SignVita` con `ConsCons`, que se actualizan si ya existen), y
+  **Cerrar Consulta**, que llena `FechCier/HoraCier/UsuaCier`, con la Duración. El formulario sigue en la consulta
+  abierta hasta cerrarla; "Nuevo" empieza otra. Tipo y Finalidad, Motivo y Enfermedad Actual se piden siempre; el
+  diagnóstico principal al guardar Laboratorios y Diagnósticos, el Plan o al cerrar; el Plan al guardarlo o al cerrar.
+- **Consulta Externa**: pestañas separadas (1, 2, 3, 4 y 7) de un mismo formulario, cada una con su Guardar; la
+  consulta queda realizada **sin cierre** (verificado). Índice Cintura-Cadera → `SignVita.PeriCint`, `PeriCade`,
+  `ResCXC` (= cintura / cadera). FUR y Fecha Probable del Parto → `Antecede.FechRegl` y `FechPart`. Pestaña 7: Destino
+  (siempre 4), Recomendaciones y Plan de Manejo y Código Dorado.
+- **Antecedentes**: orden de SIHOS con Andrológicos (`Andropo/AndroDesc`) y Conciliación medicamentosa
+  (`Consilia/ConsiDesc`) solo en Urgencias/Observación. Opciones Si | No | No Sabe | No Corresponde:
+  **pendiente confirmar** que No Sabe = 3 y No Corresponde = 4 (1 y 2 sí son sí/no).
+- **Examen físico**: orden de sistemas de Urgencias (Cabeza, Cuello, Tórax, Abdomen, G/U, Extremidades, Neurológico,
+  Nariz, Oídos, Boca, Ojos, Piel, Ano, Osteomuscular) y el de Consulta Externa (§5). Normal (1) por defecto, Anormal
+  (2, con descripción) y No se Explora (**`NULL`, pendiente confirmar**).
+- **Plan de Manejo (Urgencias 20, Observación 25)**: sin selector; edita el plan de la consulta más reciente:
+  `ObseReco`, `DestSali` y del Código Dorado `Especif` y `ObserCd`.
+- **Prescripción** en rejilla (6 filas + Agregar). Urgencias/Observación: Cantidad por dosis (`CantSumi`) · Unidad ·
+  Vía · Cada (`CantFrec/TiemFrec`) · A partir de (`HoraInic`) · Número (Dosis) (`NumeDosi`) · Cantidad solicitada
+  (`CantSoli`) · Nota (`PresMedi`) · Medi. Prin. (`MediPrin`) · Entregado (`CantEntr`, solo lectura). `CantTota` =
+  dosis × número de dosis; la duración no está en esa pantalla: **supuesto** `CantPeDu` = número de dosis × cada
+  (tope 127, `tinyint`) y `TiemPeDu` = `TiemFrec`. Prescripción A (Consulta Externa): Dosis · Vía · Frecuencia ·
+  Periodo de duración (`CantPeDu/TiemPeDu`) · Total (Dosis) calculado · Cantidad solicitada · Nota. DXP y DXR 1-4 son
+  listas con los diagnósticos de las consultas (`CodiDiag`, `CodiRel1-4`); Responsable de la entrega → `PersEntr`.
+  `PresSali` = 1 en Urgencias/Observación y 2 en Consulta Externa (sin casilla). **Tipo "Domiciliaria": pendiente
+  confirmar** su código en `TipoPres` (se ve deshabilitada; se guardan 1 Regular y 2 Control).
+- **ORDENES MEDICAS**: etiqueta "1. Orden medica:"; Modificar deshabilitado.
+- **Ordenación** en rejilla: Código · Nombre · Cant · Susp · Nota · Tomar A (Cada, sin columna en `DetaOrde`).
+  (Solicitar Autorización para EPS) y Salida visibles y deshabilitados (`Autoriza = OrdeSali = 0`, verificado).
+- **Procedimientos**: Id Estudio deshabilitado (sin columna); Revisado → `HojaProc.ContRevi`, `MediRevi`, `FechRevi`,
+  `HoraRevi`. El selector "Atiende la orden" no está en SIHOS: **quedó oculto** (el servidor aún acepta `OrdenItem`).
+- **Evolución**: Tipo → `EvolInte.CodiProc`; Finalidad deshabilitada (sin columna); Revisado → `ContRevi`, `MediRevi`,
+  `FechRevi`, `HoraRevi`.
+- **Notas Enfermería / Notas Médicas** (iguales): Revisada y Actividad (`HojaEnfe.Procedim`, código CUPS) en las dos.
+- **Medicamentos** en rejilla: se escoge la prescripción (No.) y cada medicamento es una fila con fecha/hora de
+  aplicación y planeada, cantidad y observaciones; se guardan las filas con cantidad (una fila de `HojaMedi` cada una).
+- **Materiales** en rejilla de 5 filas: Fecha · Hora · Código · Nombre · Cant · Unidad · Indicaciones (Orden, Item y
+  Factura informativos, vacíos).
+- **Remisiones** (pestaña propia en los 3 módulos; **sin verificar**): Especialidad y **Institución** en listas.
+  El catálogo "Instituciones de Remisión" no está en sql/: `sql/05_instituciones_remision_PROVISIONAL.sql` crea
+  `InstRemision (CodiInre, NombInre)` como **marcador** (nombre y columnas sin confirmar) → `Remision.InstRemi`. La
+  pantalla no pide diagnóstico ni placa: `DiagRemi`/`TipoDiag` salen de la última consulta con diagnóstico (o el de
+  ingreso) y `PlacAmbu` queda vacía.
+- **Incapacidad**: Maternidad → `IncaPaci.FePoPart`, `EdadGest`, `NaciVivo`. Fecha inicial = Fecha (`FechInca`).
+- **Cambio de Atención (Observación 23)** es pestaña (ya no está en el encabezado): traslado de cama dentro de la
+  institución (`TrasCama`, `CoinDest` vacío).
+
+### Campos de SIHOS mostrados deshabilitados (sin columna o sin catálogo en CRADOR-HC)
+
+| Pantalla | Campos |
+| --- | --- |
+| Encabezado | SOAT (¿`NumePoli`?); Estado Ingreso muestra el código |
+| Consultas | Antecedentes: método de planificación (`MetoDesc` sin catálogo), parentesco y diagnóstico de familiares, ventanas de Patológicos y Obstétricos, Tipo de Alergia y Alergia a Medicamentos, Tipo Medicamento, Tipo de factor de riesgo, **Reconciliación Medicamentosa** (tabla `RecoMedi`); Revisión: Tuberculosis Multidrogoresistente (7 opciones), Lepra (`TipoLepr` sin catálogo), Tipo de Discapacidad; Plan: Conducta (lista 33); Código Dorado: Acciones inmediatas, Continuidad del cuidado, Estado (lista 47) |
+| Consulta Externa 4 | Laboratorios (resultados) |
+| Prescripción | Susp, Unidad de la cantidad solicitada, tipo Domiciliaria, Sugerido/Protocolo/Plantilla/Experiencia |
+| Ordenación | (Solicitar Autorización para EPS), Salida, Susp, Tomar A (Cada), Plantillas/Sugerido/Protocolo |
+| Procedimientos | Id Estudio |
+| Evolución | Finalidad |
+| Incapacidad | Alcance, Incapacidad retroactiva, Grupo de servicios, Modalidad de prestación, Embarazo múltiple |
+| Egreso | Insumos pendientes por descargar (inventario) |

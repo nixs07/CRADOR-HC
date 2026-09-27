@@ -43,7 +43,7 @@ function catalogo_tablas(): array
 {
     $tablas = [];
     // 04_permisos_PROVISIONAL.sql: catalogos de permisos (estructura provisional, ver el encabezado del archivo)
-    foreach (['02_catalogos.sql', '03_catalogos_listas.sql', '04_permisos_PROVISIONAL.sql'] as $archivo) {
+    foreach (['02_catalogos.sql', '03_catalogos_listas.sql', '04_permisos_PROVISIONAL.sql', '05_instituciones_remision_PROVISIONAL.sql'] as $archivo) {
         $sql = @file_get_contents(RAIZ . '/sql/' . $archivo);
         if ($sql === false) {
             throw new RuntimeException("No se encontró sql/$archivo");

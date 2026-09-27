@@ -233,4 +233,20 @@
             texto.value = o ? (o.dataset.texto || '') : '';
         });
     });
+
+    // --- 10. Formularios GET que se envian al cambiar una lista (p. ej. No. de la prescripcion en Medicamentos)
+    document.querySelectorAll('form[data-auto-envio] select').forEach(function (sel) {
+        sel.addEventListener('change', function () { sel.form.submit(); });
+    });
+
+    // --- 11. Indice cintura-cadera (Consulta Externa) --------------------------
+    document.querySelectorAll('[data-icc]').forEach(function (caja) {
+        var ci = caja.querySelector('[name="PeriCint"]'), ca = caja.querySelector('[name="PeriCade"]');
+        var out = caja.querySelector('[data-calc="icc"]');
+        var calc = function () {
+            var a = parseFloat(ci.value), b = parseFloat(ca.value);
+            out.textContent = (a > 0 && b > 0) ? (a / b).toFixed(2) : '—';
+        };
+        ci.addEventListener('input', calc); ca.addEventListener('input', calc); calc();
+    });
 })();

@@ -1,8 +1,9 @@
 <?php
 /**
- * Formulario y lista de remisiones (Remision), con los campos de SIHOS en su orden: Especialidad, Institución,
- * Acepta (Nombre, Cargo), Autorización, Motivo, Incluir Ambulancia, Fecha y Hora Aceptación y el texto.
- * Se usa en la pestaña Remisiones (Urgencias 15, Consulta Externa 7) y dentro del Egreso de Observación.
+ * Formulario y lista de remisiones (Remision), como SIHOS (docs/RECORRIDO_SIHOS.md §3): Nuevo · No. · Fecha · Hora ·
+ * Autorización · Especialidad (lista) · Institución (lista del catálogo "Instituciones de Remisión", PROVISIONAL) ·
+ * Acepta (Nombre) · Cargo · Modalidad · Motivo (+ otro) · Incluir Ambulancia · Fecha y Hora aceptación · texto.
+ * Pestaña Remisiones de los 3 módulos. **Sin verificar** contra registros reales (no hay remisiones recientes).
  */
 
 function remision_formulario(string $accionUrl, array $dr, array $err, array $anteriores): void
@@ -16,27 +17,20 @@ function remision_formulario(string $accionUrl, array $dr, array $err, array $an
             . v($dr + ['RemiAuto' => $dr['NumeAuto'] ?? ''], 'RemiAuto') . '" maxlength="15"></div>') ?>
         <div class="rejilla">
             <?= campo_lista('EspeRemi', 'Especialidad', 'Espe', $dr, $err, false) ?>
-            <div><label for="InstDest">Institución</label>
-                <input type="text" id="InstDest" name="InstDest" value="<?= v($dr, 'InstDest') ?>" maxlength="200"></div>
+            <?= campo_lista('InstRemi', 'Institución', 'InstRemi', $dr, $err, false) ?>
             <div><label for="NombAcep">Acepta (Nombre)</label><input type="text" id="NombAcep" name="NombAcep" value="<?= v($dr, 'NombAcep') ?>" maxlength="80"></div>
             <div><label for="CargAcep">Cargo</label><input type="text" id="CargAcep" name="CargAcep" value="<?= v($dr, 'CargAcep') ?>" maxlength="40"></div>
+            <?= campo_lista('ModaSoli', 'Modalidad', 'ModaSoli', $dr, $err) ?>
             <?= campo_lista('RemiMoti', 'Motivo', 'MotiRemi', $dr, $err) ?>
-            <?= campo_lista('ModaSoli', 'Modalidad de la solicitud', 'ModaSoli', $dr, $err) ?>
-            <div><span class="etiqueta-campo">Ambulancia</span>
-                <div class="casillas"><?= casilla('Ambulanc', 'Incluir Ambulancia', $dr) ?></div></div>
-            <div><label for="PlacAmbu">Placa de la ambulancia</label><input type="text" id="PlacAmbu" name="PlacAmbu" value="<?= v($dr, 'PlacAmbu') ?>" maxlength="10" class="<?= ce($err, 'PlacAmbu') ?>"><?= me($err, 'PlacAmbu') ?></div>
-            <div><label for="FechAcep">Fecha Aceptación</label>
+            <div><label for="OtroMoti">Otro motivo</label><input type="text" id="OtroMoti" name="OtroMoti" value="<?= v($dr, 'OtroMoti') ?>" maxlength="2000"></div>
+            <div><span class="etiqueta-campo">&nbsp;</span><div class="casillas"><?= casilla('Ambulanc', 'Incluir Ambulancia', $dr) ?></div></div>
+            <div><label for="FechAcep">Fecha aceptación</label>
                 <input type="date" id="FechAcep" name="FechAcep" value="<?= e(($dr['FechAcep'] ?? '') === '0000-00-00' ? '' : ($dr['FechAcep'] ?? '')) ?>" max="<?= date('Y-m-d') ?>" class="<?= ce($err, 'FechAcep') ?>"><?= me($err, 'FechAcep') ?></div>
-            <div><label for="HoraAcep">Hora Aceptación</label>
+            <div><label for="HoraAcep">Hora aceptación</label>
                 <input type="time" id="HoraAcep" name="HoraAcep" value="<?= e(substr((string) ($dr['HoraAcep'] ?? ''), 0, 5)) ?>" class="<?= ce($err, 'HoraAcep') ?>"><?= me($err, 'HoraAcep') ?></div>
         </div>
-        <?= campo_texto('MotiRemiTexto', 'Resumen clínico / motivo de la remisión', $dr + ['MotiRemiTexto' => $dr['MotiRemi'] ?? ''], $err, 4, true) ?>
-        <div class="rejilla">
-            <?= campo_buscador('DiagRemi', 'Diagnóstico de remisión (CIE-10)', $dr, $err, 'diagnosticos', true) ?>
-            <?= campo_lista('RemiTipoDiag', 'Tipo de diagnóstico', 'TipoDiag', $dr + ['RemiTipoDiag' => $dr['TipoDiag'] ?? '2'], $err) ?>
-        </div>
-        <?= campo_texto('OtroMoti', 'Otro motivo u observación', $dr, $err, 2, false, 2000) ?>
-        <?= botones_panel('Guardar remisión') ?>
+        <?= campo_texto('MotiRemiTexto', 'Texto', $dr + ['MotiRemiTexto' => $dr['MotiRemi'] ?? ''], $err, 4, true) ?>
+        <?= botonera(['Guardar', 'Consultar', 'Imprimir', 'Cancelar']) ?>
     </form>
 <?php }
 
@@ -52,7 +46,7 @@ function remision_lista(array $remisiones): void
                 <div class="registro-cabeza"><span class="contador"><?= (int) $r['CodiRemi'] ?></span>
                     <strong><?= e(fecha_hora($r['FechSali'] . ' ' . $r['HoraSali'])) ?></strong>
                     <span class="etiqueta"><?= e($r['NombMoti'] ?? $r['RemiMoti']) ?></span>
-                    <small><?= e($r['NombModa'] ?? $r['ModaSoli']) ?><?= (int) $r['Ambulanc'] ? ' · ambulancia ' . e($r['PlacAmbu']) : '' ?> · <?= e(diag_texto($r['DiagRemi'])) ?> · <?= e($r['UsuaDigi']) ?></small></div>
+                    <small><?= e($r['NombModa'] ?? $r['ModaSoli']) ?><?= trim((string) $r['InstRemi']) !== '' ? ' · ' . e(lista_nombre('InstRemi', $r['InstRemi'])) : '' ?><?= (int) $r['Ambulanc'] ? ' · con ambulancia' : '' ?> · <?= e($r['UsuaDigi']) ?></small></div>
                 <p class="registro-nota texto-largo"><?= e($r['MotiRemi']) ?><?= $r['NombAcep'] ? "\nAcepta: " . e($r['NombAcep'] . ($r['CargAcep'] ? ' (' . $r['CargAcep'] . ')' : '')) : '' ?><?= ($r['FechAcep'] ?? '0000-00-00') !== '0000-00-00' ? ' · ' . e(fecha_hora($r['FechAcep'] . ' ' . $r['HoraAcep'])) : '' ?></p>
             </div>
         <?php endforeach; ?>

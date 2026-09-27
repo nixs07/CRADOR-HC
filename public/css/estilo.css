@@ -1336,3 +1336,10 @@ tr[data-href] { cursor: pointer; }
     .ta-cabeza { display: none; }
     .ta-fila { grid-template-columns: 1fr; }
 }
+.panel-dos-columnas { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 16px; }
+.grupo-sihos { border: 1px solid var(--borde); border-radius: var(--radio); padding: 4px 14px 14px; margin: 8px 0; }
+.grupo-sihos legend { font-weight: 700; color: var(--azul-texto); padding: 0 6px; }
+.barra-dx .br-campo { min-width: 180px; flex: 1; }
+/* Rejillas en tabla: el cuerpo de filas repetidas sigue siendo un tbody normal */
+.rejilla-grilla tbody[data-filas-cuerpo] { display: table-row-group; margin: 0; }
+.rejilla-grilla .c-doble .doble input { width: 56px; }

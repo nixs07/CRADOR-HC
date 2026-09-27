@@ -2,7 +2,7 @@
 /**
  * ORDENES MEDICAS (Urgencias 5, Observación 4): orden médica en texto libre
  * (EncaData/DetaData TipoObje 7, CodiItem 131 Urgencias y 130 Observación). No existe en Consulta Externa.
- * Variables: $a, $mod, $editable, $aqui, $tab, $F, $E, $ordenesMedicas.
+ * Variables: $a, $mod, $u, $editable, $aqui, $tab, $F, $E, $ordenesMedicas.
  */
 $dm = $F['orden_medica'] ?? ['FechOrMe' => date('Y-m-d'), 'HoraOrMe' => date('H:i')];
 $em = $E['orden_medica'] ?? [];
@@ -19,9 +19,9 @@ foreach ($ordenesMedicas as $o) {
     <form method="post" action="<?= e($aqui) ?>&amp;tab=ordenes_medicas" class="formulario formulario-panel" data-una-vez>
         <?= csrf_campo() ?>
         <input type="hidden" name="accion" value="orden_medica">
-        <?= barra_registro('Nuevo', $anteriores, 'FechOrMe', 'HoraOrMe', $dm, $em) ?>
-        <?= campo_texto('TextoOrden', 'Orden médica (dieta, líquidos, cuidados, control de signos…)', $dm, $em, 6, true, 10000) ?>
-        <?= botones_panel('Guardar orden médica') ?>
+        <?= barra_registro('Nuevo', $anteriores, 'FechOrMe', 'HoraOrMe', $dm, $em, boton_no_aplica('Modificar', true), $u['Nombre'] ?? $u['Login']) ?>
+        <?= campo_texto('TextoOrden', '1. Orden medica:', $dm, $em, 6, true, 10000) ?>
+        <?= botonera(['Guardar', 'Consultar', 'Imprimir', 'Cancelar']) ?>
     </form>
     </div>
 <?php endif; ?>

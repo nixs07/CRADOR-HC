@@ -1,8 +1,9 @@
 <?php
 /**
- * Evolución (Urgencias 8, Observación 2): EvolInte, con los campos de SIHOS en su orden: Subjetivo, Objetivo,
- * fila de Signos Vitales (toma de SignVita ligada con ConsEvol), Diagnósticos Principal y Rela 1-4, Análisis,
- * Plan de Manejo y Controles Especiales. No existe en Consulta Externa.
+ * Evolución (Urgencias 8, Observación 2): EvolInte, como SIHOS: Nueva · No. · Fecha · Hora · Tipo (EvolInte.CodiProc)
+ * · Finalidad (sin columna: deshabilitada) · Subjetivo · Objetivo · Signos (toma de SignVita con ConsEvol) ·
+ * Diagnósticos Principal y Rela 1-4 · Análisis · Plan · Controles Especiales · Revisado (ContRevi) · Guardar ·
+ * Consultar · Imprimir · Cancelar. No existe en Consulta Externa.
  * Variables: $a, $mod, $editable, $aqui, $tab, $F, $E, $evoluciones, $u.
  */
 $d = $F['evolucion'] ?? ['FechEvol' => date('Y-m-d'), 'HoraEvol' => date('H:i'), 'EvolTipoDiag' => '2', 'EvolDiag' => $a['DiagIngr']];
@@ -20,7 +21,11 @@ foreach ($evoluciones as $v) {
     <form method="post" action="<?= e($aqui) ?>&amp;tab=evolucion" class="formulario formulario-panel" data-signos data-una-vez>
         <?= csrf_campo() ?>
         <input type="hidden" name="accion" value="evolucion">
-        <?= barra_registro('Nueva', $anteriores, 'FechEvol', 'HoraEvol', $d, $er, '', $u['Nombre'] ?? $u['Login']) ?>
+        <?= barra_registro('Nueva', $anteriores, 'FechEvol', 'HoraEvol', $d, $er) ?>
+        <div class="rejilla">
+            <?= campo_buscador('EvolProc', 'Tipo', $d, $er, 'procedimientos') ?>
+            <?= campo_sin_columna('Finalidad', 'select') ?>
+        </div>
         <?= campo_texto('Subjetivo', 'Subjetivo', $d, $er, 3) ?>
         <?= campo_texto('Objetivo', 'Objetivo', $d, $er, 3) ?>
         <div class="subgrupo">
@@ -31,13 +36,13 @@ foreach ($evoluciones as $v) {
         <?= tabla_diagnosticos([['Principal', 'EvolDiag', 'EvolTipoDiag'], ['Rela 1', 'EvolRel1', 'EvolTipoRel1'], ['Rela 2', 'EvolRel2', 'EvolTipoRel2'],
                                 ['Rela 3', 'EvolRel3', 'EvolTipoRel3'], ['Rela 4', 'EvolRel4', 'EvolTipoRel4']], $d, $er, true, 'evol-') ?>
         <?= campo_texto('Analisis', 'Análisis', $d, $er, 3, true) ?>
-        <?= campo_texto('PlanMane', 'Plan de Manejo', $d, $er, 3, true) ?>
+        <?= campo_texto('PlanMane', 'Plan', $d, $er, 3, true) ?>
         <div class="rejilla">
-            <?= campo_buscador('EvolProc', 'Código de la atención (CUPS, opcional)', $d, $er, 'procedimientos') ?>
             <div><span class="etiqueta-campo">Controles Especiales</span>
-                <div class="casillas"><?= casilla('ContSign', 'Signos Vitales', $d) ?><?= casilla('ContLiqu', 'Líquidos', $d) ?></div></div>
+                <div class="casillas"><?= casilla('ContSign', 'Signos', $d) ?><?= casilla('ContLiqu', 'Líquidos', $d) ?></div></div>
+            <div><span class="etiqueta-campo">&nbsp;</span><div class="casillas"><?= casilla('EvolRevi', 'Revisado', $d) ?></div></div>
         </div>
-        <?= botones_panel('Guardar evolución') ?>
+        <?= botonera(['Guardar', 'Consultar', 'Imprimir', 'Cancelar']) ?>
     </form>
     </div>
 <?php endif; ?>

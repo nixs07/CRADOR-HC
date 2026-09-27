@@ -46,9 +46,15 @@ const LISTAS = [
     'TipoInca' => ['TipoInca', 'CodiTipo', 'NombTipo', ''],
     'Espe'     => ['CodiEspe', 'CodiEspe', 'NombEspe', ''],
     'Cons'     => ['CodiCons', 'CodiCons', 'NombCons', '(EstaCons = 1 OR EstaCons IS NULL)'],
+    // PROVISIONAL (sql/05_instituciones_remision_PROVISIONAL.sql): catalogo "Instituciones de Remision" de SIHOS,
+    // nombre de tabla y columnas sin confirmar (docs/consultas_sihos.sql, seccion 3)
+    'InstRemi' => ['InstRemision', 'CodiInre', 'NombInre', ''],
 ];
 
 /** Devuelve [codigo => nombre] de una lista, ordenada por nombre (se guarda en memoria por peticion). */
+/** Listas cuya tabla es provisional: si no existe, quedan vacias en vez de fallar. */
+const LISTAS_PROVISIONALES = ['InstRemi'];
+
 function lista(string $nombre): array
 {
     static $cache = [];
@@ -56,8 +62,15 @@ function lista(string $nombre): array
         [$tabla, $cod, $nom, $where] = LISTAS[$nombre];
         $sql = "SELECT `$cod` AS c, `$nom` AS n FROM `$tabla`" . ($where ? " WHERE $where" : '') . " ORDER BY `$nom`";
         $cache[$nombre] = [];
-        foreach (db()->query($sql) as $f) {
-            $cache[$nombre][(string) $f['c']] = (string) $f['n'];
+        try {
+            foreach (db()->query($sql) as $f) {
+                $cache[$nombre][(string) $f['c']] = (string) $f['n'];
+            }
+        } catch (PDOException $e) {
+            // Catalogos PROVISIONALES (sql/04, sql/05): si la tabla aun no existe la lista queda vacia
+            if (!in_array($nombre, LISTAS_PROVISIONALES, true)) {
+                throw $e;
+            }
         }
     }
     return $cache[$nombre];

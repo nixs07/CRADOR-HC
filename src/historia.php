@@ -635,22 +635,48 @@ function plan_guardar(array $a, array $d, string $login): int
 /** Horas de cada unidad de tiempo (CodiTiem): 1 hora(s), 2 día(s), 3 mes(es) (según el comentario de DetaPres). */
 const TIEMPO_HORAS = [1 => 1, 2 => 24, 3 => 720];
 
-/** Campos de cada medicamento de la prescripción (se envían como arreglos: CodiSumi[] ...). */
+/**
+ * Campos de cada fila de la rejilla de prescripción (se envían como arreglos: CodiSumi[] ...). Hospitalaria
+ * (Urgencias/Observación): Código · Cantidad por dosis · Unidad · Vía · Cada · A partir de · Número (Dosis) ·
+ * Cantidad solicitada · Nota · Medi. Prin. Ambulatoria (Prescripción A de Consulta Externa): Dosis · Vía ·
+ * Frecuencia · Periodo de duración · Cantidad solicitada · Nota.
+ */
 const PRES_CAMPOS = ['CodiSumi' => 20, 'CantSumi' => 12, 'UnidMedi' => 2, 'CodiVia' => 1, 'CantFrec' => 3,
-                     'TiemFrec' => 1, 'CantPeDu' => 3, 'TiemPeDu' => 1, 'PresMedi' => 1000];
+                     'TiemFrec' => 1, 'CantPeDu' => 3, 'TiemPeDu' => 1, 'HoraInic' => 5, 'NumeDosi' => 5, 'CantSoli' => 5,
+                     'MediPrin' => 1, 'PresMedi' => 1000];
+
+/** Diagnósticos de la admisión para las listas DXP / DXR de Prescripción y Ordenación (código => texto). */
+function diagnosticos_atencion(array $a, array $consultas): array
+{
+    $r = [];
+    foreach ($consultas as $c) {
+        foreach (['CodiDiag', 'CodiRel1', 'CodiRel2', 'CodiRel3', 'CodiRel4'] as $k) {
+            $v = trim((string) ($c[$k] ?? ''));
+            if ($v !== '') $r[$v] = diag_texto($v);
+        }
+    }
+    if (!$r && trim((string) $a['DiagIngr']) !== '') {
+        $r[$a['DiagIngr']] = diag_texto($a['DiagIngr']);
+    }
+    return $r;
+}
 
 function prescripcion_validar(array $a): array
 {
     $d = [];
     $e = [];
+    $amb = modulo_de_servicio($a['ServEgre']) === 'ce';
     hc_fecha_hora($a, $d, $e, 'FechPres', 'HoraPres', 'prescripción');
-    // PresSali (verificado en SIHOS): 1 = hospitalaria, 2 = fórmula de salida. En Consulta Externa siempre 2
-    $d['PresSali'] = (modulo_de_servicio($a['ServEgre']) === 'ce' || campo('PresSali', 1) === '2') ? 2 : 1;
+    // PresSali (verificado): 1 = hospitalaria (Urgencias/Observación), 2 = salida/ambulatoria (Prescripción A de CE).
+    // Sin casilla "Fórmula de salida" (SIHOS no la muestra).
+    $d['PresSali'] = $amb ? 2 : 1;
     $d['ObseOrde'] = campo('ObseOrde', 5000);
+    $d['PersEntr'] = campo('PersEntr', 15);
     $d['CodiDiag'] = hc_diagnostico('PresDiag', false, $e);
-    $d['CodiRel1'] = hc_diagnostico('PresRel1', false, $e);
-    $d['CodiRel2'] = hc_diagnostico('PresRel2', false, $e);
-    // Tipo de prescripcion: 1 = regular, 2 = control (comentario de EncaPres.TipoPres)
+    foreach ([1, 2, 3, 4] as $k) {
+        $d["CodiRel$k"] = hc_diagnostico("PresRel$k", false, $e);
+    }
+    // Tipo de prescripcion: 1 = regular, 2 = control (comentario de EncaPres.TipoPres). Domiciliaria: pendiente confirmar
     $d['TipoPres'] = campo('TipoPres', 1) === '2' ? 2 : 1;
     $d['items'] = hc_filas(PRES_CAMPOS, 'CodiSumi');
     if (!$d['items']) {
@@ -664,25 +690,40 @@ function prescripcion_validar(array $a): array
             continue;
         }
         $it['NombSumi'] = $nombre;
+        $it['MediPrin'] = $it['MediPrin'] === '1' ? 1 : 0;
         $cant = hc_numero($it['CantSumi']);
-        if ($cant === null || $cant <= 0 || $cant > 99999) $e["item{$n}c"] = "Medicamento $n: escriba la dosis.";
+        if ($cant === null || $cant <= 0 || $cant > 99999) $e["item{$n}c"] = "Medicamento $n: escriba la cantidad por dosis.";
         if (!lista_valida('UnidMedi', $it['UnidMedi'])) $e["item{$n}u"] = "Medicamento $n: seleccione la unidad.";
         if (!lista_valida('ViaAdmi', $it['CodiVia'])) $e["item{$n}v"] = "Medicamento $n: seleccione la vía.";
         $frec = (int) $it['CantFrec'];
-        $dura = (int) $it['CantPeDu'];
-        if ($frec < 1 || $frec > 99 || !lista_valida('CodiTiem', $it['TiemFrec'])) $e["item{$n}f"] = "Medicamento $n: escriba la frecuencia (cada cuánto).";
-        if ($dura < 1 || $dura > 99 || !lista_valida('CodiTiem', $it['TiemPeDu'])) $e["item{$n}d"] = "Medicamento $n: escriba la duración.";
-        // Número de dosis = duración / frecuencia (en horas); cantidad total = dosis x número de dosis
+        if ($frec < 1 || $frec > 99 || !lista_valida('CodiTiem', $it['TiemFrec'])) $e["item{$n}f"] = "Medicamento $n: escriba cada cuánto.";
         $hf = $frec * (TIEMPO_HORAS[(int) $it['TiemFrec']] ?? 0);
-        $hd = $dura * (TIEMPO_HORAS[(int) $it['TiemPeDu']] ?? 0);
-        $it['NumeDosi'] = ($hf > 0 && $hd > 0) ? max(1, (int) ceil($hd / $hf)) : 1;
+        if ($amb) {
+            // Ambulatoria: Frecuencia y Periodo de duración; Total (Dosis) = duración / frecuencia
+            $dura = (int) $it['CantPeDu'];
+            if ($dura < 1 || $dura > 99 || !lista_valida('CodiTiem', $it['TiemPeDu'])) $e["item{$n}d"] = "Medicamento $n: escriba el periodo de duración.";
+            $hd = $dura * (TIEMPO_HORAS[(int) $it['TiemPeDu']] ?? 0);
+            $it['NumeDosi'] = ($hf > 0 && $hd > 0) ? max(1, (int) ceil($hd / $hf)) : 1;
+            $it['HoraInic'] = $d['HoraPres'];
+        } else {
+            // Hospitalaria: Cada · A partir de · Número (Dosis). La duración se deduce: número de dosis x frecuencia
+            $it['NumeDosi'] = (int) $it['NumeDosi'];
+            if ($it['NumeDosi'] < 1 || $it['NumeDosi'] > 99999) $e["item{$n}n"] = "Medicamento $n: escriba el número de dosis.";
+            $it['HoraInic'] = hora_valida($it['HoraInic']) ?? $d['HoraPres'];
+            $it['CantPeDu'] = min(127, max(0, $it['NumeDosi'] * $frec));
+            $it['TiemPeDu'] = $it['TiemFrec'];
+        }
         $it['CantTota'] = round(($cant ?? 0) * $it['NumeDosi'], 2);
         $it['CantSumi'] = $cant ?? 0;
+        $soli = trim((string) $it['CantSoli']);
+        if ($soli !== '' && (!ctype_digit($soli) || (int) $soli > 99999)) $e["item{$n}s"] = "Medicamento $n: la cantidad solicitada debe ser un número entero.";
+        $it['CantSoli'] = (int) $soli;
         if ($it['PresMedi'] === '') {
-            $it['PresMedi'] = sprintf('%s: %s %s VIA %s CADA %d %s DURANTE %d %s',
-                $nombre, rtrim(rtrim(number_format((float) $it['CantSumi'], 2, '.', ''), '0'), '.'),
+            $it['PresMedi'] = sprintf('%s: %s %s VIA %s CADA %d %s', $nombre,
+                rtrim(rtrim(number_format((float) $it['CantSumi'], 2, '.', ''), '0'), '.'),
                 lista_nombre('UnidMedi', $it['UnidMedi']), lista_nombre('ViaAdmi', $it['CodiVia']),
-                $frec, lista_nombre('CodiTiem', $it['TiemFrec']), $dura, lista_nombre('CodiTiem', $it['TiemPeDu']));
+                $frec, lista_nombre('CodiTiem', $it['TiemFrec']))
+                . ($amb ? sprintf(' DURANTE %d %s', (int) $it['CantPeDu'], lista_nombre('CodiTiem', $it['TiemPeDu'])) : ' ' . $it['NumeDosi'] . ' DOSIS');
         }
     }
     return [$d, $e];
@@ -702,20 +743,21 @@ function prescripcion_guardar(array $a, array $d, string $login): int
             // Consecutivo global de SIHOS: en la contingencia es temporal (= ConsPres); se reasigna al cargar
             'Consecut' => $pres,
             'Fecha' => $d['FechPres'], 'Hora' => $d['HoraPres'], 'FechEntr' => $d['FechPres'],
-            'ObseOrde' => $d['ObseOrde'], 'PresSali' => $d['PresSali'],
+            'ObseOrde' => $d['ObseOrde'], 'PresSali' => $d['PresSali'], 'PersEntr' => $d['PersEntr'],
             'CodiDiag' => $d['CodiDiag'] !== '' ? $d['CodiDiag'] : ($a['DiagIngr'] ?? ''),
-            'CodiRel1' => $d['CodiRel1'], 'CodiRel2' => $d['CodiRel2'], 'CodiRel3' => '', 'CodiRel4' => '', 'ImprOrde' => 0,
+            'CodiRel1' => $d['CodiRel1'], 'CodiRel2' => $d['CodiRel2'], 'CodiRel3' => $d['CodiRel3'], 'CodiRel4' => $d['CodiRel4'],
+            'ImprOrde' => 0,
         ] + $ahora);
         foreach ($d['items'] as $i => $it) {
             hc_insertar($pdo, 'DetaPres', [
                 'CodiInst' => CODI_INST, 'ConsAdmi' => $a['ConsAdmi'], 'ConsPres' => $pres, 'Item' => $i + 1,
                 'CodiModu' => $modu, 'CodiFina' => null, 'CodiSumi' => $it['CodiSumi'],
                 'CantSumi' => $it['CantSumi'], 'Contenid' => 0, 'CodiVia' => (int) $it['CodiVia'],
-                'HoraApli' => 0, 'HoraInic' => $d['HoraPres'],
+                'HoraApli' => 0, 'HoraInic' => $it['HoraInic'],
                 'CantFrec' => (int) $it['CantFrec'], 'TiemFrec' => (int) $it['TiemFrec'],
                 'CantPeDu' => (int) $it['CantPeDu'], 'TiemPeDu' => (int) $it['TiemPeDu'],
                 'NumeDosi' => $it['NumeDosi'], 'CantTota' => $it['CantTota'], 'CantApli' => 0,
-                'CantSoli' => 0, 'CantEntr' => 0, 'CantDevo' => 0, 'PresMedi' => $it['PresMedi'], 'MediPrin' => 0,
+                'CantSoli' => $it['CantSoli'], 'CantEntr' => 0, 'CantDevo' => 0, 'PresMedi' => $it['PresMedi'], 'MediPrin' => $it['MediPrin'],
                 'CantFact' => 0, 'CodiDocu' => '', 'NumeLiqu' => 0, 'ConsDeFa' => 0, 'CodiServ' => $a['ServEgre'],
                 'FechSusp' => '0000-00-00', 'HoraSusp' => '00:00:00', 'UsuaSusp' => '',
                 'UnidMedi' => (int) $it['UnidMedi'],
@@ -906,6 +948,8 @@ function procedimiento_validar(array $a): array
     $d['CantProc'] = $cant === '' ? 1 : (int) $cant;
     if ($cant !== '' && (!ctype_digit($cant) || (int) $cant < 1 || (int) $cant > 999)) $e['CantProc'] = 'La cantidad debe estar entre 1 y 999.';
     $d['ProcReal'] = campo('ProcReal', 1) === '1' ? 1 : 0;
+    // Revisado (casilla de SIHOS): HojaProc.ContRevi, MediRevi, FechRevi, HoraRevi
+    $d['ContRevi'] = campo('ProcRevi', 1) === '1' ? 1 : 0;
     return [$d, $e];
 }
 
@@ -930,6 +974,8 @@ function procedimiento_guardar(array $a, array $d, string $login): int
             'NumeOrde' => $d['orden'] ? (int) $d['orden']['ConsOrde'] : 0, 'Item' => $d['orden'] ? (int) $d['orden']['Item'] : 0,
             'CentCost' => '', 'ServEgre' => $a['ServEgre'], 'CodiDocu' => '', 'NumeLiqu' => 0, 'ConsDeFa' => 0,
             'NumePiez' => 0, 'CuadPiez' => 0, 'CodiServ' => $a['ServEgre'],
+            'ContRevi' => $d['ContRevi'], 'MediRevi' => $d['ContRevi'] ? $l8 : null,
+            'FechRevi' => $d['ContRevi'] ? date('Y-m-d') : null, 'HoraRevi' => $d['ContRevi'] ? date('H:i:s') : '00:00:00',
         ] + $dig);
         if ($d['orden']) {
             $pdo->prepare('UPDATE DetaOrde SET CantReal = CantReal + 1, FechModi = CURDATE(), HoraModi = CURTIME(), UsuaModi = ?
@@ -974,7 +1020,9 @@ function nota_validar(array $a): array
     $d['FechNota'] = $d['FechNota' . $px];
     $d['HoraNota'] = $d['HoraNota' . $px];
     $d['TipoNota'] = tipo_nota($d['pestana']);
-    $d['Reviza'] = $d['pestana'] === 'medica' && campo('Reviza', 1) === '1' ? 1 : 0;
+    // Revisada y Actividad (HojaEnfe.Procedim) en las dos pestañas, como SIHOS
+    $d['Reviza'] = campo('Reviza' . $px, 1) === '1' ? 1 : 0;
+    $d['Procedim'] = hc_procedimiento('NotaActi' . $px, false, $e);
     $d['NotaEnfe' . $px] = campo('NotaEnfe' . $px, 10000);
     if ($d['NotaEnfe' . $px] === '') $e['NotaEnfe' . $px] = 'Escriba la nota.';
     $d['NotaEnfe'] = $d['NotaEnfe' . $px];
@@ -986,10 +1034,10 @@ function nota_guardar(array $a, array $d, string $login): int
     return hc_transaccion(function (PDO $pdo) use ($a, $d, $login) {
         $cons = hc_siguiente($pdo, 'HojaEnfe', 'ConsHoEn', $a['ConsAdmi']);
         hc_insertar($pdo, 'HojaEnfe', [
-            'CodiInst' => CODI_INST, 'ConsAdmi' => $a['ConsAdmi'], 'TipoNota' => (int) $d['TipoNota'], 'Procedim' => '',
+            'CodiInst' => CODI_INST, 'ConsAdmi' => $a['ConsAdmi'], 'TipoNota' => (int) $d['TipoNota'], 'Procedim' => $d['Procedim'] ?? '',
             'ConsHoEn' => $cons, 'CodiModu' => hc_modulo($a), 'CodiServ' => $a['ServEgre'], 'ConsCons' => 0,
             'FechNota' => $d['FechNota'], 'HoraNota' => $d['HoraNota'], 'NotaEnfe' => $d['NotaEnfe'],
-            // Notas medicas: casilla "Revisada" de SIHOS
+            // Casilla "Revisada" de SIHOS (notas de enfermeria y medicas)
             'Reviza' => $d['Reviza'] ?? 0, 'UsuaRevi' => !empty($d['Reviza']) ? $login : '',
             'HoraRevi' => !empty($d['Reviza']) ? date('H:i:s') : '00:00:00', 'FechRevi' => !empty($d['Reviza']) ? date('Y-m-d') : '0000-00-00',
             'DeclLeid' => 0,
@@ -1020,44 +1068,73 @@ function medicamentos_prescritos(string $cons): array
     return $r;
 }
 
+/**
+ * Medicamentos (aplicación) en rejilla, como SIHOS: se escoge la prescripción (No.) y cada medicamento prescrito es
+ * una fila con Fecha/Hora de aplicación, Fecha/Hora planeado, Cantidad y Observaciones. Se aplican las filas con
+ * cantidad. Arreglos del POST: MediItem[] (ConsPres-Item), FechMedi[], HoraMedi[], FechPlan[], HoraPlan[],
+ * CantMedi[], MediObse[].
+ */
 function medicamento_validar(array $a): array
 {
-    $d = [];
+    $d = ['filas' => []];
     $e = [];
-    hc_fecha_hora($a, $d, $e, 'FechMedi', 'HoraMedi', 'administración');
-    $clave = campo('MediPres', 10);
     $pres = medicamentos_prescritos($a['ConsAdmi']);
-    if (!isset($pres[$clave])) {
-        $e['MediPres'] = 'Seleccione un medicamento prescrito.';
-    } else {
-        $d['det'] = $pres[$clave];
+    $claves = is_array($_POST['MediItem'] ?? null) ? $_POST['MediItem'] : [];
+    $ingreso = $a['FechIngr'] . ' ' . $a['HoraIngr'];
+    foreach ($claves as $i => $clave) {
+        $cant = hc_numero((string) ($_POST['CantMedi'][$i] ?? ''));
+        if ($cant === null || $cant == 0) {
+            continue;
+        }
+        $n = count($d['filas']) + 1;
+        if (!is_string($clave) || !isset($pres[$clave])) {
+            $e["medi$n"] = "Fila $n: el medicamento no está prescrito.";
+            continue;
+        }
+        if ($cant < 0 || $cant > 99999) $e["medi{$n}c"] = "Fila $n: la cantidad no es válida.";
+        $f = ['det' => $pres[$clave], 'CantMedi' => $cant, 'IndiAdic' => mb_substr(trim((string) ($_POST['MediObse'][$i] ?? '')), 0, 255)];
+        foreach (['FechMedi' => 'HoraMedi', 'FechPlan' => 'HoraPlan'] as $cf => $ch) {
+            $f[$cf] = (string) ($_POST[$cf][$i] ?? '');
+            $f[$ch] = hora_valida((string) ($_POST[$ch][$i] ?? '')) ?? '';
+            if (!fecha_valida($f[$cf]) || $f[$ch] === '') {
+                $e["medi{$n}$cf"] = "Fila $n: fecha y hora " . ($cf === 'FechMedi' ? 'de aplicación' : 'planeada') . ' no válidas.';
+            }
+        }
+        if (!isset($e["medi{$n}FechMedi"])) {
+            $t = $f['FechMedi'] . ' ' . $f['HoraMedi'];
+            if ($t > date('Y-m-d H:i:s', time() + 300)) $e["medi{$n}f"] = "Fila $n: la aplicación no puede ser futura.";
+            if ($t < $ingreso) $e["medi{$n}i"] = "Fila $n: la aplicación no puede ser anterior al ingreso.";
+        }
+        $d['filas'][] = $f;
     }
-    $cant = campo_numero('CantMedi');
-    if ($cant === null || $cant <= 0 || $cant > 99999) $e['CantMedi'] = 'Escriba la cantidad aplicada.';
-    $d['CantMedi'] = $cant ?? 0;
-    $d['IndiAdic'] = campo('MediObse', 255);
+    if (!$d['filas'] && !$e) {
+        $e['CantMedi'] = 'Escriba la cantidad aplicada de al menos un medicamento.';
+    }
     return [$d, $e];
 }
 
-/** Registra la aplicación del medicamento (HojaMedi) y suma la cantidad aplicada en DetaPres.CantApli. */
+/** Registra cada aplicación (HojaMedi) y suma la cantidad aplicada en DetaPres.CantApli. Devuelve el último ConsHoMe. */
 function medicamento_guardar(array $a, array $d, string $login): int
 {
     return hc_transaccion(function (PDO $pdo) use ($a, $d, $login) {
-        $det = $d['det'];
-        $cons = hc_siguiente($pdo, 'HojaMedi', 'ConsHoMe', $a['ConsAdmi']);
-        hc_insertar($pdo, 'HojaMedi', [
-            'CodiInst' => CODI_INST, 'ConsAdmi' => $a['ConsAdmi'], 'ConsHoMe' => $cons, 'CodiModu' => hc_modulo($a),
-            'CodiServ' => $a['ServEgre'], 'FechMedi' => $d['FechMedi'], 'HoraMedi' => $d['HoraMedi'],
-            'FechPlan' => $d['FechMedi'], 'HoraPlan' => $d['HoraMedi'], 'CodiMedi' => $det['CodiSumi'],
-            'ViaAdmi' => (int) $det['CodiVia'], 'EstaApli' => 1, 'CantMedi' => $d['CantMedi'],
-            'UnidMedi' => (int) ($det['UnidMedi'] ?: 1), 'IndiAdic' => $d['IndiAdic'], 'EsFact' => 1, 'CantFact' => 0,
-            'UsuaAsis' => $login, 'NumeOrde' => (int) $det['ConsPres'], 'Item' => (int) $det['Item'],
-            'CodiDocu' => '', 'NumeLiqu' => 0, 'ConsDeFa' => 0, 'ValoUnit' => 0, 'ValoTota' => 0, 'EstaFact' => 0,
-            'Despacha' => 0, 'DispMedi' => 0, 'Correctos' => 0, 'CentCost' => '',
-        ] + hc_digitacion($login));
-        $pdo->prepare('UPDATE DetaPres SET CantApli = CantApli + ?, FechModi = CURDATE(), HoraModi = CURTIME(), UsuaModi = ?
-                        WHERE CodiInst = ? AND ConsAdmi = ? AND ConsPres = ? AND Item = ?')
-            ->execute([$d['CantMedi'], $login, CODI_INST, $a['ConsAdmi'], $det['ConsPres'], $det['Item']]);
+        $cons = 0;
+        foreach ($d['filas'] as $f) {
+            $det = $f['det'];
+            $cons = hc_siguiente($pdo, 'HojaMedi', 'ConsHoMe', $a['ConsAdmi']);
+            hc_insertar($pdo, 'HojaMedi', [
+                'CodiInst' => CODI_INST, 'ConsAdmi' => $a['ConsAdmi'], 'ConsHoMe' => $cons, 'CodiModu' => hc_modulo($a),
+                'CodiServ' => $a['ServEgre'], 'FechMedi' => $f['FechMedi'], 'HoraMedi' => $f['HoraMedi'],
+                'FechPlan' => $f['FechPlan'], 'HoraPlan' => $f['HoraPlan'], 'CodiMedi' => $det['CodiSumi'],
+                'ViaAdmi' => (int) $det['CodiVia'], 'EstaApli' => 1, 'CantMedi' => $f['CantMedi'],
+                'UnidMedi' => (int) ($det['UnidMedi'] ?: 1), 'IndiAdic' => $f['IndiAdic'], 'EsFact' => 1, 'CantFact' => 0,
+                'UsuaAsis' => $login, 'NumeOrde' => (int) $det['ConsPres'], 'Item' => (int) $det['Item'],
+                'CodiDocu' => '', 'NumeLiqu' => 0, 'ConsDeFa' => 0, 'ValoUnit' => 0, 'ValoTota' => 0, 'EstaFact' => 0,
+                'Despacha' => 0, 'DispMedi' => 0, 'Correctos' => 0, 'CentCost' => '',
+            ] + hc_digitacion($login));
+            $pdo->prepare('UPDATE DetaPres SET CantApli = CantApli + ?, FechModi = CURDATE(), HoraModi = CURTIME(), UsuaModi = ?
+                            WHERE CodiInst = ? AND ConsAdmi = ? AND ConsPres = ? AND Item = ?')
+                ->execute([$f['CantMedi'], $login, CODI_INST, $a['ConsAdmi'], $det['ConsPres'], $det['Item']]);
+        }
         return $cons;
     });
 }
@@ -1095,6 +1172,8 @@ function evolucion_validar(array $a): array
     $d['CodiProc'] = hc_procedimiento('EvolProc', false, $e);
     $d['ContSign'] = campo('ContSign', 1) === '1' ? 1 : 0;
     $d['ContLiqu'] = campo('ContLiqu', 1) === '1' ? 1 : 0;
+    // Revisado (casilla de SIHOS): EvolInte.ContRevi, MediRevi, FechRevi, HoraRevi
+    $d['ContRevi'] = campo('EvolRevi', 1) === '1' ? 1 : 0;
     return [$d, $e];
 }
 
@@ -1112,8 +1191,8 @@ function evolucion_guardar(array $a, array $d, string $login): int
             'TipoDiag' => (int) $d['EvolTipoDiag'], 'TipoDiag1' => (int) $d['EvolTipoRel1'], 'TipoDiag2' => (int) $d['EvolTipoRel2'],
             'TipoDiag3' => (int) $d['EvolTipoRel3'], 'TipoDiag4' => (int) $d['EvolTipoRel4'],
             'Analisis' => $d['Analisis'], 'ContSign' => $d['ContSign'], 'ContLiqu' => $d['ContLiqu'],
-            'ContRevi' => 0, 'MediRevi' => '', 'CentCost' => '', 'ServEgre' => $a['ServEgre'],
-            'FechRevi' => '0000-00-00', 'HoraRevi' => '00:00:00', 'PlanMane' => $d['PlanMane'], 'CodiServ' => $a['ServEgre'],
+            'ContRevi' => $d['ContRevi'], 'MediRevi' => $d['ContRevi'] ? $login : '', 'CentCost' => '', 'ServEgre' => $a['ServEgre'],
+            'FechRevi' => $d['ContRevi'] ? date('Y-m-d') : '0000-00-00', 'HoraRevi' => $d['ContRevi'] ? date('H:i:s') : '00:00:00', 'PlanMane' => $d['PlanMane'], 'CodiServ' => $a['ServEgre'],
         ] + hc_digitacion($login));
         if ($d['signos']) {
             signos_insertar($pdo, $a, $d['signos'] + ['FechToma' => $d['FechEvol'], 'HoraToma' => $d['HoraEvol']], $login, 0, 0, $cons);
@@ -1323,34 +1402,50 @@ function traslados_de_admision(string $cons): array
 // Materiales usados (HojaMate)
 // ---------------------------------------------------------------------
 
+/** Campos de cada fila de la rejilla de Materiales (FechMate[] ...), como SIHOS. */
+const MATE_CAMPOS = ['FechMate' => 10, 'HoraMate' => 8, 'CodiMate' => 20, 'CantMate' => 12, 'UnidMate' => 2, 'MateObse' => 255];
+
+/** Materiales en rejilla (5 filas como SIHOS): Fecha · Hora · Código · Nombre · Cant · Unidad · Indicaciones. */
 function material_validar(array $a): array
 {
-    $d = [];
+    $d = ['filas' => hc_filas(MATE_CAMPOS, 'CodiMate')];
     $e = [];
-    hc_fecha_hora($a, $d, $e, 'FechMate', 'HoraMate', 'uso del material');
-    $d['CodiMate'] = campo('CodiMate', 20);
-    if ($d['CodiMate'] === '' || suministro_nombre($d['CodiMate']) === null) {
-        $e['CodiMate'] = 'Escriba un material o suministro activo (código o nombre).';
+    if (!$d['filas']) {
+        $e['CodiMate'] = 'Escriba al menos un material o suministro.';
     }
-    $d['UnidMate'] = hc_de_lista('CodiUnid', 'UnidMate', true, $e, 'Seleccione la unidad.', 2);
-    $cant = campo_numero('CantMate');
-    if ($cant === null || $cant <= 0 || $cant > 99999) $e['CantMate'] = 'Escriba la cantidad usada.';
-    $d['CantMate'] = $cant ?? 0;
-    $d['IndiAdic'] = campo('MateObse', 255);
+    $ingreso = $a['FechIngr'] . ' ' . $a['HoraIngr'];
+    foreach ($d['filas'] as $i => &$f) {
+        $n = $i + 1;
+        if (suministro_nombre($f['CodiMate']) === null) $e["mate$n"] = "Fila $n: el código {$f['CodiMate']} no es un material o suministro activo.";
+        if (!lista_valida('CodiUnid', $f['UnidMate'])) $e["mate{$n}u"] = "Fila $n: seleccione la unidad.";
+        $cant = hc_numero($f['CantMate']);
+        if ($cant === null || $cant <= 0 || $cant > 99999) $e["mate{$n}c"] = "Fila $n: escriba la cantidad.";
+        $f['CantMate'] = $cant ?? 0;
+        $f['HoraMate'] = hora_valida($f['HoraMate']) ?? '';
+        if (!fecha_valida($f['FechMate']) || $f['HoraMate'] === '') {
+            $e["mate{$n}f"] = "Fila $n: fecha y hora no válidas.";
+        } elseif ($f['FechMate'] . ' ' . $f['HoraMate'] > date('Y-m-d H:i:s', time() + 300) || $f['FechMate'] . ' ' . $f['HoraMate'] < $ingreso) {
+            $e["mate{$n}f"] = "Fila $n: la fecha y hora debe estar entre el ingreso y ahora.";
+        }
+    }
     return [$d, $e];
 }
 
+/** Guarda cada fila en HojaMate. Devuelve el último ConsHoMa. */
 function material_guardar(array $a, array $d, string $login): int
 {
     return hc_transaccion(function (PDO $pdo) use ($a, $d, $login) {
-        $cons = hc_siguiente($pdo, 'HojaMate', 'ConsHoMa', $a['ConsAdmi']);
-        hc_insertar($pdo, 'HojaMate', [
-            'CodiInst' => CODI_INST, 'ConsAdmi' => $a['ConsAdmi'], 'ConsHoMa' => $cons, 'CodiModu' => hc_modulo($a),
-            'CodiServ' => $a['ServEgre'], 'FechMate' => $d['FechMate'], 'HoraMate' => $d['HoraMate'],
-            'CodiMate' => $d['CodiMate'], 'UnidMate' => $d['UnidMate'], 'EsFact' => 1, 'IndiAdic' => $d['IndiAdic'],
-            'CantMate' => $d['CantMate'], 'CantFact' => 0, 'NumeOrde' => 0, 'Item' => 0, 'CentCost' => '',
-            'CodiDocu' => '', 'NumeLiqu' => 0, 'ConsDeFa' => 0, 'UsuaAsis' => $login,
-        ] + hc_digitacion($login));
+        $cons = 0;
+        foreach ($d['filas'] as $f) {
+            $cons = hc_siguiente($pdo, 'HojaMate', 'ConsHoMa', $a['ConsAdmi']);
+            hc_insertar($pdo, 'HojaMate', [
+                'CodiInst' => CODI_INST, 'ConsAdmi' => $a['ConsAdmi'], 'ConsHoMa' => $cons, 'CodiModu' => hc_modulo($a),
+                'CodiServ' => $a['ServEgre'], 'FechMate' => $f['FechMate'], 'HoraMate' => $f['HoraMate'],
+                'CodiMate' => $f['CodiMate'], 'UnidMate' => $f['UnidMate'], 'EsFact' => 1, 'IndiAdic' => $f['MateObse'],
+                'CantMate' => $f['CantMate'], 'CantFact' => 0, 'NumeOrde' => 0, 'Item' => 0, 'CentCost' => '',
+                'CodiDocu' => '', 'NumeLiqu' => 0, 'ConsDeFa' => 0, 'UsuaAsis' => $login,
+            ] + hc_digitacion($login));
+        }
         return $cons;
     });
 }
@@ -1375,18 +1470,23 @@ function remision_validar(array $a): array
     $d['RemiMoti'] = hc_de_lista('MotiRemi', 'RemiMoti', true, $e, 'Seleccione el motivo de remisión.', 2);
     $d['ModaSoli'] = hc_de_lista('ModaSoli', 'ModaSoli', true, $e, 'Seleccione la modalidad de la solicitud.', 2);
     $d['EspeRemi'] = hc_de_lista('Espe', 'EspeRemi', false, $e, 'Seleccione una especialidad válida.', 3);
-    $d['InstDest'] = campo('InstDest', 200);
+    // Institución: lista del catálogo "Instituciones de Remisión" (PROVISIONAL, sql/05) -> Remision.InstRemi
+    $d['InstRemi'] = hc_de_lista('InstRemi', 'InstRemi', false, $e, 'Seleccione una institución de la lista.', 10);
     $d['MotiRemi'] = campo('MotiRemiTexto', 5000);
     if ($d['MotiRemi'] === '') $e['MotiRemiTexto'] = 'Describa el motivo de la remisión (resumen clínico).';
     $d['OtroMoti'] = campo('OtroMoti', 2000);
-    $d['DiagRemi'] = hc_diagnostico('DiagRemi', true, $e, 'el diagnóstico de remisión');
-    $d['TipoDiag'] = hc_de_lista('TipoDiag', 'RemiTipoDiag', true, $e, 'Seleccione el tipo de diagnóstico.', 1);
+    // La pantalla de SIHOS no pide diagnóstico: se toma el principal de la última consulta (o el de ingreso)
+    $st = db()->prepare('SELECT CodiDiag, TipoDiag FROM RipsCons WHERE CodiInst = ? AND ConsAdmi = ? AND IFNULL(CodiDiag, \'\') <> \'\'
+                          ORDER BY ConsCons DESC LIMIT 1');
+    $st->execute([CODI_INST, $a['ConsAdmi']]);
+    $ult = $st->fetch();
+    $d['DiagRemi'] = $ult ? trim((string) $ult['CodiDiag']) : (string) $a['DiagIngr'];
+    $d['TipoDiag'] = $ult && (int) $ult['TipoDiag'] ? (string) (int) $ult['TipoDiag'] : '1';
     $d['NombAcep'] = mb_strtoupper(campo('NombAcep', 80));
     $d['CargAcep'] = campo('CargAcep', 40);
     $d['NumeAuto'] = campo('RemiAuto', 15);
     $d['Ambulanc'] = campo('Ambulanc', 1) === '1' ? 1 : 0;
-    $d['PlacAmbu'] = mb_strtoupper(campo('PlacAmbu', 10));
-    if ($d['Ambulanc'] && $d['PlacAmbu'] === '') $e['PlacAmbu'] = 'Escriba la placa de la ambulancia.';
+    $d['PlacAmbu'] = '';   // SIHOS no pide la placa en esta pantalla
     // Fecha y hora de aceptacion (opcionales, como en SIHOS); si no se escriben y hay quien acepta, se usa la de la remision
     $d['FechAcep'] = campo('FechAcep', 10);
     $d['HoraAcep'] = hora_valida(campo('HoraAcep', 8)) ?? '';
@@ -1403,9 +1503,7 @@ function remision_guardar(array $a, array $d, string $login): int
         hc_insertar($pdo, 'Remision', [
             'CodiInst' => CODI_INST, 'ConsAdmi' => $a['ConsAdmi'], 'CodiRemi' => $cons, 'ConsAuto' => 0,
             'CodiModu' => hc_modulo($a),
-            // No hay catálogo local de instituciones receptoras: el nombre va al inicio del motivo escrito
-            'MotiRemi' => ($d['InstDest'] !== '' ? 'INSTITUCION DESTINO: ' . mb_strtoupper($d['InstDest']) . "\n" : '') . $d['MotiRemi'],
-            'EspeRemi' => $d['EspeRemi'], 'InstRemi' => '', 'NombAcep' => $d['NombAcep'], 'CargAcep' => $d['CargAcep'],
+            'MotiRemi' => $d['MotiRemi'], 'EspeRemi' => $d['EspeRemi'], 'InstRemi' => $d['InstRemi'], 'NombAcep' => $d['NombAcep'], 'CargAcep' => $d['CargAcep'],
             'NumeAuto' => $d['NumeAuto'], 'Ambulanc' => $d['Ambulanc'], 'PlacAmbu' => $d['PlacAmbu'] !== '' ? $d['PlacAmbu'] : null,
             'ModaSoli' => (int) $d['ModaSoli'], 'RemiMoti' => (int) $d['RemiMoti'], 'OtroMoti' => $d['OtroMoti'],
             'FechAcep' => ($d['FechAcep'] ?? '') !== '' ? $d['FechAcep'] : ($acepta ? $d['FechRemi'] : '0000-00-00'),
@@ -1441,6 +1539,15 @@ function incapacidad_validar(array $a): array
     if (!ctype_digit($dias) || (int) $dias < 1 || (int) $dias > 540) $e['DiasIncaPaci'] = 'Los días de incapacidad deben estar entre 1 y 540.';
     $d['DiasInca'] = (int) $dias;
     $d['ObseInca'] = campo('ObseInca', 5000);
+    // Maternidad (IncaPaci.FePoPart, EdadGest, NaciVivo); opcionales. Embarazo múltiple, Alcance, retroactiva,
+    // grupo y modalidad no tienen catálogo local: se muestran deshabilitados
+    $d['FePoPart'] = campo('FePoPart', 10);
+    if ($d['FePoPart'] !== '' && !fecha_valida($d['FePoPart'])) $e['FePoPart'] = 'Fecha probable del parto no válida.';
+    foreach (['EdadGest' => [0, 45, 'La edad gestacional'], 'NaciVivo' => [0, 9, 'Los nacidos vivos']] as $c => [$min, $max, $que]) {
+        $v = campo($c, 3);
+        $d[$c] = $v === '' ? 0 : (int) $v;
+        if ($v !== '' && (!ctype_digit($v) || (int) $v > $max)) $e[$c] = "$que debe estar entre $min y $max.";
+    }
     return [$d, $e];
 }
 
@@ -1452,7 +1559,8 @@ function incapacidad_guardar(array $a, array $d, string $login): int
             'CodiInst' => CODI_INST, 'ConsAdmi' => $a['ConsAdmi'], 'ConsInca' => $cons, 'CodiModu' => hc_modulo($a),
             'FechInca' => $d['FechInca'], 'HoraInca' => $d['HoraInca'], 'TipoInca' => (int) $d['TipoInca'],
             'OrigInca' => (int) $d['OrigInca'], 'DiasInca' => $d['DiasInca'], 'ObseInca' => $d['ObseInca'],
-            'TipoAlca' => 0, 'EmbaMult' => 0, 'FePoPart' => '0000-00-00', 'EdadGest' => 0,
+            'TipoAlca' => 0, 'EmbaMult' => 0, 'FePoPart' => $d['FePoPart'] !== '' ? $d['FePoPart'] : '0000-00-00',
+            'EdadGest' => $d['EdadGest'], 'NaciVivo' => $d['NaciVivo'],
         ] + hc_digitacion($login));
         return $cons;
     });

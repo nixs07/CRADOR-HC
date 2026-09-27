@@ -129,6 +129,8 @@ REPLACE INTO FinaProc (CodiFina, NombFina, FinaProcSispro, Activo) VALUES (1, 'D
 -- Consultorios (inventados) para "Continuar en el consultorio" del triage
 REPLACE INTO CodiCons (CodiCons, NombCons, UrgeCons, EstaCons) VALUES
   ('U01', 'CONSULTORIO URGENCIAS 1', 1, 1), ('U02', 'CONSULTORIO URGENCIAS 2', 1, 1), ('P01', 'SALA DE PROCEDIMIENTOS', 1, 1);
+-- Instituciones de remision (tabla PROVISIONAL, datos inventados)
+REPLACE INTO InstRemision (CodiInre, NombInre) VALUES ('IPRU01', 'HOSPITAL DE PRUEBA NIVEL II'), ('IPRU02', 'CLINICA DE PRUEBA NIVEL III');
 -- Codigos fijos de SIHOS: 1 = enfermeria, 2 = medica, 5 = consentimiento
 DELETE FROM TipoNota WHERE CodiTipo NOT IN (1, 2, 5);
 REPLACE INTO TipoNota (CodiTipo, NombTipo) VALUES (1, 'NOTA ENFERMERIA'), (2, 'NOTA MEDICA'), (5, 'CONSENTIMIENTO');

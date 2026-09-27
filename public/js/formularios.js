@@ -81,7 +81,9 @@
         lista.id = 'lista-buscar-' + (++contador);
         inp.setAttribute('list', lista.id);
         inp.insertAdjacentElement('afterend', lista);
-        var nombre = (inp.id && document.getElementById(inp.id + '-nombre')) || inp.parentNode.querySelector('.nota-campo');
+        // Nombre del codigo: #<id>-nombre, la nota del mismo campo o, en una rejilla, la celda .nota-campo de la fila
+        var nombre = (inp.id && document.getElementById(inp.id + '-nombre')) || inp.parentNode.querySelector('.nota-campo')
+                  || (inp.closest('tr') && inp.closest('tr').querySelector('.nota-campo'));
         var espera = null;
         var ultimos = {};
 

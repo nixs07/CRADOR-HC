@@ -1,37 +1,61 @@
 <?php
 /**
- * Prescripción (EncaPres + DetaPres): Urgencias 4, Observación 3, Consulta Externa 5 (Prescripción Ambulatoria).
- * Barra de SIHOS: Nuevo, No., Tipo de Prescripción, Fecha, Hora; DXP, DXR 1 y DXR 2; varios medicamentos.
- * Variables: $a, $mod, $editable, $aqui, $tab, $F, $E, $prescripciones.
+ * Prescripción (EncaPres + DetaPres), como SIHOS (docs/RECORRIDO_SIHOS.md §3 y §5), en REJILLA:
+ *  - Urgencias 4 / Observación 3 (hospitalaria): Nuevo · No. · Tipo de Prescripción · Fecha · Hora · Sugerido ·
+ *    Protocolo · Plantilla · DXP · DXR 1-4 · rejilla Código · Nombre · Susp · Cantidad por dosis · Unidad · Vía ·
+ *    Cada · A partir de · Número (Dosis) · Cantidad solicitada · Unidad · Nota · Medi. Prin. · Entregado ·
+ *    Observaciones · Responsable de la entrega · Guardar · Imprimir · Consultar · Limpiar · Eliminar · Cancelar.
+ *  - Consulta Externa 5 "Prescripción A" (ambulatoria): Código · Nombre · Susp · Dosis · Vía · Frecuencia ·
+ *    Periodo de duración · Cada · Total (Dosis) · Cantidad solicitada · Unidad · Nota; Tipo Regular | Control.
+ * Sin casilla "Fórmula de salida": PresSali = 1 en Urgencias/Observación y 2 en Consulta Externa.
+ * Variables: $a, $mod, $editable, $aqui, $tab, $F, $E, $prescripciones, $consultas.
  */
-$d = $F['prescripcion'] ?? ['FechPres' => date('Y-m-d'), 'HoraPres' => date('H:i'), 'PresSali' => $mod['clave'] === 'ce' ? '2' : '1', 'TipoPres' => '1', 'items' => []];
+$amb = $mod['clave'] === 'ce';
+$d = $F['prescripcion'] ?? ['FechPres' => date('Y-m-d'), 'HoraPres' => date('H:i'), 'TipoPres' => '1', 'items' => []];
 $er = $E['prescripcion'] ?? [];
-$items = $d['items'] ?: [['CodiSumi' => '', 'CantSumi' => '', 'UnidMedi' => '', 'CodiVia' => '', 'CantFrec' => '8', 'TiemFrec' => '1', 'CantPeDu' => '1', 'TiemPeDu' => '2', 'PresMedi' => '']];
+$dx = diagnosticos_atencion($a, $consultas);
+$vacia = ['CodiSumi' => '', 'CantSumi' => '', 'UnidMedi' => '', 'CodiVia' => '', 'CantFrec' => '8', 'TiemFrec' => '1',
+          'CantPeDu' => '1', 'TiemPeDu' => '2', 'HoraInic' => '', 'NumeDosi' => '', 'CantSoli' => '', 'MediPrin' => '0', 'PresMedi' => ''];
+$items = $d['items'] ?: array_fill(0, 6, $vacia);   // rejilla de 6 filas, como SIHOS
 
-/** Fila de un medicamento (también es la plantilla para agregar filas con JavaScript). */
-$filaMedicamento = function (array $it) {
+$filaMed = function (array $it) use ($amb, $vacia) {
+    $it += $vacia;
     ob_start(); ?>
-    <div class="fila-item" data-fila>
-        <span class="fila-numero" data-fila-numero>1</span>
-        <div class="fila-campos">
-            <div class="c-medicamento"><label>Medicamento <span class="obligatorio" aria-hidden="true">*</span>
-                <input type="text" name="CodiSumi[]" value="<?= e($it['CodiSumi']) ?>" maxlength="20" data-buscar="suministros" autocomplete="off" placeholder="Código o nombre"></label>
-                <div class="nota-campo"><?= e($it['CodiSumi'] ? (suministro_nombre($it['CodiSumi']) ?? '') : '') ?></div></div>
-            <div><label>Dosis <input type="number" name="CantSumi[]" value="<?= e($it['CantSumi']) ?>" step="any" min="0" inputmode="decimal"></label></div>
-            <div><label>Unidad <select name="UnidMedi[]"><?= opciones('UnidMedi', $it['UnidMedi']) ?></select></label></div>
-            <div><label>Vía <select name="CodiVia[]"><?= opciones('ViaAdmi', $it['CodiVia']) ?></select></label></div>
-            <div class="c-doble"><label>Cada
-                <span class="doble"><input type="number" name="CantFrec[]" value="<?= e($it['CantFrec']) ?>" min="1" max="99" aria-label="Frecuencia: cada">
-                <select name="TiemFrec[]" aria-label="Unidad de la frecuencia"><?= opciones('CodiTiem', $it['TiemFrec'], false) ?></select></span></label></div>
-            <div class="c-doble"><label>Durante
-                <span class="doble"><input type="number" name="CantPeDu[]" value="<?= e($it['CantPeDu']) ?>" min="1" max="99" aria-label="Duración">
-                <select name="TiemPeDu[]" aria-label="Unidad de la duración"><?= opciones('CodiTiem', $it['TiemPeDu'], false) ?></select></span></label></div>
-            <div class="c-ancho"><label>Indicación escrita (opcional)
-                <input type="text" name="PresMedi[]" value="<?= e($it['PresMedi']) ?>" maxlength="1000" placeholder="Si se deja vacía se arma sola con la dosis, vía y frecuencia"></label></div>
-        </div>
-        <button type="button" class="boton-icono" data-quitar-fila aria-label="Quitar medicamento" title="Quitar"><?= icono('x') ?></button>
-    </div>
+    <tr data-fila>
+        <td class="c-cod"><input type="text" name="CodiSumi[]" value="<?= e($it['CodiSumi']) ?>" maxlength="20" data-buscar="suministros" autocomplete="off" aria-label="Código"></td>
+        <td class="nota-campo"><?= e($it['CodiSumi'] ? (suministro_nombre($it['CodiSumi']) ?? '') : '') ?></td>
+        <td><input type="checkbox" disabled title="Suspender: no aplica en contingencia" aria-label="Susp"></td>
+        <td class="c-num"><input type="number" name="CantSumi[]" value="<?= e($it['CantSumi']) ?>" step="any" min="0" inputmode="decimal" aria-label="<?= $amb ? 'Dosis' : 'Cantidad por dosis' ?>"></td>
+        <td class="c-sel"><select name="UnidMedi[]" aria-label="Unidad"><?= opciones('UnidMedi', $it['UnidMedi']) ?></select></td>
+        <td class="c-sel"><select name="CodiVia[]" aria-label="Vía"><?= opciones('ViaAdmi', $it['CodiVia']) ?></select></td>
+        <td class="c-doble"><span class="doble"><input type="number" name="CantFrec[]" value="<?= e($it['CantFrec']) ?>" min="1" max="99" aria-label="<?= $amb ? 'Frecuencia' : 'Cada' ?>">
+            <select name="TiemFrec[]" aria-label="Unidad de la frecuencia"><?= opciones('CodiTiem', $it['TiemFrec'], false) ?></select></span></td>
+        <?php if ($amb): ?>
+            <td class="c-doble"><span class="doble"><input type="number" name="CantPeDu[]" value="<?= e($it['CantPeDu']) ?>" min="1" max="99" aria-label="Periodo de duración">
+                <select name="TiemPeDu[]" aria-label="Unidad del periodo"><?= opciones('CodiTiem', $it['TiemPeDu'], false) ?></select></span></td>
+            <td class="nota-campo">Se calcula</td>
+            <td class="nota-campo">Se calcula</td>
+        <?php else: ?>
+            <td class="c-num"><input type="time" name="HoraInic[]" value="<?= e(substr((string) $it['HoraInic'], 0, 5)) ?>" aria-label="A partir de"></td>
+            <td class="c-num"><input type="number" name="NumeDosi[]" value="<?= e($it['NumeDosi']) ?>" min="1" aria-label="Número (Dosis)"></td>
+        <?php endif; ?>
+        <td class="c-num"><input type="number" name="CantSoli[]" value="<?= e($it['CantSoli']) ?>" min="0" aria-label="Cantidad solicitada"></td>
+        <td><input type="text" disabled value="" title="Unidad de la cantidad solicitada: sin columna en DetaPres" aria-label="Unidad"></td>
+        <td><input type="text" name="PresMedi[]" value="<?= e($it['PresMedi']) ?>" maxlength="1000" aria-label="Nota"></td>
+        <?php if (!$amb): ?>
+            <td><select name="MediPrin[]" aria-label="Medicamento principal"><option value="0">No</option><option value="1"<?= (string) $it['MediPrin'] === '1' ? ' selected' : '' ?>>Sí</option></select></td>
+            <td class="num">0</td>
+        <?php endif; ?>
+        <td><button type="button" class="boton-icono" data-quitar-fila aria-label="Quitar fila" title="Quitar"><?= icono('x') ?></button></td>
+    </tr>
     <?php return ob_get_clean();
+};
+$selDx = function (string $name, string $etq, ?string $valor) use ($dx) {
+    $h = '<div class="br-campo"><label for="' . e($name) . '">' . e($etq) . '</label><select id="' . e($name) . '" name="' . e($name) . '"><option value="">—</option>';
+    foreach ($dx as $c => $t) {
+        $h .= '<option value="' . e($c) . '"' . ((string) $valor === (string) $c ? ' selected' : '') . '>' . e($t) . '</option>';
+    }
+    return $h . '</select></div>';
 };
 ?>
 <?= panel_abrir('prescripcion', pestana_titulo($mod, 'prescripcion'), 'clipboard-plus', $tab, count($prescripciones) . ' ' . (count($prescripciones) === 1 ? 'prescripción' : 'prescripciones')) ?>
@@ -42,36 +66,44 @@ $filaMedicamento = function (array $it) {
     }
     $tipoPres = '<div class="br-campo"><label for="TipoPres">Tipo de Prescripción</label><select id="TipoPres" name="TipoPres">'
               . '<option value="1"' . ((string) ($d['TipoPres'] ?? '1') !== '2' ? ' selected' : '') . '>Regular</option>'
-              . '<option value="2"' . ((string) ($d['TipoPres'] ?? '') === '2' ? ' selected' : '') . '>Control</option></select></div>';
+              . '<option value="2"' . ((string) ($d['TipoPres'] ?? '') === '2' ? ' selected' : '') . '>Control</option>'
+              . ($amb ? '' : '<option disabled>Domiciliaria (pendiente confirmar)</option>') . '</select></div>';
     ?>
     <div class="panel-cuerpo">
     <?= errores_resumen($er) ?>
     <form method="post" action="<?= e($aqui) ?>&amp;tab=prescripcion" class="formulario formulario-panel" data-una-vez>
         <?= csrf_campo() ?>
         <input type="hidden" name="accion" value="prescripcion">
-        <?= barra_registro('Nuevo', $anteriores, 'FechPres', 'HoraPres', $d, $er, $tipoPres) ?>
-        <div class="rejilla">
-            <?= campo_buscador('PresDiag', 'DXP', $d + ['PresDiag' => $d['CodiDiag'] ?? $a['DiagIngr']], $er, 'diagnosticos') ?>
-            <?= campo_buscador('PresRel1', 'DXR 1', $d + ['PresRel1' => $d['CodiRel1'] ?? ''], $er, 'diagnosticos') ?>
-            <?= campo_buscador('PresRel2', 'DXR 2', $d + ['PresRel2' => $d['CodiRel2'] ?? ''], $er, 'diagnosticos') ?>
-            <?php if ($mod['clave'] === 'ce'): ?>
-                <div><span class="etiqueta-campo">Fórmula</span><p class="nota-campo">Fórmula de salida (ambulatoria)</p></div>
-            <?php else: ?>
-                <div><span class="etiqueta-campo">Fórmula</span>
-                    <div class="casillas"><label class="opcion" for="PresSali"><input type="checkbox" id="PresSali" name="PresSali" value="2"<?= (string) $d['PresSali'] === '2' ? ' checked' : '' ?>> Fórmula de salida</label></div></div>
-            <?php endif; ?>
+        <?= barra_registro('Nuevo', $anteriores, 'FechPres', 'HoraPres', $d, $er, $tipoPres, '',
+            $amb ? ['Plantilla', 'Experiencia', 'Protocolo'] : ['Sugerido', 'Protocolo', 'Plantilla']) ?>
+        <?php if (!$dx): ?><div class="alerta alerta-aviso"><?= icono('triangle-alert') ?><div>No hay diagnósticos.</div></div><?php endif; ?>
+        <div class="barra-registro barra-dx">
+            <?= $selDx('PresDiag', 'DXP', $d['CodiDiag'] ?? array_key_first($dx)) ?>
+            <?php foreach ([1, 2, 3, 4] as $k): ?><?= $selDx("PresRel$k", "DXR $k", $d["CodiRel$k"] ?? '') ?><?php endforeach; ?>
         </div>
-        <div class="subgrupo" data-filas>
-            <h3><?= icono('clipboard-list') ?>Suministros</h3>
+        <div data-filas>
             <?= me($er, 'CodiSumi') ?>
-            <div data-filas-cuerpo>
-                <?php foreach ($items as $it) { echo $filaMedicamento($it + ['CodiSumi' => '', 'CantSumi' => '', 'UnidMedi' => '', 'CodiVia' => '', 'CantFrec' => '', 'TiemFrec' => '1', 'CantPeDu' => '', 'TiemPeDu' => '2', 'PresMedi' => '']); } ?>
+            <div class="rejilla-grilla">
+            <table>
+                <thead><tr><th>Código</th><th>Nombre</th><th>Susp</th>
+                    <?php if ($amb): ?>
+                        <th>Dosis</th><th>Unidad</th><th>Vía</th><th>Frecuencia</th><th>Periodo de duración</th><th>Cada</th><th>Total (Dosis)</th>
+                    <?php else: ?>
+                        <th>Cantidad por dosis</th><th>Unidad</th><th>Vía</th><th>Cada</th><th>A partir de</th><th>Número (Dosis)</th>
+                    <?php endif; ?>
+                    <th>Cantidad solicitada</th><th>Unidad</th><th>Nota</th><?php if (!$amb): ?><th>Medi. Prin.</th><th>Entregado</th><?php endif; ?><th></th></tr></thead>
+                <tbody data-filas-cuerpo>
+                    <?php foreach ($items as $it) { echo $filaMed($it); } ?>
+                </tbody>
+            </table>
             </div>
-            <template><?= $filaMedicamento(['CodiSumi' => '', 'CantSumi' => '', 'UnidMedi' => '', 'CodiVia' => '', 'CantFrec' => '8', 'TiemFrec' => '1', 'CantPeDu' => '1', 'TiemPeDu' => '2', 'PresMedi' => '']) ?></template>
-            <button type="button" class="boton boton-claro boton-chico" data-agregar-fila><?= icono('plus') ?>Agregar medicamento</button>
+            <template><?= $filaMed($vacia) ?></template>
+            <button type="button" class="boton boton-claro boton-chico" data-agregar-fila><?= icono('plus') ?>Agregar</button>
         </div>
         <?= campo_texto('ObseOrde', 'Observaciones', $d, $er, 2, false, 5000, 'PresObse') ?>
-        <?= botones_panel('Guardar prescripción') ?>
+        <div class="rejilla"><div><label for="PersEntr">Responsable de la entrega</label>
+            <input type="text" id="PersEntr" name="PersEntr" value="<?= v($d, 'PersEntr') ?>" maxlength="15"></div></div>
+        <?= botonera(['Guardar', 'Imprimir', 'Consultar', 'Limpiar', 'Eliminar', 'Cancelar']) ?>
     </form>
     </div>
 <?php endif; ?>
@@ -87,21 +119,23 @@ $filaMedicamento = function (array $it) {
                 <span class="contador"><?= (int) $p['ConsPres'] ?></span>
                 <strong><?= e(fecha_hora($p['Fecha'] . ' ' . $p['Hora'])) ?></strong>
                 <span class="etiqueta"><?= (int) $p['TipoPres'] === 2 ? 'Control' : 'Regular' ?></span>
-                <?php if ((int) $p['PresSali'] === 2): ?><span class="etiqueta etiqueta-curso">Fórmula de salida</span><?php endif; ?>
                 <small><?= e($p['UsuaDigi']) ?> · <?= e(diag_texto($p['CodiDiag'])) ?></small>
             </div>
             <div class="tabla-contenedor">
             <table class="tabla">
-                <thead><tr><th>#</th><th>Medicamento</th><th>Indicación</th><th class="num">Dosis</th><th class="num">N.º dosis</th><th class="num">Total</th><th class="num">Aplicado</th></tr></thead>
+                <thead><tr><th>#</th><th>Código</th><th>Nombre</th><th class="num">Dosis</th><th>Vía</th><th>Cada</th><th class="num">N.º dosis</th><th class="num">Solicitada</th><th>Nota</th><th class="num">Aplicado</th></tr></thead>
                 <tbody>
                 <?php foreach ($p['items'] as $it): ?>
                     <tr>
                         <td><?= (int) $it['Item'] ?></td>
-                        <td><strong><?= e($it['CodiSumi']) ?></strong> · <?= e($it['NombSumi'] ?? '') ?></td>
-                        <td><?= e($it['PresMedi']) ?></td>
+                        <td><strong><?= e($it['CodiSumi']) ?></strong><?= (int) $it['MediPrin'] ? ' <span class="etiqueta">Principal</span>' : '' ?></td>
+                        <td><?= e($it['NombSumi'] ?? '') ?></td>
                         <td class="num"><?= e((float) $it['CantSumi']) ?> <?= e(lista_nombre('UnidMedi', $it['UnidMedi'])) ?></td>
+                        <td><?= e(lista_nombre('ViaAdmi', $it['CodiVia'])) ?></td>
+                        <td><?= (int) $it['CantFrec'] ?> <?= e(lista_nombre('CodiTiem', $it['TiemFrec'])) ?> · desde <?= e(substr($it['HoraInic'], 0, 5)) ?></td>
                         <td class="num"><?= (int) $it['NumeDosi'] ?></td>
-                        <td class="num"><?= e((float) $it['CantTota']) ?></td>
+                        <td class="num"><?= (int) $it['CantSoli'] ?></td>
+                        <td><?= e($it['PresMedi']) ?></td>
                         <td class="num"><?= e((float) $it['CantApli']) ?></td>
                     </tr>
                 <?php endforeach; ?>

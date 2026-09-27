@@ -121,7 +121,7 @@ function pestanas_lista(array $mod): array
             20 => ['recien', 'Recién Nacidos', $n],
             21 => ['incapacidad', 'Incapacidad', ''],
             22 => ['egreso', 'Egreso', ''],
-            23 => ['cambio', 'Cambio de Atención', $n],
+            23 => ['cambio', 'Cambio de Atención', ''],
             24 => ['remisiones', 'Remisiones', ''],
             25 => ['plan', 'Plan de Manejo', ''],
             26 => ['glucometria', 'GLUCOMETRIA', $n],
@@ -424,13 +424,7 @@ function barra_registro(string $nuevo, array $anteriores, string $cf, string $ch
             : '<button type="reset" class="boton boton-claro boton-chico" title="Formulario en blanco para un registro nuevo">' . icono('plus') . e($nuevo) . '</button>';
     }
     if ($anteriores !== ['-']) {
-        $html .= '<div class="br-campo"><label>No.</label><select data-ir-registro aria-label="Registros anteriores"'
-               . ($anteriores ? '' : ' disabled') . '><option value="">' . ($anteriores ? 'Anteriores (' . count($anteriores) . ')' : 'Sin registros')
-               . '</option>';
-        foreach ($anteriores as $id => $texto) {
-            $html .= '<option value="' . e($id) . '">' . e($texto) . '</option>';
-        }
-        $html .= '</select></div>';
+        $html .= selector_anteriores($anteriores);
     }
     if ($cf !== '') {
         $html .= '<div class="br-fecha">' . campos_fecha_hora($cf, $ch, $datos, $errores) . '</div>';
@@ -447,6 +441,18 @@ function barra_registro(string $nuevo, array $anteriores, string $cf, string $ch
         $html .= '</div>';
     }
     return $html . '</div>';
+}
+
+/** Selector "No." de la barra: registros anteriores (al escoger uno se abre y se muestra). */
+function selector_anteriores(array $anteriores): string
+{
+    $html = '<div class="br-campo"><label>No.</label><select data-ir-registro aria-label="Registros anteriores"'
+          . ($anteriores ? '' : ' disabled') . '><option value="">' . ($anteriores ? 'Anteriores (' . count($anteriores) . ')' : 'Sin registros')
+          . '</option>';
+    foreach ($anteriores as $id => $texto) {
+        $html .= '<option value="' . e($id) . '">' . e($texto) . '</option>';
+    }
+    return $html . '</select></div>';
 }
 
 /** Íconos de los botones de SIHOS. */

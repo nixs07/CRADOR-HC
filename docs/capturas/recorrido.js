@@ -153,16 +153,18 @@ async function buscarDocumento(p, modulo, tipo, doc) {
 
   // 4. Prescripción
   await pestana('prescripcion');
-  await p.selectOption('#TipoPres', '1'); await p.fill('#PresRel1', 'E86X');
-  const f1 = p.locator('#prescripcion [data-fila]').nth(0);
+  // Rejilla de SIHOS: Cantidad por dosis · Unidad · Vía · Cada · A partir de · Número (Dosis) · Cantidad solicitada
+  await p.selectOption('#TipoPres', '1'); await p.selectOption('#PresRel1', 'E86X');
+  const f1 = p.locator('#prescripcion tbody [data-fila]').nth(0);
   await f1.locator('input[name="CodiSumi[]"]').fill('MP0004'); await f1.locator('input[name="CantSumi[]"]').fill('20');
   await f1.locator('select[name="UnidMedi[]"]').selectOption('1'); await f1.locator('select[name="CodiVia[]"]').selectOption('1');
-  await f1.locator('input[name="CantFrec[]"]').fill('24'); await f1.locator('input[name="CantPeDu[]"]').fill('7');
-  await p.click('#prescripcion [data-agregar-fila]');
-  const f2 = p.locator('#prescripcion [data-fila]').nth(1);
+  await f1.locator('input[name="CantFrec[]"]').fill('24'); await f1.locator('input[name="NumeDosi[]"]').fill('7');
+  await f1.locator('input[name="HoraInic[]"]').fill('08:00'); await f1.locator('input[name="CantSoli[]"]').fill('7');
+  await f1.locator('select[name="MediPrin[]"]').selectOption('1');
+  const f2 = p.locator('#prescripcion tbody [data-fila]').nth(1);
   await f2.locator('input[name="CodiSumi[]"]').fill('MP0002'); await f2.locator('input[name="CantSumi[]"]').fill('1');
   await f2.locator('select[name="UnidMedi[]"]').selectOption('4'); await f2.locator('select[name="CodiVia[]"]').selectOption('2');
-  await f2.locator('input[name="CantFrec[]"]').fill('8'); await f2.locator('input[name="CantPeDu[]"]').fill('1');
+  await f2.locator('input[name="CantFrec[]"]').fill('8'); await f2.locator('input[name="NumeDosi[]"]').fill('3');
   await foto(p, '28_prescripcion_formulario');
   await guardar('#prescripcion button[type=submit]', 'prescripcion guardada');
   await foto(p, '28_prescripcion');
@@ -173,26 +175,24 @@ async function buscarDocumento(p, modulo, tipo, doc) {
   await guardar('#ordenes_medicas button[type=submit]', 'orden medica guardada');
   await foto(p, '38_ordenes_medicas');
   await pestana('ordenacion');
-  await p.selectOption('#OrdeFina', '10'); await p.fill('#OrdeRel1', 'E86X');
-  const o1 = p.locator('#ordenacion [data-fila]').nth(0);
+  await p.selectOption('#OrdeFina', '10'); await p.selectOption('#OrdeRel1', 'E86X');
+  const o1 = p.locator('#ordenacion tbody [data-fila]').nth(0);
   await o1.locator('input[name="OrdProc[]"]').fill('902210');
-  await p.click('#ordenacion [data-agregar-fila]');
-  const o2 = p.locator('#ordenacion [data-fila]').nth(1);
+  const o2 = p.locator('#ordenacion tbody [data-fila]').nth(1);
   await o2.locator('input[name="OrdProc[]"]').fill('871121'); await o2.locator('input[name="OrdObse[]"]').fill('DESCARTAR NEUMOPERITONEO');
   await guardar('#ordenacion button[type=submit]', 'ordenes guardadas');
   await foto(p, '29_ordenacion');
 
-  // 6. Procedimientos (uno suelto y otro que atiende un ítem de la orden: NumeOrde/Item y CantReal)
+  // 6. Procedimientos (el selector "Atiende la orden" no está en SIHOS: quedó oculto)
   await pestana('procedimientos');
   await p.fill('#CodiProc', '939403'); await p.selectOption('#CodiFina', '2'); await p.fill('#CantProc', '1');
   await p.fill('#IndiAdic', 'NEBULIZACION CON SSN, SIN COMPLICACIONES (datos inventados)');
   await p.fill('#proc-DiagRela', 'E86X'); await p.selectOption('#proc-ProcTipoDiaR', '2');
   await guardar('#procedimientos button[type=submit]', 'procedimiento guardado');
   await pestana('procedimientos');
-  const pend = await p.$eval('#OrdenItem', s => [...s.options].find(o => o.value).value);
-  await p.selectOption('#OrdenItem', pend); await p.selectOption('#CodiFina', '1');
+  await p.fill('#CodiProc', '902210'); await p.selectOption('#CodiFina', '1'); await p.check('#ProcRevi');
   await p.fill('#IndiAdic', 'TOMA DE MUESTRA PARA HEMOGRAMA');
-  await guardar('#procedimientos button[type=submit]', 'procedimiento de la orden guardado');
+  await guardar('#procedimientos button[type=submit]', 'procedimiento revisado guardado');
   await foto(p, '30_procedimientos');
 
   // 8. Evolución (con fila de signos y Rela 1)
@@ -201,33 +201,35 @@ async function buscarDocumento(p, modulo, tipo, doc) {
   await signos('evol-', { PANume: '114', PADeno: '72', Pulso: '78', Respirac: '16', Temperat: '36.6' });
   await p.fill('#evol-EvolDiag', 'K297'); await p.fill('#evol-EvolRel1', 'E86X'); await p.selectOption('#evol-EvolTipoRel1', '2');
   await p.fill('#Analisis', 'EVOLUCION FAVORABLE'); await p.fill('#PlanMane', 'CONTINUAR MANEJO, VALORAR SALIDA');
-  await p.check('#ContSign');
+  await p.check('#ContSign'); await p.check('#EvolRevi');
   await guardar('#evolucion button[type=submit]', 'evolucion guardada');
   await foto(p, '32_evolucion');
 
   // 9. Notas Enfermería y 10. Notas Médicas (con "Revisada")
   await pestana('notas_enfermeria');
   await p.fill('#NotaEnfe', 'PACIENTE EN CAMILLA, ALERTA, CON LEV PERMEABLES. SE TOMAN SIGNOS. (datos inventados)');
+  await p.fill('#NotaActi', '939403'); await p.check('#Reviza');
   await guardar('#notas_enfermeria button[type=submit]', 'nota de enfermeria guardada');
   await foto(p, '31_notas_enfermeria');
   await pestana('notas_medicas');
-  await p.fill('#NotaEnfeMed', 'SE EXPLICA AL PACIENTE EL PLAN DE MANEJO. (datos inventados)'); await p.check('#Reviza');
+  await p.fill('#NotaEnfeMed', 'SE EXPLICA AL PACIENTE EL PLAN DE MANEJO. (datos inventados)'); await p.check('#RevizaMed');
   await guardar('#notas_medicas button[type=submit]', 'nota medica guardada');
   await foto(p, '39_notas_medicas');
 
   // 11. Medicamentos, 16. Materiales, 15. Remisiones y 17. Incapacidad
   await pestana('medicamentos');
-  const med = await p.$eval('#MediPres', s => [...s.options].find(o => o.value).value);
-  await p.selectOption('#MediPres', med); await p.fill('#CantMedi', '1'); await p.fill('#MediObse', 'SIN REACCIONES');
-  await guardar('#medicamentos button[type=submit]', 'medicamento aplicado');
+  const m1 = p.locator('#medicamentos form[method=post] tbody tr').first();
+  await m1.locator('input[name="CantMedi[]"]').fill('1'); await m1.locator('input[name="MediObse[]"]').fill('SIN REACCIONES');
+  await guardar('#medicamentos form[method=post] button[type=submit]', 'medicamento aplicado');
   await foto(p, '40_medicamentos');
   await pestana('materiales');
-  await p.fill('#CodiMate', 'MQ0002'); await p.selectOption('#UnidMate', '01'); await p.fill('#CantMate', '1');
-  await p.fill('#MateObse', 'CANALIZACION VENA ANTEBRAZO IZQUIERDO');
+  const mt = p.locator('#materiales tbody [data-fila]').first();
+  await mt.locator('input[name="CodiMate[]"]').fill('MQ0002'); await mt.locator('select[name="UnidMate[]"]').selectOption('01');
+  await mt.locator('input[name="CantMate[]"]').fill('1'); await mt.locator('input[name="MateObse[]"]').fill('CANALIZACION VENA ANTEBRAZO IZQUIERDO');
   await guardar('#materiales button[type=submit]', 'material registrado');
   await foto(p, '41_materiales');
   await pestana('remisiones');
-  await p.selectOption('#EspeRemi', { index: 1 }); await p.fill('#InstDest', 'HOSPITAL DE PRUEBA NIVEL II (inventado)');
+  await p.selectOption('#EspeRemi', { index: 1 }); await p.selectOption('#InstRemi', 'IPRU01'); await p.check('#Ambulanc');
   await p.fill('#NombAcep', 'MEDICO DE PRUEBA RECEPTOR'); await p.fill('#CargAcep', 'MEDICO DE TURNO');
   await p.selectOption('#RemiMoti', '2'); await p.selectOption('#ModaSoli', '2');
   await p.fill('#FechAcep', await p.inputValue('#FechRemi')); await p.fill('#HoraAcep', await p.inputValue('#HoraRemi'));
@@ -236,6 +238,7 @@ async function buscarDocumento(p, modulo, tipo, doc) {
   await foto(p, '42_remisiones');
   await pestana('incapacidad');
   await p.fill('#DiasIncaPaci', '2'); await p.fill('#ObseInca', 'REPOSO RELATIVO (inventado)');
+  await p.fill('#EdadGest', '0');
   await guardar('#incapacidad button[type=submit]', 'incapacidad guardada (urg)');
   await foto(p, '43_incapacidad');
 
@@ -258,13 +261,12 @@ async function buscarDocumento(p, modulo, tipo, doc) {
   await c.close();
 
   // --- Observación: traslado de cama, 1. Consultas (acordeones), 21. Incapacidad y 22. Egreso con la remisión ---
-  await p.goto(B + 'atencion.php?id=' + adm.obs + '&tab=signos');
+  await p.goto(B + 'atencion.php?id=' + adm.obs + '&tab=cambio');
   console.log('-- pestañas obs', JSON.stringify(await p.$$eval('[data-pestanas] > *', l => l.map(x => x.innerText.replace(/\s+/g, ' ').trim()))));
-  await p.click('#traslado > summary');
+  // 23. Cambio de Atención (pestaña, TrasCama)
   await p.selectOption('#CamaDest', 'HOSP10');
-  await guardar('#traslado button[type=submit]', 'traslado de cama');
-  await p.click('#traslado > summary');
-  await foto(p, '36_traslado');
+  await guardar('#cambio button[type=submit]', 'cambio de atencion (traslado de cama)');
+  await foto(p, '36_cambio_atencion');
   // 1. Consultas en Observación (TipoCons por defecto 89060102) y 24. Remisiones (pestaña propia)
   await p.goto(B + 'atencion.php?id=' + adm.obs + '&tab=consulta');
   await p.fill('#ConsMoti', 'DIARREA DE 2 DIAS (datos inventados)'); await p.fill('#EnfeActu', 'Deposiciones liquidas, sin sangre. Datos inventados.');
@@ -274,9 +276,9 @@ async function buscarDocumento(p, modulo, tipo, doc) {
   await foto(p, '44_obs_consultas');
   await p.goto(B + 'atencion.php?id=' + adm.obs + '&tab=remisiones');
   await p.selectOption('#RemiMoti', '2'); await p.selectOption('#ModaSoli', '2');
-  await p.fill('#InstDest', 'HOSPITAL DE PRUEBA NIVEL II (inventado)');
+  await p.selectOption('#InstRemi', 'IPRU02');
   await p.fill('#MotiRemiTexto', 'PACIENTE REQUIERE VALORACION POR MEDICINA INTERNA. Datos inventados.');
-  await p.fill('#NombAcep', 'MEDICO DE PRUEBA RECEPTOR'); await p.check('input[name=Ambulanc]'); await p.fill('#PlacAmbu', 'OXX000');
+  await p.fill('#NombAcep', 'MEDICO DE PRUEBA RECEPTOR'); await p.check('input[name=Ambulanc]');
   await guardar('#remisiones button[type=submit]', 'remision guardada (obs)');
   await foto(p, '37_obs_remisiones');
   await p.goto(B + 'atencion.php?id=' + adm.obs + '&tab=incapacidad');
@@ -323,7 +325,7 @@ async function buscarDocumento(p, modulo, tipo, doc) {
   await guardar('#anamnesis button[type=submit]', 'consulta CE guardada');
   // 5. Prescripción A (fórmula de salida fija: PresSali = 2)
   await pestana('prescripcion');
-  const fc = p.locator('#prescripcion [data-fila]').nth(0);
+  const fc = p.locator('#prescripcion tbody [data-fila]').nth(0);
   await fc.locator('input[name="CodiSumi[]"]').fill('MP0001'); await fc.locator('input[name="CantSumi[]"]').fill('1');
   await fc.locator('select[name="UnidMedi[]"]').selectOption('3'); await fc.locator('select[name="CodiVia[]"]').selectOption('1');
   await fc.locator('input[name="CantFrec[]"]').fill('8'); await fc.locator('input[name="CantPeDu[]"]').fill('5');
