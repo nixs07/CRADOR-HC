@@ -572,6 +572,24 @@ function hc_actualizar(PDO $pdo, string $tabla, array $fila, array $llave, array
     $pdo->prepare($sql)->execute(array_merge(array_values($fila), [CODI_INST, $a['ConsAdmi']], array_values($llave)));
 }
 
+/**
+ * Antecedentes tóxicos y alérgicos del PACIENTE (todas sus admisiones), para la ventana automática que SIHOS
+ * muestra al abrir la historia en Urgencias y Observación. Devuelve ['toxicos' => [...], 'alergicos' => [...]].
+ */
+function antecedentes_alerta(string $tipoDocu, string $numeUsua): array
+{
+    $st = db()->prepare('SELECT ConsAdmi, ToxiAler, ToxiDesc, AlerSiNo, AlerDesc, FechDigi FROM Antecede
+                          WHERE CodiInst = ? AND TipoDocu = ? AND NumeUsua = ? AND (ToxiAler = 1 OR AlerSiNo = 1)
+                          ORDER BY FechDigi DESC, ConsAdmi DESC LIMIT 20');
+    $st->execute([CODI_INST, $tipoDocu, $numeUsua]);
+    $r = ['toxicos' => [], 'alergicos' => []];
+    foreach ($st as $f) {
+        if ((int) $f['ToxiAler'] === 1) $r['toxicos'][] = $f + ['texto' => (string) $f['ToxiDesc']];
+        if ((int) $f['AlerSiNo'] === 1) $r['alergicos'][] = $f + ['texto' => (string) $f['AlerDesc']];
+    }
+    return $r;
+}
+
 /** Consultas de la admisión (más reciente arriba), con antecedentes y examen físico ligados. */
 function consultas_de_admision(string $cons): array
 {

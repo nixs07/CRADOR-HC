@@ -400,7 +400,15 @@ function admisiones_abiertas(array $mod): array
     $st = db()->prepare("SELECT a.ConsAdmi, a.TipoDocu, a.NumeUsua, a.ValoEdad, a.UnidEdad, a.FechIngr, a.HoraIngr,
                                 a.ServEgre, a.CamaActu, a.ClasTria, a.DiagIngr, a.UsuaDigi,
                                 p.NombUsua, p.NombUsu1, p.Ape1Usua, p.Ape2Usua, p.SexoUsua, c.NombAdmi, s.NombServ,
-                                (SELECT COUNT(*) FROM SignVita v WHERE v.CodiInst = a.CodiInst AND v.ConsAdmi = a.ConsAdmi) AS signos
+                                (SELECT COUNT(*) FROM SignVita v WHERE v.CodiInst = a.CodiInst AND v.ConsAdmi = a.ConsAdmi) AS signos,
+                                a.NumeAuto,
+                                -- Med / Ord (columnas de la ventana de SIHOS; supuesto: medicamentos y ordenes pendientes)
+                                (SELECT COUNT(*) FROM DetaPres dp WHERE dp.CodiInst = a.CodiInst AND dp.ConsAdmi = a.ConsAdmi
+                                    AND dp.FechSusp = '0000-00-00' AND dp.CantApli < dp.CantTota) AS med_pend,
+                                (SELECT COUNT(*) FROM DetaOrde dor WHERE dor.CodiInst = a.CodiInst AND dor.ConsAdmi = a.ConsAdmi
+                                    AND dor.CantReal < dor.CantSumi) AS ord_pend,
+                                (SELECT t.CodiCons FROM Triage t WHERE t.CodiInst = a.CodiInst AND t.ConsAdmi = a.ConsAdmi
+                                  ORDER BY t.ConsTria DESC LIMIT 1) AS CodiCons
                            FROM Admision a
                            LEFT JOIN Paciente p ON p.TipoDocu = a.TipoDocu AND p.NumeUsua = a.NumeUsua
                            LEFT JOIN CodiAdmi c ON c.CodiAdmi = a.CodiAdmi

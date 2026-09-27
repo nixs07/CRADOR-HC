@@ -24,6 +24,15 @@ async function ingresar(p, login) {
   await p.goto(B + 'login.php'); await p.fill('#login', login); await p.fill('#clave', 'prueba123');
   await p.click('main button[type=submit]'); await p.waitForLoadState();
 }
+// Ventana automatica al abrir la historia (Urgencias y Observacion): antecedentes toxicos, alergicos y reconciliacion
+async function cerrarAlertas(p, foto_) {
+  const v = await p.$('#alertas-paciente');
+  if (v && await v.isVisible()) {
+    console.log('-- ventana automatica al abrir la historia', JSON.stringify((await v.innerText()).replace(/\s+/g, ' ').slice(0, 160)));
+    if (foto_) { await p.screenshot({ path: `${OUT}/${foto_}.png` }); console.log('FOTO', foto_); }
+    await p.click('#alertas-paciente a.boton-primario');
+  }
+}
 // Busca el documento en el encabezado de la pantalla del modulo
 async function buscarDocumento(p, modulo, tipo, doc) {
   await p.goto(B + 'atencion.php?modulo=' + modulo + '&nueva=1');
@@ -88,6 +97,7 @@ async function buscarDocumento(p, modulo, tipo, doc) {
     await foto(p, nums[x.mod][0] + '_admision_nueva_' + x.mod);
     await p.click('#form-admision button[type=submit]'); await p.waitForLoadState();
     await estado(p, 'admision creada ' + x.mod);
+    await cerrarAlertas(p);
     adm[x.mod] = new URL(p.url()).searchParams.get('id');
     await foto(p, nums[x.mod][1] + '_ficha_' + x.mod);
   }
@@ -98,6 +108,7 @@ async function buscarDocumento(p, modulo, tipo, doc) {
   const guardar = async (sel, etiqueta) => { await p.click(sel); await p.waitForLoadState(); await estado(p, etiqueta); };
   const signos = async (px, v) => { for (const [c, x] of Object.entries(v)) await p.fill('#' + px + c, x); };
   await p.goto(B + 'atencion.php?id=' + adm.urg);
+  await cerrarAlertas(p);
   console.log('-- pestañas urg', JSON.stringify(await p.$$eval('[data-pestanas] > *', l => l.map(x => x.innerText.replace(/\s+/g, ' ').trim()))));
 
   // 1. Triage (con "Continuar en el consultorio")
@@ -129,7 +140,9 @@ async function buscarDocumento(p, modulo, tipo, doc) {
   await guardar('#consulta button[name=boton][value=anamnesis]', 'consulta: guardar anamnesis');
   await p.click('#consulta summary:has-text("Antecedentes")');
   await p.selectOption('#ante-Patologi', '1'); await p.fill('#ante-PatoDesc', 'GASTRITIS HACE 2 AÑOS');
-  await p.selectOption('#ante-AlerSiNo', '2'); await p.selectOption('#ante-Andropo', '4');
+  await p.selectOption('#ante-AlerSiNo', '1'); await p.fill('#ante-AlerDesc', 'PENICILINA (inventado)');
+  await p.selectOption('#ante-ToxiAler', '1'); await p.fill('#ante-ToxiDesc', 'TABAQUISMO (inventado)');
+  await p.selectOption('#ante-Andropo', '4');
   await guardar('#consulta button[name=boton][value=antecedentes]', 'consulta: guardar antecedentes');
   await p.click('#consulta summary:has-text("Revisión por Sistema")');
   await p.fill('#ConsRevi', 'NIEGA OTROS SINTOMAS'); await p.selectOption('#SintResp', '2');
@@ -241,6 +254,9 @@ async function buscarDocumento(p, modulo, tipo, doc) {
   await p.fill('#EdadGest', '0');
   await guardar('#incapacidad button[type=submit]', 'incapacidad guardada (urg)');
   await foto(p, '43_incapacidad');
+  // Al volver a abrir la historia sale la ventana automatica con los antecedentes toxicos y alergicos
+  await p.goto(B + 'atencion.php?id=' + adm.urg);
+  await cerrarAlertas(p, '52_ventana_antecedentes');
 
   for (const [m, n] of [['obs', '16'], ['ce', '17']]) {
     await p.goto(B + 'atencion.php?modulo=' + m + '&historias=1'); await foto(p, n + '_lista_' + m);

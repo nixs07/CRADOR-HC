@@ -1343,3 +1343,15 @@ tr[data-href] { cursor: pointer; }
 /* Rejillas en tabla: el cuerpo de filas repetidas sigue siendo un tbody normal */
 .rejilla-grilla tbody[data-filas-cuerpo] { display: table-row-group; margin: 0; }
 .rejilla-grilla .c-doble .doble input { width: 56px; }
+
+/* Historias abiertas y ventana automática (RECORRIDO_SIHOS §2 y §4) */
+.tabla-historias tr.fila-triage-1 td { background: var(--t1-fondo); }
+.tabla-historias tr.fila-triage-2 td { background: var(--t2-fondo); }
+.tabla-historias tr.fila-triage-3 td { background: var(--t3-fondo); }
+.tabla-historias tr.fila-triage-4 td { background: var(--t4-fondo); }
+.tabla-historias tr.fila-triage-5 td { background: var(--t5-fondo); }
+.punto-triage { display: inline-block; width: 14px; height: 14px; border-radius: 50%; padding: 0; border: 2px solid currentColor; }
+.filtros .mostrar { display: inline-flex; align-items: center; gap: 6px; margin: 0; font-weight: 500; white-space: nowrap; }
+.filtros .mostrar select { width: auto; }
+.lista-alertas { margin: 4px 0 8px; padding-left: 20px; }
+.alertas-paciente .subtitulo-panel { margin-top: 12px; }

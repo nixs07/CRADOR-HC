@@ -302,3 +302,16 @@ revisión del 26/09/2026 en [`REVISION_SIHOS.md`](REVISION_SIHOS.md), que manda 
 | Evolución | Finalidad |
 | Incapacidad | Alcance, Incapacidad retroactiva, Grupo de servicios, Modalidad de prestación, Embarazo múltiple |
 | Egreso | Insumos pendientes por descargar (inventario) |
+
+## Historias Abiertas y ventana automática (`docs/RECORRIDO_SIHOS.md` §2 y §4)
+
+- Filtros de SIHOS: Seleccione Servicio · Seleccione consultorio (`Triage.CodiCons`) · Mostrar N registros (10, 25, 50,
+  100). Se quitó el buscador libre (SIHOS no lo tiene).
+- Columnas: Servicio · Cama · Admisión · Fecha · Duración · T · Autoriza. (`NumeAuto`) · Triage · Med · Ord · Paciente ·
+  Edad · Estado · Consultorio · Profesional; filas coloreadas por triage. **Supuestos**: "T" = color del triage;
+  "Med" = medicamentos prescritos pendientes por aplicar (`DetaPres.CantApli < CantTota`, sin suspender); "Ord" =
+  ítems de órdenes pendientes (`DetaOrde.CantReal < CantSumi`); Estado = "Abierta".
+- Al abrir una historia de Urgencias u Observación (sin pestaña en la dirección) sale una ventana propia con los
+  Antecedentes Tóxicos y Alérgicos del paciente (`Antecede.ToxiAler/ToxiDesc`, `AlerSiNo/AlerDesc`, de todas sus
+  admisiones) y la Reconciliación Medicamentosa ("no disponible": falta la tabla `RecoMedi`). Se cierra con Esc,
+  la X o Aceptar.

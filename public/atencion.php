@@ -235,18 +235,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 // --- Historias abiertas del modulo (ventana) -----------------------------
 $todas = admisiones_abiertas($mod);
 $serv = is_string($_GET['serv'] ?? null) && in_array($_GET['serv'], $mod['servicios'], true) ? $_GET['serv'] : '';
-$q = is_string($_GET['q'] ?? null) ? mb_substr(trim($_GET['q']), 0, 60) : '';
-$filas = array_values(array_filter($todas, function ($f) use ($serv, $q) {
-    if ($serv !== '' && $f['ServEgre'] !== $serv) {
-        return false;
-    }
-    if ($q === '') {
-        return true;
-    }
-    $b = mb_strtoupper($q);
-    return str_contains($f['NumeUsua'], $q) || str_contains($f['ConsAdmi'], $b)
-        || str_contains(mb_strtoupper(paciente_nombre($f)), $b);
+// Filtros de SIHOS: Seleccione Servicio · Seleccione consultorio · Mostrar N registros
+$consul = is_string($_GET['cons_f'] ?? null) && lista_valida('Cons', $_GET['cons_f']) ? $_GET['cons_f'] : '';
+$mostrar = in_array((int) ($_GET['mostrar'] ?? 25), [10, 25, 50, 100], true) ? (int) ($_GET['mostrar'] ?? 25) : 25;
+$filas = array_values(array_filter($todas, function ($f) use ($serv, $consul) {
+    return ($serv === '' || $f['ServEgre'] === $serv) && ($consul === '' || (string) $f['CodiCons'] === $consul);
 }));
+$totalFiltradas = count($filas);
+$filas = array_slice($filas, 0, $mostrar);
 $historiasAbiertas = isset($_GET['historias']) || (!$a && !$buscado && !isset($_GET['nueva']));
 
 // Campos de signos con prefijo en el id cuando conviven los formularios de triage y signos
@@ -663,6 +659,35 @@ foreach ($disponibles as $vista) {
 </div>
 <?php endif; ?>
 
+<?php if ($a && $clave !== 'ce' && $_SERVER['REQUEST_METHOD'] === 'GET' && !isset($_GET['tab']) && !isset($_GET['cerrar']) && !isset($_GET['historias'])):
+    $alerta = antecedentes_alerta($a['TipoDocu'], $a['NumeUsua']); ?>
+<!-- Ventana automática al abrir la historia (Urgencias y Observación), como SIHOS: antecedentes tóxicos,
+     alérgicos y reconciliación medicamentosa del paciente -->
+<div class="ventana" id="alertas-paciente" role="dialog" aria-modal="true" aria-labelledby="alertas-titulo">
+    <div class="ventana-caja ventana-chica">
+        <div class="ventana-cabeza">
+            <h2 id="alertas-titulo"><?= icono('triangle-alert') ?><?= e(paciente_nombre($a)) ?></h2>
+            <a href="<?= e($aqui) ?>&amp;tab=<?= e($tab) ?>" class="boton-icono" data-cerrar-ventana aria-label="Cerrar"><?= icono('x') ?></a>
+        </div>
+        <div class="ventana-cuerpo alertas-paciente">
+            <?php foreach (['toxicos' => 'Antecedentes Tóxicos', 'alergicos' => 'Antecedentes Alérgicos'] as $k => $titulo): ?>
+                <h3 class="subtitulo-panel"><?= e($titulo) ?></h3>
+                <?php if (!$alerta[$k]): ?>
+                    <p class="nota-campo">No refiere.</p>
+                <?php else: ?>
+                    <ul class="lista-alertas"><?php foreach ($alerta[$k] as $x): ?>
+                        <li><?= texto_registro($x['texto']) ?> <small>(<?= e($x['ConsAdmi']) ?> · <?= e(date('d/m/Y', strtotime($x['FechDigi']))) ?>)</small></li>
+                    <?php endforeach; ?></ul>
+                <?php endif; ?>
+            <?php endforeach; ?>
+            <h3 class="subtitulo-panel">Reconciliación Medicamentosa</h3>
+            <p class="nota-campo">No disponible en contingencia (tabla RecoMedi de SIHOS; ver docs/consultas_sihos.sql).</p>
+            <div class="acciones"><a href="<?= e($aqui) ?>&amp;tab=<?= e($tab) ?>" class="boton boton-primario" data-cerrar-ventana>Aceptar</a></div>
+        </div>
+    </div>
+</div>
+<?php endif; ?>
+
 <!-- Ventana "Historias abiertas" del modulo (como la de SIHOS) -->
 <div class="ventana" id="historias" role="dialog" aria-modal="true" aria-labelledby="historias-titulo"<?= $historiasAbiertas ? '' : ' hidden' ?>>
     <div class="ventana-caja">
@@ -670,57 +695,65 @@ foreach ($disponibles as $vista) {
             <h2 id="historias-titulo"><?= icono(MODULOS_ICONO[$clave]) ?>Historias abiertas · <?= e($mod['nombre']) ?> <span class="contador"><?= count($todas) ?></span></h2>
             <a href="<?= e($aqui) ?><?= $a ? '' : '&amp;nueva=1' ?>" class="boton-icono" data-cerrar-ventana aria-label="Cerrar"><?= icono('x') ?></a>
         </div>
-        <form method="get" action="atencion.php" class="buscador filtros" role="search">
+        <form method="get" action="atencion.php" class="buscador filtros" data-auto-envio>
             <input type="hidden" name="modulo" value="<?= e($clave) ?>">
             <input type="hidden" name="historias" value="1">
-            <div class="buscador-campo">
-                <?= icono('search') ?>
-                <input type="text" name="q" value="<?= e($q) ?>" placeholder="Documento, nombre o admisión" aria-label="Buscar por documento, nombre o admisión">
-            </div>
             <select name="serv" aria-label="Servicio" class="filtro-servicio">
-                <option value="">Todos los servicios</option>
+                <option value="">Seleccione Servicio</option>
                 <?php foreach ($servicios as $c => $n): ?>
-                    <option value="<?= e($c) ?>"<?= $serv === (string) $c ? ' selected' : '' ?>><?= e($c . ' · ' . $n) ?></option>
+                    <option value="<?= e($c) ?>"<?= $serv === (string) $c ? ' selected' : '' ?>><?= e($n) ?></option>
                 <?php endforeach; ?>
             </select>
-            <button type="submit" class="boton boton-claro"><?= icono('search') ?>Filtrar</button>
+            <select name="cons_f" aria-label="Consultorio" class="filtro-servicio">
+                <option value="">Seleccione consultorio</option>
+                <?php foreach (lista('Cons') as $c => $n): ?>
+                    <option value="<?= e($c) ?>"<?= $consul === (string) $c ? ' selected' : '' ?>><?= e($n) ?></option>
+                <?php endforeach; ?>
+            </select>
+            <label class="mostrar">Mostrar <select name="mostrar" aria-label="Registros por página">
+                <?php foreach ([10, 25, 50, 100] as $m): ?><option value="<?= $m ?>"<?= $m === $mostrar ? ' selected' : '' ?>><?= $m ?></option><?php endforeach; ?>
+            </select> registros</label>
+            <noscript><button type="submit" class="boton boton-claro">Filtrar</button></noscript>
         </form>
         <div class="ventana-cuerpo">
         <?php if (!$filas): ?>
             <div class="alerta vacio"><?= icono('info') ?><div><?= $todas ? 'Ninguna historia abierta coincide con el filtro.' : 'No hay admisiones abiertas en ' . e($mod['nombre']) . '.' ?></div></div>
         <?php else: ?>
         <div class="tabla-contenedor tabla-tarjetas">
+        <!-- Columnas de SIHOS: Servicio · Cama · Admisión · Fecha · Duración · T · Autoriza. · Triage · Med · Ord ·
+             Paciente · Edad · Estado · Consultorio · Profesional; filas coloreadas por triage -->
         <table class="tabla tabla-historias">
             <thead><tr>
-                <th>Paciente</th>
-                <?php if ($tieneTriage): ?><th>Triage</th><?php endif; ?>
-                <th>Servicio</th>
-                <?php if ($mod['cama']): ?><th>Cama</th><?php endif; ?>
-                <th>Admisión</th><th>Fecha</th><th>Duración</th><th>Edad</th><th>Estado</th><th>Profesional</th>
+                <th>Servicio</th><th>Cama</th><th>Admisión</th><th>Fecha</th><th>Duración</th><th title="Color del triage">T</th>
+                <th>Autoriza.</th><th>Triage</th><th class="num" title="Medicamentos pendientes por aplicar">Med</th>
+                <th class="num" title="Ítems de órdenes pendientes">Ord</th><th>Paciente</th><th>Edad</th><th>Estado</th><th>Consultorio</th><th>Profesional</th>
             </tr></thead>
             <tbody>
-            <?php foreach ($filas as $f): $url = 'atencion.php?id=' . urlencode($f['ConsAdmi']); ?>
-                <tr data-href="<?= e($url) ?>"<?= $a && $a['ConsAdmi'] === $f['ConsAdmi'] ? ' class="fila-actual"' : '' ?>>
-                    <td class="celda-principal celda-paciente"><a href="<?= e($url) ?>"><?= e(paciente_nombre($f)) ?></a>
-                        <small class="bloque"><?= e($f['TipoDocu'] . ' ' . $f['NumeUsua']) ?> · <?= e($f['NombAdmi']) ?></small></td>
-                    <?php if ($tieneTriage): ?>
-                        <td data-etiqueta="Triage"><?php if ($f['ClasTria']): ?>
-                            <span class="etiqueta triage-<?= (int) $f['ClasTria'] ?>"><?= e(triage_romano($f['ClasTria'])) ?></span>
-                        <?php else: ?><a href="<?= e($url) ?>&amp;tab=triage" class="sin-triage"><?= icono('circle-alert') ?>Sin triage</a><?php endif; ?></td>
-                    <?php endif; ?>
+            <?php foreach ($filas as $f): $url = 'atencion.php?id=' . urlencode($f['ConsAdmi']); $ct = (int) $f['ClasTria']; ?>
+                <tr data-href="<?= e($url) ?>" class="<?= $ct ? 'fila-triage-' . $ct : '' ?><?= $a && $a['ConsAdmi'] === $f['ConsAdmi'] ? ' fila-actual' : '' ?>">
                     <td data-etiqueta="Servicio"><?= e($f['NombServ'] ?? $f['ServEgre']) ?></td>
-                    <?php if ($mod['cama']): ?><td data-etiqueta="Cama"><?php if ($f['CamaActu']): ?><span class="chip"><?= icono('bed-double') ?><?= e($f['CamaActu']) ?></span><?php else: ?>—<?php endif; ?></td><?php endif; ?>
-                    <td data-etiqueta="Admisión" class="celda-codigo"><?= e($f['ConsAdmi']) ?></td>
+                    <td data-etiqueta="Cama"><?= e($f['CamaActu'] ?: '') ?></td>
+                    <td data-etiqueta="Admisión" class="celda-codigo"><a href="<?= e($url) ?>"><?= e($f['ConsAdmi']) ?></a></td>
                     <td data-etiqueta="Fecha" class="sin-salto"><?= e(fecha_hora($f['FechIngr'] . ' ' . $f['HoraIngr'])) ?></td>
-                    <td data-etiqueta="Duración" class="sin-salto"><span class="duracion"><?= icono('clock') ?><?= e(duracion_desde($f['FechIngr'], $f['HoraIngr'])) ?></span></td>
-                    <td data-etiqueta="Edad" class="sin-salto"><?= e(edad_texto($f['ValoEdad'], $f['UnidEdad'])) ?> · <?= e($f['SexoUsua']) ?></td>
-                    <td data-etiqueta="Estado"><span class="etiqueta etiqueta-curso">En curso</span></td>
+                    <td data-etiqueta="Duración" class="sin-salto"><?= e(duracion_desde($f['FechIngr'], $f['HoraIngr'])) ?></td>
+                    <td data-etiqueta="T"><?php if ($ct): ?><span class="punto-triage triage-<?= $ct ?>" title="<?= e(lista_nombre('ClasTria', $ct)) ?>"></span><?php endif; ?></td>
+                    <td data-etiqueta="Autoriza."><?= e($f['NumeAuto']) ?></td>
+                    <td data-etiqueta="Triage"><?php if ($ct): ?><span class="etiqueta triage-<?= $ct ?>"><?= e(triage_romano($ct)) ?></span>
+                        <?php elseif ($tieneTriage): ?><a href="<?= e($url) ?>&amp;tab=triage" class="sin-triage"><?= icono('circle-alert') ?>Sin triage</a><?php endif; ?></td>
+                    <td data-etiqueta="Med" class="num"><?= (int) $f['med_pend'] ?></td>
+                    <td data-etiqueta="Ord" class="num"><?= (int) $f['ord_pend'] ?></td>
+                    <td class="celda-principal celda-paciente" data-etiqueta="Paciente"><a href="<?= e($url) ?>"><?= e(paciente_nombre($f)) ?></a>
+                        <small class="bloque"><?= e($f['TipoDocu'] . ' ' . $f['NumeUsua']) ?></small></td>
+                    <td data-etiqueta="Edad" class="sin-salto"><?= e(edad_texto($f['ValoEdad'], $f['UnidEdad'])) ?></td>
+                    <td data-etiqueta="Estado">Abierta</td>
+                    <td data-etiqueta="Consultorio"><?= $f['CodiCons'] ? e(lista_nombre('Cons', $f['CodiCons'])) : '' ?></td>
                     <td data-etiqueta="Profesional"><?= e($f['UsuaDigi']) ?></td>
                 </tr>
             <?php endforeach; ?>
             </tbody>
         </table>
         </div>
+        <p class="nota-campo">Mostrando <?= count($filas) ?> de <?= $totalFiltradas ?> registros.</p>
         <?php endif; ?>
         </div>
     </div>
