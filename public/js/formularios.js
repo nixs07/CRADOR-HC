@@ -69,50 +69,138 @@
         el.insertAdjacentElement('afterend', div);
     }
 
-    // --- Buscadores con catalogo (CIE-10, procedimientos, suministros) ------
+    // --- Buscadores con catalogo (CIE-10, procedimientos, suministros): autocompletar propio ----------
     // <input data-diagnostico> o <input data-buscar="procedimientos|suministros|diagnosticos">.
-    // El nombre del codigo se muestra en #<id>-nombre o en el .nota-campo de la misma celda.
+    // Al escribir (desde 2 caracteres, espera de 250 ms) se despliega una lista bajo el campo con "CODIGO · Nombre";
+    // busca por codigo o por nombre. Flechas/Enter/Esc o mouse/touch. Al escoger, el campo queda con el CODIGO y el
+    // nombre se muestra en #<id>-nombre, en la nota del campo o, en una rejilla, en la celda .nota-campo de la fila.
+    // Si se escribe un codigo exacto valido tambien lo toma. El servidor vuelve a validar con la misma regla.
     var contador = 0;
+    var abierta = null;   // lista abierta (solo una a la vez)
     function activarBuscador(inp) {
         if (inp.dataset.activo) { return; }
         inp.dataset.activo = '1';
+        inp.removeAttribute('list');
         var que = inp.dataset.buscar || 'diagnosticos';
-        var lista = document.createElement('datalist');
-        lista.id = 'lista-buscar-' + (++contador);
-        inp.setAttribute('list', lista.id);
-        inp.insertAdjacentElement('afterend', lista);
-        // Nombre del codigo: #<id>-nombre, la nota del mismo campo o, en una rejilla, la celda .nota-campo de la fila
+        var id = 'ac-' + (++contador);
+        var caja = document.createElement('ul');
+        caja.className = 'ac-lista';
+        caja.id = id;
+        caja.setAttribute('role', 'listbox');
+        caja.hidden = true;
+        document.body.appendChild(caja);
+        inp.setAttribute('role', 'combobox');
+        inp.setAttribute('aria-autocomplete', 'list');
+        inp.setAttribute('aria-expanded', 'false');
+        inp.setAttribute('aria-controls', id);
+        inp.setAttribute('autocomplete', 'off');
         var nombre = (inp.id && document.getElementById(inp.id + '-nombre')) || inp.parentNode.querySelector('.nota-campo')
                   || (inp.closest('tr') && inp.closest('tr').querySelector('.nota-campo'));
-        var espera = null;
-        var ultimos = {};
+        var espera = null, datos = [], activo = -1, pedido = 0;
 
+        function ponerNombre(t) { if (nombre) { nombre.textContent = t || ''; } }
+        function colocar() {
+            var r = inp.getBoundingClientRect();
+            caja.style.left = (r.left + window.scrollX) + 'px';
+            caja.style.top = (r.bottom + window.scrollY + 2) + 'px';
+            caja.style.minWidth = Math.max(r.width, Math.min(420, window.innerWidth - 24)) + 'px';
+            var sobra = window.innerWidth - (r.left + caja.offsetWidth) - 12;
+            if (sobra < 0) { caja.style.left = Math.max(12, r.left + window.scrollX + sobra) + 'px'; }
+        }
+        function cerrar() {
+            caja.hidden = true; activo = -1;
+            inp.setAttribute('aria-expanded', 'false'); inp.removeAttribute('aria-activedescendant');
+            if (abierta === cerrar) { abierta = null; }
+        }
+        function marcar(i) {
+            var items = caja.children;
+            if (!items.length) { return; }
+            activo = (i + items.length) % items.length;
+            Array.prototype.forEach.call(items, function (li, k) { li.classList.toggle('activo', k === activo); li.setAttribute('aria-selected', k === activo ? 'true' : 'false'); });
+            inp.setAttribute('aria-activedescendant', items[activo].id);
+            items[activo].scrollIntoView({ block: 'nearest' });
+        }
+        function escoger(i) {
+            var d = datos[i];
+            if (!d) { return; }
+            inp.value = d.c;
+            ponerNombre(d.n);
+            cerrar();
+            inp.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+        function pintar(q) {
+            caja.innerHTML = '';
+            activo = -1;
+            if (!datos.length) {
+                var li = document.createElement('li');
+                li.className = 'ac-vacio'; li.textContent = 'Sin resultados para "' + q + '"';
+                caja.appendChild(li);
+            }
+            datos.forEach(function (d, i) {
+                var li = document.createElement('li');
+                li.id = id + '-' + i;
+                li.setAttribute('role', 'option');
+                var c = document.createElement('strong'); c.textContent = d.c;
+                var n = document.createElement('span'); n.textContent = d.n;
+                li.appendChild(c); li.appendChild(document.createTextNode(' · ')); li.appendChild(n);
+                // mousedown/touchstart: se escoge antes de que el campo pierda el foco
+                li.addEventListener('mousedown', function (ev) { ev.preventDefault(); escoger(i); });
+                li.addEventListener('touchstart', function (ev) { ev.preventDefault(); escoger(i); }, { passive: false });
+                caja.appendChild(li);
+            });
+            if (abierta && abierta !== cerrar) { abierta(); }
+            abierta = cerrar;
+            caja.hidden = false;
+            inp.setAttribute('aria-expanded', 'true');
+            colocar();
+        }
+        function buscar() {
+            var q = inp.value.trim();
+            if (q.length < 2) { datos = []; cerrar(); return; }
+            var n = ++pedido;
+            fetch('api.php?que=' + que + '&q=' + encodeURIComponent(q), { credentials: 'same-origin' })
+                .then(function (r) { return r.json(); })
+                .then(function (res) {
+                    if (n !== pedido || document.activeElement !== inp) { return; }
+                    datos = Array.isArray(res) ? res : [];
+                    // Codigo exacto valido: se toma aunque no se escoja de la lista
+                    var exacto = datos.filter(function (d) { return d.c === q.toUpperCase(); })[0];
+                    ponerNombre(exacto ? exacto.n : '');
+                    pintar(q);
+                    if (exacto) { marcar(datos.indexOf(exacto)); }
+                })
+                .catch(function () { cerrar(); });
+        }
         inp.addEventListener('input', function () {
-            if (que === 'diagnosticos') { inp.value = inp.value.toUpperCase(); }
-            var q = inp.value.split(' ')[0];
-            if (nombre) { nombre.textContent = ultimos[q] || ''; }
+            if (que === 'diagnosticos') {
+                var p = inp.selectionStart; inp.value = inp.value.toUpperCase(); try { inp.setSelectionRange(p, p); } catch (e) {}
+            }
+            ponerNombre('');
             clearTimeout(espera);
-            if (inp.value.length < 2) { return; }
-            espera = setTimeout(function () {
-                fetch('api.php?que=' + que + '&q=' + encodeURIComponent(inp.value), { credentials: 'same-origin' })
-                    .then(function (r) { return r.json(); })
-                    .then(function (datos) {
-                        lista.innerHTML = '';
-                        (Array.isArray(datos) ? datos : []).forEach(function (d) {
-                            ultimos[d.c] = d.n;
-                            var op = document.createElement('option');
-                            op.value = d.c;
-                            op.label = d.n;
-                            op.textContent = d.c + ' · ' + d.n;
-                            lista.appendChild(op);
-                        });
-                        if (nombre) { nombre.textContent = ultimos[inp.value] || ''; }
-                    });
-            }, 250);
+            espera = setTimeout(buscar, 250);
         });
-        inp.addEventListener('change', function () {
-            if (nombre) { nombre.textContent = ultimos[inp.value] || nombre.textContent; }
+        inp.addEventListener('keydown', function (ev) {
+            if (caja.hidden) {
+                if (ev.key === 'ArrowDown' && inp.value.trim().length >= 2) { ev.preventDefault(); buscar(); }
+                return;
+            }
+            if (ev.key === 'ArrowDown') { ev.preventDefault(); marcar(activo + 1); }
+            else if (ev.key === 'ArrowUp') { ev.preventDefault(); marcar(activo - 1); }
+            else if (ev.key === 'Enter') { ev.preventDefault(); escoger(activo >= 0 ? activo : 0); }
+            else if (ev.key === 'Escape') { ev.preventDefault(); ev.stopPropagation(); cerrar(); }
+            else if (ev.key === 'Tab') { if (activo >= 0) { escoger(activo); } else { cerrar(); } }
         });
+        inp.addEventListener('blur', function () {
+            setTimeout(function () {
+                cerrar();
+                // Si quedo escrito un codigo que esta en la lista, se toma con su nombre
+                var v = inp.value.trim().toUpperCase();
+                var d = datos.filter(function (x) { return x.c === v; })[0];
+                if (d) { inp.value = d.c; ponerNombre(d.n); }
+            }, 150);
+        });
+        window.addEventListener('resize', function () { if (!caja.hidden) { colocar(); } });
+        window.addEventListener('scroll', function () { if (!caja.hidden) { colocar(); } }, true);
     }
     document.querySelectorAll('input[data-diagnostico], input[data-buscar]').forEach(activarBuscador);
 

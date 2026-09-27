@@ -420,8 +420,8 @@ function barra_registro(string $nuevo, array $anteriores, string $cf, string $ch
     $html = '<div class="barra-registro">';
     if ($nuevo !== '') {
         $html .= $nuevoUrl !== ''
-            ? '<a href="' . e($nuevoUrl) . '" class="boton boton-claro boton-chico">' . icono('plus') . e($nuevo) . '</a>'
-            : '<button type="reset" class="boton boton-claro boton-chico" title="Formulario en blanco para un registro nuevo">' . icono('plus') . e($nuevo) . '</button>';
+            ? '<a href="' . e($nuevoUrl) . '" class="boton boton-nuevo">' . icono('plus') . e($nuevo) . '</a>'
+            : '<button type="reset" class="boton boton-nuevo" title="Formulario en blanco para un registro nuevo">' . icono('plus') . e($nuevo) . '</button>';
     }
     if ($anteriores !== ['-']) {
         $html .= selector_anteriores($anteriores);

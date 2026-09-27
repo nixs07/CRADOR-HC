@@ -36,7 +36,7 @@ $fila = function (array $f) use ($vacia) {
         <input type="hidden" name="accion" value="material">
         <?= errores_resumen($et) ?>
         <div class="barra-registro">
-            <button type="reset" class="boton boton-claro boton-chico"><?= icono('plus') ?>Nuevo</button>
+            <button type="reset" class="boton boton-nuevo"><?= icono('plus') ?>Nuevo</button>
             <div class="br-campo"><label>Fecha</label><span><?= date('d/m/Y') ?></span></div>
             <div class="br-campo"><label>Hora</label><span><?= date('H:i') ?></span></div>
             <div class="br-derecha"><?= boton_no_aplica('Plantilla', true) ?></div>

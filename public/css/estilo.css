@@ -1355,3 +1355,30 @@ tr[data-href] { cursor: pointer; }
 .filtros .mostrar select { width: auto; }
 .lista-alertas { margin: 4px 0 8px; padding-left: 20px; }
 .alertas-paciente .subtitulo-panel { margin-top: 12px; }
+
+/* Botón Nuevo/Nueva de las barras de pestaña: grande y verde de marca, igual en todas las pestañas */
+.boton.boton-nuevo {
+    min-height: 44px; padding: 8px 18px; font-size: 15.5px; font-weight: 700; margin: 0;
+    background: var(--verde-texto); color: #fff; border: 1px solid var(--verde-texto);
+}
+.boton.boton-nuevo:hover { background: #0a6a1d; color: #fff; }
+.boton.boton-nuevo .icono { width: 20px; height: 20px; }
+.barra-registro { align-items: flex-end; }
+
+/* Autocompletar propio (js/formularios.js): lista bajo el campo, sobre todo lo demás */
+.ac-lista {
+    position: absolute; z-index: 10000; max-width: calc(100vw - 24px); max-height: 320px; overflow-y: auto;
+    margin: 0; padding: 4px 0; list-style: none; background: #fff; color: var(--texto);
+    border: 1px solid var(--borde-fuerte); border-radius: var(--radio); box-shadow: 0 12px 32px rgba(15, 30, 50, .18);
+    font-size: 14px;
+}
+.ac-lista li { padding: 9px 12px; cursor: pointer; line-height: 1.35; border-left: 3px solid transparent; }
+.ac-lista li strong { font-variant-numeric: tabular-nums; color: var(--azul-texto); }
+.ac-lista li.activo, .ac-lista li:hover { background: var(--azul-suave); border-left-color: var(--azul); }
+.ac-lista li.ac-vacio { cursor: default; color: var(--texto-suave); background: none; border-left-color: transparent; }
+@media (max-width: 767px) { .ac-lista li { padding: 12px; font-size: 15px; } }
+
+/* Rejillas: la columna Código más angosta (se busca por código o nombre y el nombre va en su columna) */
+.rejilla-grilla td.c-cod { min-width: 0; width: 120px; }
+.rejilla-grilla td.c-cod input { width: 110px; }
+.rejilla-grilla td.nota-campo { min-width: 170px; font-size: 12.5px; color: var(--texto); }
