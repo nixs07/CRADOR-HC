@@ -13,10 +13,12 @@ foreach ($consultas as $x) {
     if (!$c || (int) $x['ConsCons'] > (int) $c['ConsCons']) $c = $x;
 }
 $d = $F['plan'] ?? ($c ? ['ObseRecoPlan' => $c['ObseReco'], 'PlanDest' => sprintf('%02d', (int) $c['DestSali']),
+                          'PlanConducta' => $c['Conducta'], 'EstaCodo' => $c['EstaCodo'],
                           'Especif' => $c['Especif'] ?? '', 'ObserCd' => $c['ObserCd'] ?? ''] : []);
 if (isset($F['plan']['ObseReco'])) {
     $d['ObseRecoPlan'] = $F['plan']['ObseReco'];
     $d['PlanDest'] = $F['plan']['DestSali'];
+    $d['PlanConducta'] = $F['plan']['Conducta'];
 }
 ?>
 <?= panel_abrir('plan', pestana_titulo($mod, 'plan'), 'clipboard-plus', $tab, $c ? 'Consulta No. ' . (int) $c['ConsCons'] : 'Sin consulta') ?>
@@ -32,7 +34,10 @@ if (isset($F['plan']['ObseReco'])) {
             <div class="br-campo"><label>Fecha</label><span><?= e(date('d/m/Y', strtotime($c['FechCons']))) ?></span></div>
             <div class="br-campo"><label>Hora</label><span><?= e(substr($c['HoraCons'], 0, 5)) ?></span></div>
         </div>
-        <div class="rejilla"><?= campo_lista('PlanDest', 'Destino', 'DestSali', $d, $er, false) ?></div>
+        <div class="rejilla">
+            <?= campo_lista('PlanDest', 'Destino', 'DestSali', $d, $er, true) ?>
+            <?= campo_lista('PlanConducta', 'Conducta', 'Conducta', $d, $er, true) ?>
+        </div>
         <?= campo_texto('ObseRecoPlan', 'Recomendaciones y Plan de Manejo', $d, $er, 6, true) ?>
         <?php bloque_codigo_dorado($d, $er, true); ?>
         <?= botonera(['Guardar', 'Imprimir', 'Consultar']) ?>

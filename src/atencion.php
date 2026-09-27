@@ -255,6 +255,7 @@ function admision_validar(array $mod, array $pac): array
         'TipoAfil' => campo('TipoAfil', 1),
         'CodiEstr' => campo('CodiEstr', 1),
         'NumeAuto' => campo('NumeAuto', 50),
+        'NumePoli' => campo('NumePoli', 30),   // SOAT (verificado: Admision.NumePoli, se llena en accidentes de transito)
         'ViaIngre' => campo('ViaIngre', 2),
         'CausExte' => campo('CausExte', 2),
         'GrupoAte' => campo('GrupoAte', 1),
@@ -336,10 +337,10 @@ function admision_crear(array $mod, array $pac, array $d, string $login): string
                 VienRefe, DiagIngr, TipoAten, CodiServ, CentCost, CodiCama, MotiCons, ServEgre, CentEgre, CamaActu,
                 CausExte, EntoAten, CondUsua, TipoAcom, NombAcom, TeleAcom, Parentes, Reingres, Cerrado, Anulado,
                 FechDigi, HoraDigi, UsuaDigi, FechModi, HoraModi, UsuaModi)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, \'\', ?, ?, 1, ?, 0, ?, ?, ?, \'\', ?, ?, ?, \'\', ?,
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, 0, ?, ?, ?, \'\', ?, ?, ?, \'\', ?,
                 ?, 20, ?, ?, ?, ?, ?, 0, 2, 2, CURDATE(), CURTIME(), ?, CURDATE(), CURTIME(), ?)');
         $st->execute([CODI_INST, $cons, $pac['TipoDocu'], $pac['NumeUsua'], $valoEdad, $unidEdad, $d['GrupoAte'],
-            $d['CodiAdmi'], (int) $d['TipoUsua'], $d['TipoAfil'], $d['CodiEstr'], $d['NumeCont'], $d['NumeAuto'],
+            $d['CodiAdmi'], (int) $d['TipoUsua'], $d['TipoAfil'], $d['CodiEstr'], $d['NumeCont'], $d['NumeAuto'], $d['NumePoli'] ?? '',
             $d['FechIngr'], $d['HoraIngr'], (int) $d['ViaIngre'], $d['DiagIngr'], $mod['TipoAten'], $d['CodiServ'],
             $d['CodiCama'], $d['MotiCons'] !== '' ? $d['MotiCons'] : '.', $d['CodiServ'], $d['CodiCama'],
             $d['CausExte'], (int) $d['CondUsua'], (int) $d['TipoAcom'], $d['NombAcom'] ?: null, $d['TeleAcom'] ?: null,

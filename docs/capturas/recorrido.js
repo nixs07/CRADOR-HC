@@ -165,7 +165,7 @@ async function buscarDocumento(p, modulo, tipo, doc) {
   await p.fill('#LaboImag', 'SIN PARACLINICOS PREVIOS (inventado)');
   await autocompletar(p, '#cons-CodiDiag', 'gastritis', 'K297'); await p.selectOption('#cons-TipoDiag', '1');
   await p.fill('#cons-CodiRel1', 'E86X'); await p.selectOption('#cons-TipoDia1', '2');
-  await p.selectOption('#ConsDest', '04');
+  await p.selectOption('#ConsDest', '04'); await p.selectOption('#Conducta', '121');
   await p.fill('#ObseReco', 'OMEPRAZOL, DIETA BLANDA, CONTROL EN 24 HORAS');
   await foto(p, '27_consulta_formulario');
   await guardar('#consulta button[name=boton][value=cerrar]', 'consulta cerrada');
@@ -255,7 +255,7 @@ async function buscarDocumento(p, modulo, tipo, doc) {
   await guardar('#materiales button[type=submit]', 'material registrado');
   await foto(p, '41_materiales');
   await pestana('remisiones');
-  await p.selectOption('#EspeRemi', { index: 1 }); await p.selectOption('#InstRemi', 'IPRU01'); await p.check('#Ambulanc');
+  await p.selectOption('#EspeRemi', { index: 1 }); await p.selectOption('#InstRemi', '02'); await p.fill('#RemiAuto', 'AUT-0001'); await p.check('#Ambulanc');
   await p.fill('#NombAcep', 'MEDICO DE PRUEBA RECEPTOR'); await p.fill('#CargAcep', 'MEDICO DE TURNO');
   await p.selectOption('#RemiMoti', '2'); await p.selectOption('#ModaSoli', '2');
   await p.fill('#FechAcep', await p.inputValue('#FechRemi')); await p.fill('#HoraAcep', await p.inputValue('#HoraRemi'));
@@ -301,11 +301,12 @@ async function buscarDocumento(p, modulo, tipo, doc) {
   await p.fill('#ConsMoti', 'DIARREA DE 2 DIAS (datos inventados)'); await p.fill('#EnfeActu', 'Deposiciones liquidas, sin sangre. Datos inventados.');
   await p.fill('#cons-CodiDiag', 'A09X'); await p.selectOption('#cons-TipoDiag', '1');
   await p.fill('#ObseReco', 'HIDRATACION ORAL, CONTROL DE LIQUIDOS');
+  await p.selectOption('#ConsDest', '03'); await p.selectOption('#Conducta', '125');
   await guardar('#consulta button[name=boton][value=cerrar]', 'consulta obs guardada y cerrada');
   await foto(p, '44_obs_consultas');
   await p.goto(B + 'atencion.php?id=' + adm.obs + '&tab=remisiones');
   await p.selectOption('#RemiMoti', '2'); await p.selectOption('#ModaSoli', '2');
-  await p.selectOption('#InstRemi', 'IPRU02');
+  await p.selectOption('#InstRemi', '03'); await p.fill('#RemiAuto', 'AUT-0002'); await p.selectOption('#EspeRemi', { index: 1 }); await p.fill('#CargAcep', 'MEDICO DE TURNO');
   await p.fill('#MotiRemiTexto', 'PACIENTE REQUIERE VALORACION POR MEDICINA INTERNA. Datos inventados.');
   await p.fill('#NombAcep', 'MEDICO DE PRUEBA RECEPTOR'); await p.check('input[name=Ambulanc]');
   await guardar('#remisiones button[type=submit]', 'remision guardada (obs)');
@@ -345,7 +346,7 @@ async function buscarDocumento(p, modulo, tipo, doc) {
   await pestana('laboratorios');
   await p.fill('#LaboImag', 'NO TRAE PARACLINICOS'); await p.fill('#cons-CodiDiag', 'Z000'); await p.selectOption('#cons-TipoDiag', '1');
   await pestana('plan');
-  await p.fill('#ObseReco', 'CONTROL EN 6 MESES');
+  await p.fill('#ObseReco', 'CONTROL EN 6 MESES'); await p.selectOption('#Conducta', '126'); await p.selectOption('#EstaCodo', '04');
   await foto(p, '50_ce_plan');
   // Sin enfermedad actual (pestaña 1): el error debe llevar a la pestaña 1
   await guardar('#plan button[type=submit]', 'consulta CE sin enfermedad actual');

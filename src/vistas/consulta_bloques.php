@@ -160,22 +160,28 @@ function consulta_bloque_plan(array $d, array $er, bool $esCE): void
         <?php if ($esCE): ?>
             <?= campo_sin_columna('Destino', 'select', '', 'Siempre 4 en Consulta Externa') ?>
         <?php else: ?>
-            <?= campo_lista('ConsDest', 'Destino', 'DestSali', $d, $er, false) ?>
-            <?= campo_sin_columna('Conducta', 'select') ?>
+            <?= campo_lista('ConsDest', 'Destino', 'DestSali', $d, $er, true) ?>
         <?php endif; ?>
+        <?= campo_lista('Conducta', 'Conducta', 'Conducta', $d, $er, true) ?>
     </div>
     <?= campo_texto('ObseReco', $esCE ? 'Recomendaciones y Plan de Manejo' : 'Plan de Manejo y Recomendaciones', $d, $er, 4, !$esCE) ?>
 <?php }
 
-/** Bloque Código Dorado (RipsCons.Accinme, ContCuid, EstaCodo, Especif, ObserCd). */
+/**
+ * Bloque Código Dorado (RipsCons.Accinme, ContCuid, EstaCodo, Especif, ObserCd). Estado = lista 47 (EstaCodo guarda el
+ * código como número). Acciones inmediatas y Continuidad del cuidado (lista 46, selector múltiple en varchar): falta
+ * confirmar el formato en que SIHOS los guarda; se ven deshabilitados.
+ */
 function bloque_codigo_dorado(array $d, array $er, bool $editable = true): void
-{ ?>
+{
+    $d['EstaCodo'] = (int) ($d['EstaCodo'] ?? 0) > 0 ? sprintf('%02d', (int) $d['EstaCodo']) : '';
+    ?>
     <div class="subgrupo">
         <h3><?= icono('triangle-alert') ?>Código Dorado</h3>
         <div class="rejilla">
             <?= campo_sin_columna('Acciones inmediatas', 'select') ?>
             <?= campo_sin_columna('Continuidad del cuidado', 'select') ?>
-            <?= campo_sin_columna('Estado (Riesgo Alto / Moderado / Bajo)', 'select') ?>
+            <?= campo_lista('EstaCodo', 'Estado', 'EstaCodo', $d, $er, false) ?>
         </div>
         <?php if ($editable): ?>
             <?= campo_texto('Especif', 'Especifique', $d, $er, 2) ?>

@@ -173,10 +173,10 @@ function nombre_objeto(string $t): string
  * usuario tiene permitidos en el módulo, ordenados por el MÍNIMO de ModuObje.Orden de cada objeto y, en empate,
  * por CodiObje, numerados 1..N. Los objetos que CRADOR-HC no implementa quedan deshabilitados con su número.
  *
- * Usa los catálogos UsuaGrup, Permisos, ModuObje y Objetos. **Sus columnas aún NO están confirmadas**: la consulta
- * usa las de sql/04_permisos_PROVISIONAL.sql. Si las tablas no existen, no tienen filas para el usuario o la
- * consulta falla (columnas distintas), se usa la lista fija pestanas_lista(). Al llegar los SHOW CREATE TABLE de
- * SIHOS (docs/consultas_sihos.sql) solo hay que ajustar esta consulta.
+ * Usa los catálogos UsuaGrup, Permisos, ModuObje y Objetos con sus columnas REALES (sql/04_listas_permisos.sql,
+ * docs/RESULTADO_CONSULTAS_SIHOS.md): Permisos de los grupos del usuario en el módulo, Objetos.Activo = 1,
+ * MIN(ModuObje.Orden) sin los de Orden >= 99 (reportes), empate por CodiObje. Si las tablas no existen o no tienen
+ * filas para el usuario, se usa la lista fija pestanas_lista().
  */
 function pestanas_usuario(string $login, array $mod): array
 {
@@ -184,9 +184,9 @@ function pestanas_usuario(string $login, array $mod): array
     try {
         $st = db()->prepare('SELECT o.CodiObje, o.NombObje, MIN(m.Orden) AS Orden
                                FROM UsuaGrup ug
-                               JOIN Permisos pe ON pe.CodiGrup = ug.CodiGrup
-                               JOIN ModuObje m ON m.CodiObje = pe.CodiObje AND m.CodiModu = ?
-                               JOIN Objetos o ON o.CodiObje = m.CodiObje
+                               JOIN Permisos pe ON pe.CodiGrup = ug.CodiGrup AND pe.CodiModu = ?
+                               JOIN Objetos o ON o.CodiObje = pe.CodiObje AND o.Activo = 1
+                               JOIN ModuObje m ON m.CodiModu = pe.CodiModu AND m.CodiObje = pe.CodiObje AND m.Orden < 99
                               WHERE ug.Login = ?
                               GROUP BY o.CodiObje, o.NombObje
                               ORDER BY MIN(m.Orden), o.CodiObje');

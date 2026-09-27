@@ -373,8 +373,14 @@ function consulta_validar(array $a): array
     // Consulta Externa: Código Dorado de la pestaña 7 (solo los textos; el resto no tiene catálogo local)
     $d['Especif'] = campo('Especif', 5000);
     $d['ObserCd'] = campo('ObserCd', 5000);
-    // Destino (catalogo DestSali; en Consulta Externa siempre 4)
-    $d['DestSali'] = $ce ? '' : hc_de_lista('DestSali', 'ConsDest', false, $e, 'Seleccione un destino válido.', 2);
+    // Plan: Destino (catalogo DestSali; en Consulta Externa siempre 4) y Conducta (lista 33, se guarda el id del
+    // elemento 121-127) obligatorios al guardar el Plan o al cerrar (mensajes de SIHOS)
+    $conPlan = in_array($d['boton'], ['plan', 'cerrar'], true);
+    $d['DestSali'] = $ce ? '' : hc_de_lista('DestSali', 'ConsDest', false, $e, 'Ingresar por favor el destino', 2);
+    if (!$ce && $conPlan && $d['DestSali'] === '') $e['ConsDest'] = 'Ingresar por favor el destino';
+    $d['Conducta'] = hc_de_lista('Conducta', 'Conducta', false, $e, 'El campo Conducta es obligatorio', 10);
+    if ($conPlan && $d['Conducta'] === '') $e['Conducta'] = 'El campo Conducta es obligatorio';
+    $d['EstaCodo'] = $ce ? hc_de_lista('EstaCodo', 'EstaCodo', false, $e, 'Seleccione un estado válido.', 2) : '';
     // Antecedentes: Si | No | No Sabe | No Corresponde (ver ANTE_OPCIONES)
     foreach (antecedentes_modulo($ce) as $c => [$etq, $desc]) {
         $v = campo($c, 1);
@@ -439,8 +445,12 @@ function consulta_guardar(array $a, array $d, array $u): int
             'PeriAbdo' => $d['PeriAbdo'], 'PeriTorx' => $d['PeriTorx'] ?? 0, 'LaboImag' => $d['LaboImag'],
             'ObseReco' => $d['ObseReco'], 'DestSali' => $d['DestSali'] !== '' ? (int) $d['DestSali'] : 4,
         ];
+        if ($d['Conducta'] !== '') {
+            $fila['Conducta'] = (int) $d['Conducta'];
+        }
         if ($d['ce']) {
-            $fila += ['Especif' => $d['Especif'] !== '' ? $d['Especif'] : null, 'ObserCd' => $d['ObserCd'] !== '' ? $d['ObserCd'] : null];
+            $fila += ['Especif' => $d['Especif'] !== '' ? $d['Especif'] : null, 'ObserCd' => $d['ObserCd'] !== '' ? $d['ObserCd'] : null,
+                      'EstaCodo' => $d['EstaCodo'] !== '' ? (int) $d['EstaCodo'] : null];
         }
         if ($cerrar) {
             $fila += ['FechCier' => $ahora['FechDigi'], 'HoraCier' => $ahora['HoraDigi'], 'UsuaCier' => $login];
@@ -599,9 +609,14 @@ function plan_validar(array $a): array
         $e['ObseRecoPlan'] = 'Registre primero la consulta.';
     }
     $d['ObseReco'] = campo('ObseRecoPlan', 5000);
-    if ($d['ObseReco'] === '') $e['ObseRecoPlan'] = 'Escriba las recomendaciones y el plan de manejo.';
     $d['DestSali'] = hc_de_lista('DestSali', 'PlanDest', false, $e, 'Seleccione un destino válido.', 2);
-    // Código Dorado: solo los textos (Acciones inmediatas, Continuidad y Estado no tienen catálogo local)
+    $d['Conducta'] = hc_de_lista('Conducta', 'PlanConducta', false, $e, 'Seleccione una conducta válida.', 10);
+    // Destino, Conducta y el plan obligatorios (mensaje de SIHOS de la pestaña Plan de Manejo)
+    foreach (['ObseRecoPlan' => $d['ObseReco'], 'PlanDest' => $d['DestSali'], 'PlanConducta' => $d['Conducta']] as $c => $v) {
+        if ($v === '' && !isset($e[$c])) $e[$c] = 'Por favor complete todos los campos';
+    }
+    // Código Dorado: Estado (lista 47, se guarda el código como número) y los textos
+    $d['EstaCodo'] = hc_de_lista('EstaCodo', 'EstaCodo', false, $e, 'Seleccione un estado válido.', 2);
     $d['Especif'] = campo('Especif', 5000);
     $d['ObserCd'] = campo('ObserCd', 5000);
     return [$d, $e];
@@ -612,6 +627,7 @@ function plan_guardar(array $a, array $d, string $login): int
 {
     return hc_transaccion(function (PDO $pdo) use ($a, $d, $login) {
         hc_actualizar($pdo, 'RipsCons', ['ObseReco' => $d['ObseReco'], 'DestSali' => $d['DestSali'] !== '' ? (int) $d['DestSali'] : 4,
+            'Conducta' => (int) $d['Conducta'], 'EstaCodo' => $d['EstaCodo'] !== '' ? (int) $d['EstaCodo'] : null,
             'Especif' => $d['Especif'] !== '' ? $d['Especif'] : null, 'ObserCd' => $d['ObserCd'] !== '' ? $d['ObserCd'] : null,
             'FechModi' => date('Y-m-d'), 'HoraModi' => date('H:i:s'), 'UsuaModi' => $login], ['ConsCons' => $d['ConsCons']], $a);
         return $d['ConsCons'];

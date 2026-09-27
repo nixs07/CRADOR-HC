@@ -129,8 +129,36 @@ REPLACE INTO FinaProc (CodiFina, NombFina, FinaProcSispro, Activo) VALUES (1, 'D
 -- Consultorios (inventados) para "Continuar en el consultorio" del triage
 REPLACE INTO CodiCons (CodiCons, NombCons, UrgeCons, EstaCons) VALUES
   ('U01', 'CONSULTORIO URGENCIAS 1', 1, 1), ('U02', 'CONSULTORIO URGENCIAS 2', 1, 1), ('P01', 'SALA DE PROCEDIMIENTOS', 1, 1);
--- Instituciones de remision (tabla PROVISIONAL, datos inventados)
-REPLACE INTO InstRemision (CodiInre, NombInre) VALUES ('IPRU01', 'HOSPITAL DE PRUEBA NIVEL II'), ('IPRU02', 'CLINICA DE PRUEBA NIVEL III');
+-- Catalogos de sql/04_listas_permisos.sql (valores de docs/RESULTADO_CONSULTAS_SIHOS.md; son catalogos, no pacientes)
+REPLACE INTO EstaIngr (CodiEsta, NombEsta, ValoDefe) VALUES (1, 'Conciente', 1), (2, 'Inconsciente', 0), (3, 'Muerto', 0);
+REPLACE INTO InstRemi (CodiInst, CodInsRe, NombInst) VALUES ('868650001001', '01', 'HOSPITAL LOCAL PUERTO ASIS'),
+ ('868650001001', '02', 'OTRAS INSTITUCIONES'), ('868650001001', '03', 'ESE HOSPITAL JOSE MARIA HERNANDEZ DE MOCOA'),
+ ('868650001001', '04', 'ESE HOSPITAL UNIVERSITARIO DEPTAL DE NARIÑO'), ('868650001001', '05', 'ESE HOSPITAL UNIVERSITARIO DPTAL DE NEIVA'),
+ ('868650001001', '06', 'ESE HOSPITAL SAGRADO CORAZON DE JESUS'), ('868650001001', '07', 'HOSPITAL DE ALTA COMPLEJIDAD DEL PUTUMAYO SAS ZOMAC');
+REPLACE INTO priv_listas_tipos (id, nombre) VALUES (12, 'Entornos de atencion'), (13, 'Tipos de alergias'), (14, 'Factores de riesgo'),
+ (15, 'Tipo antecedente'), (33, 'Tipo de conducta'), (45, 'Preguntas de antecedentes'), (46, 'Codigo Dorado'),
+ (47, 'Estados de riesgo Codigo Dorado');
+-- ids reales: tipos de alergia 21-26, factores de riesgo 27-32, conducta 121-127, preguntas 502-510 (el orden de las
+-- preguntas dentro de 502-510 es un supuesto por confirmar), respuestas 98 SI / 99 NO. Codigo Dorado (46, 47): ids inventados.
+REPLACE INTO priv_listas_elementos (id, codigo, nombre, prv_lista_tipo_id, activo) VALUES
+ (21, '01', 'Medicamento', 13, 1), (22, '02', 'Alimento', 13, 1), (23, '03', 'Sustancia del ambiente', 13, 1),
+ (24, '04', 'Sustancia que entran en contacto', 13, 1), (25, '05', 'Picadura de insectos', 13, 1), (26, '06', 'Otra', 13, 1),
+ (27, '01', 'Químicos', 14, 1), (28, '02', 'Físicos', 14, 1), (29, '03', 'Biomecánicos', 14, 1),
+ (30, '04', 'Psicosociales', 14, 1), (31, '05', 'Biológicos', 14, 1), (32, '06', 'Otro', 14, 1),
+ (121, '1', 'OBSERVACIÓN EN URGENCIAS', 33, 1), (122, '2', 'ATENCIÓN EN EL AMBIENTE DE TRANSICIÓN', 33, 1),
+ (123, '3', 'ATENCIÓN EN SALA DE PARTOS', 33, 1), (124, '4', 'ATENCIÓN EN SALA DE CIRUGÍA', 33, 1),
+ (125, '5', 'HOSPITALIZACIÓN', 33, 1), (126, '6', 'MANEJO AMBULATORIO', 33, 1), (127, '7', 'SALIDA VOLUNTARIA O ABANDONO', 33, 1),
+ (502, '1', 'Hipertensión crónica', 45, 1), (503, '2', 'Diabetes', 45, 1), (504, '3', 'LES / Enfermedad autoinmune', 45, 1),
+ (505, '4', 'Síndrome metabólico', 45, 1), (506, '5', 'Enfermedad renal crónica', 45, 1), (507, '6', 'Trombofilia / TVP', 45, 1),
+ (508, '7', 'Anemia de células falciformes', 45, 1), (509, '8', 'Preeclampsia en gestación previa', 45, 1),
+ (510, '9', 'Sepsis en gestaciones previas', 45, 1),
+ (98, 'SI', 'SI', NULL, 1), (99, 'NO', 'NO', NULL, 1),
+ (4601, '01', 'Psicología', 46, 1), (4602, '02', 'Psiquiatría', 46, 1), (4603, '03', 'Trabajo Social', 46, 1),
+ (4604, '04', 'Hospitalización', 46, 1), (4605, '05', 'Tele orientación', 46, 1), (4606, '06', 'Control por Psicología', 46, 1),
+ (4607, '07', 'Control por Psiquiatría', 46, 1), (4608, '08', 'Seguimiento telefónico', 46, 1),
+ (4609, '09', 'Educación a familiar o red de apoyo', 46, 1), (4610, '10', 'Otro', 46, 1),
+ (4701, '01', 'Riesgo Alto', 47, 1), (4702, '02', 'Riesgo Moderado', 47, 1), (4703, '03', 'Riesgo Bajo', 47, 1),
+ (4704, '04', 'Seguimiento', 47, 1), (4705, '05', 'Cerrado', 47, 1);
 -- Codigos fijos de SIHOS: 1 = enfermeria, 2 = medica, 5 = consentimiento
 DELETE FROM TipoNota WHERE CodiTipo NOT IN (1, 2, 5);
 REPLACE INTO TipoNota (CodiTipo, NombTipo) VALUES (1, 'NOTA ENFERMERIA'), (2, 'NOTA MEDICA'), (5, 'CONSENTIMIENTO');

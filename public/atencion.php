@@ -275,7 +275,7 @@ vista_inicio($a ? 'Admisión ' . $a['ConsAdmi'] : $mod['nombre']);
             <?php else: ?>
                 <?= campo_lectura('Autorización', $a['NumeAuto'], 'c-auto') ?>
             <?php endif; ?>
-            <?= campo_lectura('SOAT', '', 'c-auto deshabilitado') ?>
+            <?= campo_lectura('SOAT', $a['NumePoli'], 'c-auto') ?>
             <span class="etiqueta etiqueta-<?= e($claseEstado) ?> et-estado"><?= e($estado) ?></span>
         </div>
         <?php endif; ?>
@@ -321,7 +321,7 @@ vista_inicio($a ? 'Admisión ' . $a['ConsAdmi'] : $mod['nombre']);
         </div>
         <div class="et-fila">
             <?= campo_lectura('Causa Externa', lista_nombre('CausExte', $a['CausExte']), 'c-3') ?>
-            <?= campo_lectura('Estado Ingreso', $a['EstaIngr'], 'c-1') ?>
+            <?= campo_lectura('Estado Ingreso', lista_nombre('EstaIngr', $a['EstaIngr']), 'c-1') ?>
             <?= campo_lectura('Condición', lista_nombre('CondUsua', $a['CondUsua']), 'c-2') ?>
             <?= campo_lectura('Discapacidad', $a['NombDisc'] ?? 'Sin discapacidad', 'c-2') ?>
             <?= campo_lectura('Diagnóstico', $a['DiagIngr'] ? $a['DiagIngr'] . ' · ' . (diagnostico_nombre($a['DiagIngr']) ?? '') : '', 'c-4') ?>
@@ -363,8 +363,10 @@ vista_inicio($a ? 'Admisión ' . $a['ConsAdmi'] : $mod['nombre']);
                     <input type="date" id="FechIngr" name="FechIngr" value="<?= v($d, 'FechIngr') ?>" max="<?= date('Y-m-d') ?>" class="<?= ce($eA, 'FechIngr') ?>" required><?= me($eA, 'FechIngr') ?></div>
                 <div class="c-2"><label for="HoraIngr">Hora</label>
                     <input type="time" id="HoraIngr" name="HoraIngr" value="<?= e(substr($d['HoraIngr'], 0, 5)) ?>" class="<?= ce($eA, 'HoraIngr') ?>" required><?= me($eA, 'HoraIngr') ?></div>
-                <div class="c-2"><label for="NumeAuto">Autorización</label>
+                <div class="c-1"><label for="NumeAuto">Autorización</label>
                     <input type="text" id="NumeAuto" name="NumeAuto" value="<?= v($d, 'NumeAuto') ?>" maxlength="50"></div>
+                <div class="c-1"><label for="NumePoli">SOAT</label>
+                    <input type="text" id="NumePoli" name="NumePoli" value="<?= v($d, 'NumePoli') ?>" maxlength="30" title="Póliza SOAT (accidentes de tránsito)"></div>
                 <div class="c-3"><label for="CodiServ">Servicio</label>
                     <select id="CodiServ" name="CodiServ" class="<?= ce($eA, 'CodiServ') ?>" required><?= opciones_arreglo($servicios, $d['CodiServ'], false) ?></select><?= me($eA, 'CodiServ') ?></div>
                 <?php if ($mod['cama']): ?>

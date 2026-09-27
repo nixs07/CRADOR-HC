@@ -46,14 +46,21 @@ const LISTAS = [
     'TipoInca' => ['TipoInca', 'CodiTipo', 'NombTipo', ''],
     'Espe'     => ['CodiEspe', 'CodiEspe', 'NombEspe', ''],
     'Cons'     => ['CodiCons', 'CodiCons', 'NombCons', '(EstaCons = 1 OR EstaCons IS NULL)'],
-    // PROVISIONAL (sql/05_instituciones_remision_PROVISIONAL.sql): catalogo "Instituciones de Remision" de SIHOS,
-    // nombre de tabla y columnas sin confirmar (docs/consultas_sihos.sql, seccion 3)
-    'InstRemi' => ['InstRemision', 'CodiInre', 'NombInre', ''],
+    // Catalogos de sql/04_listas_permisos.sql (estructuras reales, docs/RESULTADO_CONSULTAS_SIHOS.md)
+    'InstRemi' => ['InstRemi', 'CodInsRe', 'NombInst', ''],       // Remision.InstRemi guarda CodInsRe
+    'EstaIngr' => ['EstaIngr', 'CodiEsta', 'NombEsta', ''],
+    // Listas genericas (priv_listas_elementos por tipo). Conducta, tipo de alergia y factor de riesgo guardan el id
+    'Conducta'     => ['priv_listas_elementos', 'id', 'nombre', 'prv_lista_tipo_id = 33 AND (activo = 1 OR activo IS NULL)'],
+    'TipoAlergia'  => ['priv_listas_elementos', 'id', 'nombre', 'prv_lista_tipo_id = 13 AND (activo = 1 OR activo IS NULL)'],
+    'FactorRiesgo' => ['priv_listas_elementos', 'id', 'nombre', 'prv_lista_tipo_id = 14 AND (activo = 1 OR activo IS NULL)'],
+    'PregAnte'     => ['priv_listas_elementos', 'id', 'nombre', 'prv_lista_tipo_id = 45 AND (activo = 1 OR activo IS NULL)'],
+    // Codigo Dorado: EstaCodo guarda el CODIGO como numero (lista 47)
+    'EstaCodo'     => ['priv_listas_elementos', 'codigo', 'nombre', 'prv_lista_tipo_id = 47 AND (activo = 1 OR activo IS NULL)'],
 ];
 
 /** Devuelve [codigo => nombre] de una lista, ordenada por nombre (se guarda en memoria por peticion). */
-/** Listas cuya tabla es provisional: si no existe, quedan vacias en vez de fallar. */
-const LISTAS_PROVISIONALES = ['InstRemi'];
+/** Listas de catalogos agregados despues (sql/04): si la tabla aun no existe en una instalacion, quedan vacias. */
+const LISTAS_PROVISIONALES = ['InstRemi', 'EstaIngr', 'Conducta', 'TipoAlergia', 'FactorRiesgo', 'PregAnte', 'EstaCodo'];
 
 function lista(string $nombre): array
 {
@@ -67,7 +74,7 @@ function lista(string $nombre): array
                 $cache[$nombre][(string) $f['c']] = (string) $f['n'];
             }
         } catch (PDOException $e) {
-            // Catalogos PROVISIONALES (sql/04, sql/05): si la tabla aun no existe la lista queda vacia
+            // Catalogos de sql/04 que aun no existan en la instalacion: la lista queda vacia
             if (!in_array($nombre, LISTAS_PROVISIONALES, true)) {
                 throw $e;
             }

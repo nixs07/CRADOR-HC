@@ -42,8 +42,8 @@ const CATALOGO_CANDADO = 'crador_actualizar_catalogos';
 function catalogo_tablas(): array
 {
     $tablas = [];
-    // 04_permisos_PROVISIONAL.sql: catalogos de permisos (estructura provisional, ver el encabezado del archivo)
-    foreach (['02_catalogos.sql', '03_catalogos_listas.sql', '04_permisos_PROVISIONAL.sql', '05_instituciones_remision_PROVISIONAL.sql'] as $archivo) {
+    // 04_listas_permisos.sql: permisos, listas genericas (priv_listas_*), EstaIngr e InstRemi
+    foreach (['02_catalogos.sql', '03_catalogos_listas.sql', '04_listas_permisos.sql'] as $archivo) {
         $sql = @file_get_contents(RAIZ . '/sql/' . $archivo);
         if ($sql === false) {
             throw new RuntimeException("No se encontró sql/$archivo");
