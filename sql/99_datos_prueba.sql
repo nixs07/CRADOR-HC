@@ -161,6 +161,8 @@ REPLACE INTO priv_listas_elementos (id, codigo, nombre, prv_lista_tipo_id, activ
  (4704, '04', 'Seguimiento', 47, 1), (4705, '05', 'Cerrado', 47, 1);
 -- id del medicamento para comu_antecedentes_multiples (CodiSumi.IdenUniMedi_id; valores inventados)
 UPDATE CodiSumi SET IdenUniMedi_id = 100 + CAST(SUBSTRING(CodiSumi, 3) AS UNSIGNED) WHERE CodiSumi LIKE 'MP%';
+-- Vía de administración de los inyectables de prueba (el buscador de medicamentos llena unidad y vía de la fila)
+UPDATE CodiSumi SET ViaAdmin = 2 WHERE CodiSumi IN ('MP0002', 'MP0003', 'MP0005');
 -- Codigos fijos de SIHOS: 1 = enfermeria, 2 = medica, 5 = consentimiento
 DELETE FROM TipoNota WHERE CodiTipo NOT IN (1, 2, 5);
 REPLACE INTO TipoNota (CodiTipo, NombTipo) VALUES (1, 'NOTA ENFERMERIA'), (2, 'NOTA MEDICA'), (5, 'CONSENTIMIENTO');

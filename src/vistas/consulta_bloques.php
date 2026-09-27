@@ -93,13 +93,13 @@ function consulta_bloque_antecedentes(array $d, array $er, bool $esCE, array $re
             <div class="ta-desc" data-filas>
                 <?= me($er, 'RecoNomb') ?>
                 <div class="rejilla-grilla"><table>
-                    <thead><tr><th>Medicamento</th><th>Nombre</th><th>Dosis</th><th>Frecuencia</th><th>Vía adminis.</th><th>Nota</th><th></th></tr></thead>
+                    <thead><tr><th>Medicamento (código o nombre)</th><th>Nombre</th><th>Dosis</th><th>Frecuencia</th><th>Vía adminis.</th><th>Nota</th><th></th></tr></thead>
                     <tbody data-filas-cuerpo>
                     <?php $filaReco = function () {
-                        return '<tr data-fila><td class="c-cod"><input type="text" name="RecoNomb[]" maxlength="200" data-buscar="suministros" autocomplete="off" aria-label="Medicamento"></td>'
+                        return '<tr data-fila><td class="c-cod"><input type="text" name="RecoNomb[]" maxlength="200" data-buscar="suministros" data-valor="n" autocomplete="off" aria-label="Medicamento (código o nombre)"></td>'
                              . '<td class="nota-campo"></td><td class="c-num"><input type="number" name="RecoCant[]" step="any" min="0" aria-label="Dosis"></td>'
                              . '<td class="c-num"><input type="number" name="RecoFrec[]" min="1" max="99" aria-label="Frecuencia (horas)"></td>'
-                             . '<td class="c-sel"><select name="RecoVia[]" aria-label="Vía">' . opciones('ViaAdmi', '') . '</select></td>'
+                             . '<td class="c-sel"><select name="RecoVia[]" aria-label="Vía" data-llena="v">' . opciones('ViaAdmi', '') . '</select></td>'
                              . '<td><input type="text" name="RecoNota[]" maxlength="300" aria-label="Nota"></td>'
                              . '<td><button type="button" class="boton-icono" data-quitar-fila aria-label="Quitar fila">' . icono('x') . '</button></td></tr>';
                     };

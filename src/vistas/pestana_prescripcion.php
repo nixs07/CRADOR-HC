@@ -26,8 +26,8 @@ $filaMed = function (array $it) use ($amb, $vacia) {
         <td class="nota-campo"><?= e($it['CodiSumi'] ? (suministro_nombre($it['CodiSumi']) ?? '') : '') ?></td>
         <td><input type="checkbox" disabled title="Suspender: no aplica en contingencia" aria-label="Susp"></td>
         <td class="c-num"><input type="number" name="CantSumi[]" value="<?= e($it['CantSumi']) ?>" step="any" min="0" inputmode="decimal" aria-label="<?= $amb ? 'Dosis' : 'Cantidad por dosis' ?>"></td>
-        <td class="c-sel"><select name="UnidMedi[]" aria-label="Unidad"><?= opciones('UnidMedi', $it['UnidMedi']) ?></select></td>
-        <td class="c-sel"><select name="CodiVia[]" aria-label="Vía"><?= opciones('ViaAdmi', $it['CodiVia']) ?></select></td>
+        <td class="c-sel"><select name="UnidMedi[]" aria-label="Unidad" data-llena="u"><?= opciones('UnidMedi', $it['UnidMedi']) ?></select></td>
+        <td class="c-sel"><select name="CodiVia[]" aria-label="Vía" data-llena="v"><?= opciones('ViaAdmi', $it['CodiVia']) ?></select></td>
         <td class="c-doble"><span class="doble"><input type="number" name="CantFrec[]" value="<?= e($it['CantFrec']) ?>" min="1" max="99" aria-label="<?= $amb ? 'Frecuencia' : 'Cada' ?>">
             <select name="TiemFrec[]" aria-label="Unidad de la frecuencia"><?= opciones('CodiTiem', $it['TiemFrec'], false) ?></select></span></td>
         <?php if ($amb): ?>

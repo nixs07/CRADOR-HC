@@ -132,10 +132,13 @@ function suministro_nombre(?string $codigo): ?string
     return buscador_nombre('suministros', $codigo);
 }
 
-/** Busca suministros activos por código o nombre (máximo 30). */
+/**
+ * Busca suministros activos por código o nombre (máximo 30). Como SIHOS, al escoger se llenan también la unidad
+ * (u = CodiSumi.UnidMedi) y la vía (v = CodiSumi.ViaAdmin) de la fila.
+ */
 function suministros_buscar(string $texto): array
 {
-    return buscador_buscar('suministros', $texto);
+    return buscador_buscar('suministros', $texto, ['u' => 'UnidMedi', 'v' => 'ViaAdmin']);
 }
 
 /** Procedimiento del POST: vacío o un código activo de CodiProc. */

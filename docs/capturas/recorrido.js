@@ -206,8 +206,9 @@ async function buscarDocumento(p, modulo, tipo, doc) {
   await f1.locator('input[name="PresMedi[]"]').fill('EN AYUNAS');
   await f1.locator('select[name="MediPrin[]"]').selectOption('1');
   const f2 = p.locator('#prescripcion tbody [data-fila]').nth(1);
-  await autocompletar(p, f2.locator('input[name="CodiSumi[]"]'), 'MP0002', 'MP0002'); await f2.locator('input[name="CantSumi[]"]').fill('1');
-  await f2.locator('select[name="UnidMedi[]"]').selectOption('4'); await f2.locator('select[name="CodiVia[]"]').selectOption('2');
+  // Un solo buscador (código o nombre): al escoger llena código, nombre, unidad y vía de la fila
+  await autocompletar(p, f2.locator('input[name="CodiSumi[]"]'), 'dipirona', 'MP0002'); await f2.locator('input[name="CantSumi[]"]').fill('1');
+  console.log('-- buscador de medicamentos llena unidad y via', await f2.locator('select[name="UnidMedi[]"]').inputValue(), await f2.locator('select[name="CodiVia[]"]').inputValue());
   await f2.locator('input[name="CantFrec[]"]').fill('8'); await f2.locator('input[name="NumeDosi[]"]').fill('3');
   await f2.locator('input[name="PresMedi[]"]').fill('DILUIR EN 100 CC SSN');
   await foto(p, '28_prescripcion_formulario');

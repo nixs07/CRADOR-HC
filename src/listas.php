@@ -197,7 +197,7 @@ function buscador_codigo_sql(string $col): string
 }
 
 /** Busca en el catálogo por código o nombre (máximo 30): [['c' => código limpio, 'n' => nombre], ...]. */
-function buscador_buscar(string $que, string $texto): array
+function buscador_buscar(string $que, string $texto, array $extra = []): array
 {
     $texto = trim($texto);
     if (!isset(BUSCADORES[$que]) || mb_strlen($texto) < 2) {
@@ -205,11 +205,22 @@ function buscador_buscar(string $que, string $texto): array
     }
     [$tabla, $cod, $nom, $activo] = BUSCADORES[$que];
     $c = buscador_codigo_sql($cod);
-    $st = db()->prepare("SELECT DISTINCT $c AS c, `$nom` AS n FROM `$tabla`
+    // $extra: [alias => columna] que se devuelven con cada fila (p. ej. unidad y vía del suministro)
+    $mas = '';
+    foreach ($extra as $alias => $col) {
+        $mas .= ", MIN(`$col`) AS `$alias`";
+    }
+    $st = db()->prepare("SELECT $c AS c, MIN(`$nom`) AS n$mas FROM `$tabla`
                           WHERE $activo AND ($c LIKE ? OR `$nom` LIKE ?)
-                          ORDER BY ($c LIKE ?) DESC, c LIMIT 30");
+                          GROUP BY c ORDER BY (c LIKE ?) DESC, c LIMIT 30");
     $st->execute([mb_strtoupper($texto) . '%', '%' . $texto . '%', mb_strtoupper($texto) . '%']);
-    return array_map(fn ($f) => ['c' => (string) $f['c'], 'n' => (string) $f['n']], $st->fetchAll());
+    return array_map(function ($f) use ($extra) {
+        $r = ['c' => (string) $f['c'], 'n' => (string) $f['n']];
+        foreach (array_keys($extra) as $alias) {
+            $r[$alias] = (string) $f[$alias];
+        }
+        return $r;
+    }, $st->fetchAll());
 }
 
 /** Nombre de un código activo del catálogo, o null si no existe o no está activo (misma regla que buscador_buscar). */

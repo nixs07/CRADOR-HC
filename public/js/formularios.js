@@ -120,11 +120,25 @@
             inp.setAttribute('aria-activedescendant', items[activo].id);
             items[activo].scrollIntoView({ block: 'nearest' });
         }
+        function llenar(d) {
+            // data-valor="n": el campo guarda el nombre (Reconciliación); si no, el código
+            inp.value = inp.dataset.valor === 'n' ? d.n : d.c;
+            ponerNombre(d.n);
+            // Como SIHOS: llena los campos de la fila marcados con data-llena (u = unidad, v = vía del suministro)
+            var fila = inp.closest('tr');
+            if (!fila) { return; }
+            fila.querySelectorAll('[data-llena]').forEach(function (s) {
+                var v = d[s.dataset.llena];
+                if (v === undefined || v === null || v === '') { return; }
+                if (s.tagName === 'SELECT' && !s.querySelector('option[value="' + String(v).replace(/"/g, '') + '"]')) { return; }
+                s.value = v;
+                s.dispatchEvent(new Event('change', { bubbles: true }));
+            });
+        }
         function escoger(i) {
             var d = datos[i];
             if (!d) { return; }
-            inp.value = d.c;
-            ponerNombre(d.n);
+            llenar(d);
             cerrar();
             inp.dispatchEvent(new Event('change', { bubbles: true }));
         }
@@ -196,7 +210,7 @@
                 // Si quedo escrito un codigo que esta en la lista, se toma con su nombre
                 var v = inp.value.trim().toUpperCase();
                 var d = datos.filter(function (x) { return x.c === v; })[0];
-                if (d) { inp.value = d.c; ponerNombre(d.n); }
+                if (d) { llenar(d); }
             }, 150);
         });
         window.addEventListener('resize', function () { if (!caja.hidden) { colocar(); } });
