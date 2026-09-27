@@ -24,6 +24,9 @@ formularios = parche_js(open(APP + 'js/formularios.js', encoding='utf-8').read()
 paginas = {}
 for k, p in d['paginas'].items():
     html = p['html'].replace('img/iconos.svg#', '#').replace('img/logo.png', logo)
+    # Quitar marcas que el JS de la app dejo al recoger (se vuelven a poner al correr los scripts en la demo)
+    html = re.sub(r'\sdata-activo="1"', '', html)
+    html = re.sub(r'<ul class="ac-lista"[^>]*>.*?</ul>', '', html, flags=re.S)
     paginas[k] = {'cls': p['cls'], 'html': html, 'title': p['title']}
 
 datos = json.dumps({'paginas': paginas, 'api': d['api'], 'catalogo': d['catalogo']}, ensure_ascii=False)
