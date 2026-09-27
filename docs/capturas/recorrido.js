@@ -122,26 +122,28 @@ async function buscarDocumento(p, modulo, tipo, doc) {
   await guardar('#signos button[type=submit]', 'signos PA 1/1 guardados (sin limites)');
   await foto(p, '14_ficha_urg_con_triage_y_signos');
 
-  // 2. Consultas: acordeones de SIHOS
+  // 2. Consultas: cinco acordeones, cada uno con su Guardar, y "Cerrar Consulta"
   await pestana('consulta');
   await p.fill('#ConsMoti', 'DOLOR EN LA BOCA DEL ESTOMAGO (datos inventados)');
   await p.fill('#EnfeActu', 'Cuadro de 1 dia de dolor epigastrico urente, sin vomito. Datos inventados.');
+  await guardar('#consulta button[name=boton][value=anamnesis]', 'consulta: guardar anamnesis');
   await p.click('#consulta summary:has-text("Antecedentes")');
   await p.selectOption('#ante-Patologi', '1'); await p.fill('#ante-PatoDesc', 'GASTRITIS HACE 2 AÑOS');
-  await p.selectOption('#ante-AlerSiNo', '2');
+  await p.selectOption('#ante-AlerSiNo', '2'); await p.selectOption('#ante-Andropo', '4');
+  await guardar('#consulta button[name=boton][value=antecedentes]', 'consulta: guardar antecedentes');
   await p.click('#consulta summary:has-text("Revisión por Sistema")');
   await p.fill('#ConsRevi', 'NIEGA OTROS SINTOMAS'); await p.selectOption('#SintResp', '2');
   await signos('cons-', { PANume: '116', PADeno: '74', Pulso: '80', Respirac: '16', Temperat: '36.7', Saturaci: '98', Oximetria: '97' });
   await p.fill('#EstaGene', 'ALERTA, HIDRATADO, AFEBRIL'); await p.fill('#PeriAbdo', '88'); await p.fill('#PeriTorx', '92');
-  await p.selectOption('#ex-Cabeza', '1'); await p.selectOption('#ex-CardPulm', '1');
   await p.selectOption('#ex-Abdomen', '2'); await p.fill('#consulta input[name=AbdoDesc]', 'DOLOR A LA PALPACION EN EPIGASTRIO');
+  await p.selectOption('#ex-Ano', '');
   await p.fill('#LaboImag', 'SIN PARACLINICOS PREVIOS (inventado)');
   await p.fill('#cons-CodiDiag', 'K297'); await p.selectOption('#cons-TipoDiag', '1');
   await p.fill('#cons-CodiRel1', 'E86X'); await p.selectOption('#cons-TipoDia1', '2');
   await p.selectOption('#ConsDest', '04');
   await p.fill('#ObseReco', 'OMEPRAZOL, DIETA BLANDA, CONTROL EN 24 HORAS');
   await foto(p, '27_consulta_formulario');
-  await guardar('#consulta button[type=submit]', 'consulta guardada');
+  await guardar('#consulta button[name=boton][value=cerrar]', 'consulta cerrada');
   await foto(p, '27_consulta');
   // 20. Plan de Manejo: el mismo ObseReco de la consulta
   await pestana('plan');
@@ -268,7 +270,7 @@ async function buscarDocumento(p, modulo, tipo, doc) {
   await p.fill('#ConsMoti', 'DIARREA DE 2 DIAS (datos inventados)'); await p.fill('#EnfeActu', 'Deposiciones liquidas, sin sangre. Datos inventados.');
   await p.fill('#cons-CodiDiag', 'A09X'); await p.selectOption('#cons-TipoDiag', '1');
   await p.fill('#ObseReco', 'HIDRATACION ORAL, CONTROL DE LIQUIDOS');
-  await guardar('#consulta button[type=submit]', 'consulta obs guardada');
+  await guardar('#consulta button[name=boton][value=cerrar]', 'consulta obs guardada y cerrada');
   await foto(p, '44_obs_consultas');
   await p.goto(B + 'atencion.php?id=' + adm.obs + '&tab=remisiones');
   await p.selectOption('#RemiMoti', '2'); await p.selectOption('#ModaSoli', '2');

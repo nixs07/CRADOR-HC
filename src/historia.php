@@ -253,59 +253,127 @@ function hc_numero(string $v): ?float
 // 2. Consultas: RipsCons + Antecede + EstaGene (un solo guardado)
 // ---------------------------------------------------------------------
 
-/** Antecedentes que se preguntan: columna => [etiqueta, columna de descripción]. */
+/**
+ * Antecedentes en el orden de SIHOS (docs/RECORRIDO_SIHOS.md §3): columna => [etiqueta, columna de descripción,
+ * módulos donde aparece]. Andrológicos y Conciliación medicamentosa no están en Consulta Externa.
+ */
 const ANTECEDENTES = [
-    // En el orden de SIHOS. Planificacion y Factor de riesgo no tienen columna de descripcion.
-    'MetoPlan' => ['Planificación', null],
-    'Familiar' => ['Familiares', 'FamiDesc'],
-    'Personal' => ['Personales', 'PersDesc'],
-    'Patologi' => ['Patológicos', 'PatoDesc'],
-    'Obstetri' => ['Obstétricos', 'ObstDesc'],
-    'Ginecolo' => ['Ginecológicos', 'GineDesc'],
-    'Quirurgi' => ['Quirúrgicos', 'QuirDesc'],
-    'ToxiAler' => ['Tóxicos', 'ToxiDesc'],
-    'AlerSiNo' => ['Alérgicos', 'AlerDesc'],
-    'Fisiolog' => ['Fisiológicos', 'FisiDesc'],
-    'Alimenta' => ['Alimentarios', 'AlimDesc'],
-    'Traumati' => ['Traumáticos', 'TrauDesc'],
-    'Farmacol' => ['Farmacológicos', 'FarmDesc'],
-    'FactRies' => ['Factor de riesgo', null],
+    'MetoPlan' => ['Planificación', null, 'todos'],
+    'Familiar' => ['Familiares', 'FamiDesc', 'todos'],
+    'Personal' => ['Personales', 'PersDesc', 'todos'],
+    'Patologi' => ['Patológicos', 'PatoDesc', 'todos'],
+    'Obstetri' => ['Obstétricos', 'ObstDesc', 'todos'],
+    'Ginecolo' => ['Ginecológicos', 'GineDesc', 'todos'],
+    'Quirurgi' => ['Quirúrgicos', 'QuirDesc', 'todos'],
+    'ToxiAler' => ['Tóxicos', 'ToxiDesc', 'todos'],
+    'AlerSiNo' => ['Alérgicos', 'AlerDesc', 'todos'],
+    'Fisiolog' => ['Fisiológicos', 'FisiDesc', 'todos'],
+    'Alimenta' => ['Alimentarios', 'AlimDesc', 'todos'],
+    'Traumati' => ['Traumáticos', 'TrauDesc', 'todos'],
+    'Farmacol' => ['Farmacológicos', 'FarmDesc', 'todos'],
+    'Andropo'  => ['Andrológicos', 'AndroDesc', 'hosp'],
+    'Consilia' => ['Conciliación medicamentosa', 'ConsiDesc', 'hosp'],
+    'FactRies' => ['Factor riesgo', null, 'todos'],
 ];
+
+/**
+ * Opciones de cada antecedente como SIHOS: Si | No | No Sabe | No Corresponde. 1 = sí y 2 = no son los de siempre;
+ * **3 = No Sabe y 4 = No Corresponde son un supuesto pendiente de confirmar** (docs/consultas_sihos.sql).
+ */
+const ANTE_OPCIONES = ['1' => 'Si', '2' => 'No', '3' => 'No Sabe', '4' => 'No Corresponde'];
+
+/** Antecedentes que se muestran en el módulo. */
+function antecedentes_modulo(bool $ce): array
+{
+    return array_filter(ANTECEDENTES, fn ($x) => $x[2] === 'todos' || !$ce);
+}
 
 /** Sintomas de la revision por sistemas de SIHOS (1 = si, 2 = no): columna de RipsCons => etiqueta. */
 const SINTOMATICOS = [
-    'SintResp' => 'Sintomático respiratorio',
-    'SintPiel' => 'Sintomático de piel',
-    'SintNerv' => 'Sintomático nervioso periférico',
-    'TubeMult' => 'Tuberculosis multidrogoresistente',
+    'SintResp' => 'Sintomático Respiratorio',
+    'SintPiel' => 'Sintomático de Piel',
+    'SintNerv' => 'Sintomático Nervioso Periférico',
 ];
 
-/** Sistemas del examen físico: columna => [etiqueta, columna de descripción]. */
+/** Sistemas del examen físico: columna => [etiqueta, columna de descripción]. Orden de Urgencias/Observación. */
 const EXAMEN_SISTEMAS = [
-    // En el orden y con las etiquetas de SIHOS (Torax = CardPulm, G/U = GeniUrin)
     'Cabeza'   => ['Cabeza', 'CabeDesc'],
-    'Ojos'     => ['Ojos', 'OjosDesc'],
-    'Oidos'    => ['Oídos', 'OidoDesc'],
-    'Nariz'    => ['Nariz', 'NariDesc'],
-    'Boca'     => ['Boca', 'BocaDesc'],
     'Cuello'   => ['Cuello', 'CuelDesc'],
     'CardPulm' => ['Tórax', 'CardDesc'],
     'Abdomen'  => ['Abdomen', 'AbdoDesc'],
     'GeniUrin' => ['G/U', 'GeniDesc'],
-    'Ano'      => ['Ano', 'AnoDesc'],
     'Extremid' => ['Extremidades', 'ExtrDesc'],
     'Neurolog' => ['Neurológico', 'NeurDesc'],
-    'OsteMusc' => ['Osteomuscular', 'OsteDesc'],
+    'Nariz'    => ['Nariz', 'NariDesc'],
+    'Oidos'    => ['Oídos', 'OidoDesc'],
+    'Boca'     => ['Boca', 'BocaDesc'],
+    'Ojos'     => ['Ojos', 'OjosDesc'],
     'Piel'     => ['Piel', 'PielDesc'],
+    'Ano'      => ['Ano', 'AnoDesc'],
+    'OsteMusc' => ['Osteomuscular', 'OsteDesc'],
 ];
+
+/** Orden de los sistemas en Consulta Externa (distinto al de Urgencias, RECORRIDO §5). */
+const EXAMEN_ORDEN_CE = ['Cabeza', 'Ojos', 'Oidos', 'Nariz', 'Boca', 'Cuello', 'CardPulm', 'Abdomen', 'GeniUrin', 'Ano',
+                         'Extremid', 'Neurolog', 'OsteMusc', 'Piel'];
+
+/** Sistemas en el orden del módulo. */
+function examen_sistemas(bool $ce): array
+{
+    if (!$ce) {
+        return EXAMEN_SISTEMAS;
+    }
+    $r = [];
+    foreach (EXAMEN_ORDEN_CE as $c) {
+        $r[$c] = EXAMEN_SISTEMAS[$c];
+    }
+    return $r;
+}
+
+/**
+ * Opciones de cada sistema como SIHOS: Normal | Anormal | No se Explora (por defecto Normal).
+ * 1 = normal, 2 = anormal; **No se Explora = NULL es un supuesto pendiente de confirmar**.
+ */
+const EXAMEN_OPCIONES = ['1' => 'Normal', '2' => 'Anormal', '' => 'No se Explora'];
+
+/**
+ * Secciones de la consulta. En Urgencias/Observación son acordeones con su propio Guardar; en Consulta Externa,
+ * pestañas con su propio Guardar. Todas envían el mismo formulario: el botón dice qué sección se guarda y
+ * "cerrar" (Cerrar Consulta, solo Urgencias/Observación) guarda y cierra la consulta.
+ */
+const CONSULTA_BOTONES = ['anamnesis', 'antecedentes', 'revision', 'laboratorios', 'plan', 'cerrar'];
+
+/** Consulta abierta de la admisión que el formulario está editando (null = nueva). */
+function consulta_editable(array $a, int $consCons): ?array
+{
+    if ($consCons <= 0) {
+        return null;
+    }
+    $st = db()->prepare('SELECT * FROM RipsCons WHERE CodiInst = ? AND ConsAdmi = ? AND ConsCons = ?');
+    $st->execute([CODI_INST, $a['ConsAdmi'], $consCons]);
+    $c = $st->fetch();
+    if (!$c) {
+        return null;
+    }
+    // En Urgencias/Observación una consulta cerrada ya no se edita
+    $ce = modulo_de_servicio($a['ServEgre']) === 'ce';
+    return ($ce || $c['FechCier'] === '0000-00-00' || $c['FechCier'] === null) ? $c : null;
+}
 
 function consulta_validar(array $a): array
 {
     $d = [];
     $e = [];
-    hc_fecha_hora($a, $d, $e, 'FechCons', 'HoraCons', 'consulta');
     $ce = modulo_de_servicio($a['ServEgre']) === 'ce';
-    // TipoCons siempre lleno en SIHOS (obligatorio); por defecto el codigo de consulta del modulo
+    $d['ce'] = $ce;
+    $d['boton'] = in_array($_POST['boton'] ?? '', CONSULTA_BOTONES, true) ? $_POST['boton'] : 'anamnesis';
+    if ($ce && $d['boton'] === 'cerrar') {
+        $d['boton'] = 'plan';   // En Consulta Externa la consulta no se cierra (verificado en SIHOS)
+    }
+    $d['editar'] = consulta_editable($a, (int) campo('ConsConsEdit', 6));
+    $completa = $d['boton'] === 'cerrar';
+    hc_fecha_hora($a, $d, $e, 'FechCons', 'HoraCons', 'consulta');
+    // Anamnesis (siempre): TipoCons obligatorio (verificado), finalidad, motivo y enfermedad actual
     $d['TipoCons'] = hc_procedimiento('TipoCons', true, $e);
     $d['FinaCons'] = hc_de_lista('FinaCons', 'FinaCons', true, $e, 'Seleccione la finalidad de la consulta.', 2);
     foreach (['MotiCons', 'EnfeActu', 'ReviSist', 'ObseReco', 'LaboImag'] as $c) {
@@ -313,10 +381,14 @@ function consulta_validar(array $a): array
     }
     if ($d['MotiCons'] === '') $e['MotiCons'] = 'Escriba el motivo de consulta.';
     if ($d['EnfeActu'] === '') $e['EnfeActu'] = 'Escriba la enfermedad actual.';
-    // Plan de manejo: en Urgencias y Observacion SIHOS lo tiene lleno en el 100 % de las consultas
-    if (!$ce && $d['ObseReco'] === '') $e['ObseReco'] = 'Escriba el plan de manejo y recomendaciones.';
+    // Diagnóstico principal: obligatorio al guardar Laboratorios y Diagnósticos, el Plan o al cerrar
+    $conDx = in_array($d['boton'], ['laboratorios', 'plan', 'cerrar'], true) || campo('CodiDiag', 8) !== '';
     hc_diagnosticos(['CodiDiag' => 'TipoDiag', 'CodiRel1' => 'TipoDia1', 'CodiRel2' => 'TipoDia2',
-                     'CodiRel3' => 'TipoDia3', 'CodiRel4' => 'TipoDia4'], $d, $e);
+                     'CodiRel3' => 'TipoDia3', 'CodiRel4' => 'TipoDia4'], $d, $e, $conDx);
+    // Plan de manejo: obligatorio en Urgencias y Observación (100 % en SIHOS) al guardar el Plan o al cerrar
+    if (!$ce && in_array($d['boton'], ['plan', 'cerrar'], true) && $d['ObseReco'] === '') {
+        $e['ObseReco'] = 'Escriba el plan de manejo y recomendaciones.';
+    }
     // Revision por sistemas: sintomaticos (1 = si, 2 = no) y perimetros
     foreach (SINTOMATICOS as $c => $etq) {
         $d[$c] = campo($c, 1) === '1' ? 1 : 2;
@@ -326,89 +398,178 @@ function consulta_validar(array $a): array
         $d[$c] = $v === '' ? null : (int) $v;
         if ($v !== '' && (!ctype_digit($v) || (int) $v > $max)) $e[$c] = "El perímetro $que debe estar entre $min y $max cm.";
     }
-    // Plan de manejo: destino (catalogo DestSali; RipsCons.DestSali es numerico)
-    // En Consulta Externa el destino es siempre 4 (verificado en SIHOS)
+    // Consulta Externa: Código Dorado de la pestaña 7 (solo los textos; el resto no tiene catálogo local)
+    $d['Especif'] = campo('Especif', 5000);
+    $d['ObserCd'] = campo('ObserCd', 5000);
+    // Destino (catalogo DestSali; en Consulta Externa siempre 4)
     $d['DestSali'] = $ce ? '' : hc_de_lista('DestSali', 'ConsDest', false, $e, 'Seleccione un destino válido.', 2);
-    $d['ce'] = $ce;
-    // Antecedentes: 1 = si, 2 = no refiere
-    foreach (ANTECEDENTES as $c => [$etq, $desc]) {
-        $d[$c] = campo($c, 1) === '1' ? 1 : 2;
+    // Antecedentes: Si | No | No Sabe | No Corresponde (ver ANTE_OPCIONES)
+    foreach (antecedentes_modulo($ce) as $c => [$etq, $desc]) {
+        $v = campo($c, 1);
+        $d[$c] = isset(ANTE_OPCIONES[$v]) ? (int) $v : 2;
         if ($desc !== null) {
             $d[$desc] = campo($desc, 2000);
             if ($d[$c] === 1 && $d[$desc] === '') $e[$desc] = "Describa los antecedentes $etq.";
         }
     }
-    // Signos vitales de la consulta (opcionales): toma de SignVita ligada con ConsCons
+    // Consulta Externa: FUR y Fecha Probable del Parto en Obstétricos (Antecede.FechRegl / FechPart)
+    foreach (['FechRegl' => 'FUR', 'FechPart' => 'Fecha probable del parto'] as $c => $etq) {
+        $v = $ce ? campo($c, 10) : '';
+        $d[$c] = $v === '' ? '0000-00-00' : $v;
+        if ($v !== '' && !fecha_valida($v)) $e[$c] = "$etq no válida.";
+    }
+    // Signos vitales de la consulta (opcionales) y, en Consulta Externa, el índice cintura-cadera
     [$d['signos'], $es] = hc_signos_opcionales();
     $e += $es;
-    // Examen físico: 1 = normal (por defecto, como en SIHOS), 2 = anormal (con descripción)
+    $d['PeriCint'] = hc_numero((string) campo('PeriCint', 6));
+    $d['PeriCade'] = hc_numero((string) campo('PeriCade', 6));
+    foreach (['PeriCint' => 'cintura', 'PeriCade' => 'cadera'] as $c => $que) {
+        if ($d[$c] !== null && ($d[$c] < 0 || $d[$c] > 999.99)) $e[$c] = "El perímetro de $que no cabe en la columna (0 a 999.99).";
+    }
+    if (($d['PeriCint'] || $d['PeriCade']) && !$d['signos']) {
+        $d['signos'] = array_fill_keys(array_keys(SIGNOS_RANGOS), 0);
+    }
+    // Examen físico: Normal (1, por defecto) | Anormal (2, con descripción) | No se Explora (NULL)
     $d['EstaGene'] = campo('EstaGene', 5000);
     foreach (EXAMEN_SISTEMAS as $c => [$etq, $desc]) {
-        $d[$c] = campo($c, 1) === '2' ? 2 : 1;
+        $v = $_POST[$c] ?? '1';
+        $d[$c] = $v === '2' ? 2 : ($v === '' ? null : 1);
         $d[$desc] = campo($desc, 2000);
         if ($d[$c] === 2 && $d[$desc] === '') $e[$desc] = "Describa el hallazgo anormal en $etq.";
     }
     return [$d, $e];
 }
 
-/** Guarda la consulta (RipsCons), los antecedentes (Antecede) y el examen físico (EstaGene). Devuelve ConsCons. */
+/**
+ * Guarda la consulta (RipsCons), sus antecedentes (Antecede), su examen (EstaGene) y su toma de signos (SignVita).
+ * Si el formulario edita una consulta abierta, la actualiza; si no, la crea. "Cerrar Consulta" (Urgencias y
+ * Observación) llena FechCier/HoraCier/UsuaCier. En Consulta Externa queda realizada sin cierre (verificado).
+ * Devuelve ConsCons.
+ */
 function consulta_guardar(array $a, array $d, array $u): int
 {
     return hc_transaccion(function (PDO $pdo) use ($a, $d, $u) {
         $login = $u['Login'];
         $modu = hc_modulo($a);
-        $cons = hc_siguiente($pdo, 'RipsCons', 'ConsCons', $a['ConsAdmi']);
         $ahora = hc_digitacion($login);
-        hc_insertar($pdo, 'RipsCons', [
-            'CodiInst' => CODI_INST, 'ConsAdmi' => $a['ConsAdmi'], 'ConsCons' => $cons, 'CodiModu' => $modu,
-            'FechCons' => $d['FechCons'], 'HoraCons' => $d['HoraCons'], 'UsuaCons' => $login,
+        $edit = $d['editar'];
+        $cons = $edit ? (int) $edit['ConsCons'] : hc_siguiente($pdo, 'RipsCons', 'ConsCons', $a['ConsAdmi']);
+        $cerrar = $d['boton'] === 'cerrar';
+        $fila = [
+            'FechCons' => $d['FechCons'], 'HoraCons' => $d['HoraCons'],
             'TipoCons' => $d['TipoCons'], 'FinaCons' => $d['FinaCons'],
             'MotiCons' => $d['MotiCons'], 'EnfeActu' => $d['EnfeActu'], 'ReviSist' => $d['ReviSist'],
             'TipoDiag' => (int) $d['TipoDiag'], 'TipoDia1' => (int) $d['TipoDia1'], 'TipoDia2' => (int) $d['TipoDia2'],
             'TipoDia3' => (int) $d['TipoDia3'], 'TipoDia4' => (int) $d['TipoDia4'],
             'CodiDiag' => $d['CodiDiag'], 'CodiRel1' => $d['CodiRel1'], 'CodiRel2' => $d['CodiRel2'],
             'CodiRel3' => $d['CodiRel3'], 'CodiRel4' => $d['CodiRel4'],
-            'SintResp' => $d['SintResp'], 'SintPiel' => $d['SintPiel'], 'SintNerv' => $d['SintNerv'], 'TubeMult' => $d['TubeMult'],
+            'SintResp' => $d['SintResp'], 'SintPiel' => $d['SintPiel'], 'SintNerv' => $d['SintNerv'],
             'PeriAbdo' => $d['PeriAbdo'], 'PeriTorx' => $d['PeriTorx'] ?? 0, 'LaboImag' => $d['LaboImag'],
-            'CodiEspe' => $u['CodiEspe'] ?? null, 'ObseReco' => $d['ObseReco'],
-            // La consulta queda realizada y cerrada al guardarla
-            // Urgencias y Observacion: la consulta se cierra al guardarla. Consulta Externa: realizada, sin cierre
-            'EstaReal' => 1, 'FechCier' => $d['ce'] ? '0000-00-00' : $ahora['FechDigi'],
-            'HoraCier' => $d['ce'] ? '00:00:00' : $ahora['HoraDigi'], 'UsuaCier' => $d['ce'] ? '' : $login,
-            'UsuaAsis' => $login, 'EstaCarg' => 0, 'NumeLiqu' => 0, 'ConsDeFa' => 0, 'CentCost' => '',
-            'DestSali' => $d['DestSali'] !== '' ? (int) $d['DestSali'] : 4,
-            'ServEgre' => $a['ServEgre'], 'CodiServ' => $a['ServEgre'],
-        ] + $ahora);
+            'ObseReco' => $d['ObseReco'], 'DestSali' => $d['DestSali'] !== '' ? (int) $d['DestSali'] : 4,
+        ];
+        if ($d['ce']) {
+            $fila += ['Especif' => $d['Especif'] !== '' ? $d['Especif'] : null, 'ObserCd' => $d['ObserCd'] !== '' ? $d['ObserCd'] : null];
+        }
+        if ($cerrar) {
+            $fila += ['FechCier' => $ahora['FechDigi'], 'HoraCier' => $ahora['HoraDigi'], 'UsuaCier' => $login];
+        }
+        if ($edit) {
+            hc_actualizar($pdo, 'RipsCons', $fila + ['FechModi' => $ahora['FechModi'], 'HoraModi' => $ahora['HoraModi'], 'UsuaModi' => $login],
+                          ['ConsCons' => $cons], $a);
+        } else {
+            hc_insertar($pdo, 'RipsCons', array_merge([
+                'CodiInst' => CODI_INST, 'ConsAdmi' => $a['ConsAdmi'], 'ConsCons' => $cons, 'CodiModu' => $modu,
+                'UsuaCons' => $login, 'TubeMult' => 2, 'CodiEspe' => $u['CodiEspe'] ?? null,
+                // Realizada al guardar; el cierre es aparte ("Cerrar Consulta"); en Consulta Externa nunca se cierra
+                'EstaReal' => 1, 'FechCier' => '0000-00-00', 'HoraCier' => '00:00:00', 'UsuaCier' => '',
+                'UsuaAsis' => $login, 'EstaCarg' => 0, 'NumeLiqu' => 0, 'ConsDeFa' => 0, 'CentCost' => '',
+                'ServEgre' => $a['ServEgre'], 'CodiServ' => $a['ServEgre'],
+            ], $fila) + $ahora);
+        }
 
-        $ante = hc_siguiente($pdo, 'Antecede', 'ConsAnte', $a['ConsAdmi']);
-        $fila = ['CodiInst' => CODI_INST, 'ConsAdmi' => $a['ConsAdmi'], 'ConsAnte' => $ante,
-                 'TipoDocu' => $a['TipoDocu'], 'NumeUsua' => $a['NumeUsua'], 'CodiModu' => $modu, 'ConsCons' => $cons,
-                ];
-        foreach (ANTECEDENTES as $c => [, $desc]) {
-            $fila[$c] = $d[$c];
+        // Antecedentes: una fila por consulta (ConsCons)
+        $ante = ['TipoDocu' => $a['TipoDocu'], 'NumeUsua' => $a['NumeUsua'], 'CodiModu' => $modu,
+                 'FechRegl' => $d['FechRegl'], 'FechPart' => $d['FechPart']];
+        foreach (antecedentes_modulo($d['ce']) as $c => [, $desc]) {
+            $ante[$c] = $d[$c];
             if ($desc !== null) {
-                $fila[$desc] = $d[$desc];
+                $ante[$desc] = $d[$desc];
             }
         }
-        hc_insertar($pdo, 'Antecede', $fila + $ahora);
+        $st = $pdo->prepare('SELECT ConsAnte FROM Antecede WHERE CodiInst = ? AND ConsAdmi = ? AND ConsCons = ? LIMIT 1');
+        $st->execute([CODI_INST, $a['ConsAdmi'], $cons]);
+        $consAnte = $st->fetchColumn();
+        if ($consAnte !== false) {
+            hc_actualizar($pdo, 'Antecede', $ante + ['FechModi' => $ahora['FechModi'], 'HoraModi' => $ahora['HoraModi'], 'UsuaModi' => $login],
+                          ['ConsAnte' => (int) $consAnte], $a);
+        } else {
+            hc_insertar($pdo, 'Antecede', ['CodiInst' => CODI_INST, 'ConsAdmi' => $a['ConsAdmi'],
+                'ConsAnte' => hc_siguiente($pdo, 'Antecede', 'ConsAnte', $a['ConsAdmi']), 'ConsCons' => $cons] + $ante + $ahora);
+        }
 
-        // Siempre hay examen: cada sistema es normal por defecto
-        if (true) {
-            $fila = ['CodiInst' => CODI_INST, 'ConsAdmi' => $a['ConsAdmi'],
-                     'ConsEsGe' => hc_siguiente($pdo, 'EstaGene', 'ConsEsGe', $a['ConsAdmi']),
-                     'CodiModu' => $modu, 'ConsCons' => $cons, 'ConsHoPr' => 0,
-                     'Fecha' => $d['FechCons'], 'Hora' => $d['HoraCons'], 'EstaGene' => $d['EstaGene']];
-            foreach (EXAMEN_SISTEMAS as $c => [, $desc]) {
-                $fila[$c] = $d[$c];
-                $fila[$desc] = $d[$desc];
-            }
-            hc_insertar($pdo, 'EstaGene', $fila + $ahora);
+        // Examen fisico (EstaGene), ligado por ConsCons
+        $exam = ['CodiModu' => $modu, 'ConsHoPr' => 0, 'Fecha' => $d['FechCons'], 'Hora' => $d['HoraCons'], 'EstaGene' => $d['EstaGene']];
+        foreach (EXAMEN_SISTEMAS as $c => [, $desc]) {
+            $exam[$c] = $d[$c];
+            $exam[$desc] = $d[$desc];
         }
+        $st = $pdo->prepare('SELECT ConsEsGe FROM EstaGene WHERE CodiInst = ? AND ConsAdmi = ? AND ConsCons = ? LIMIT 1');
+        $st->execute([CODI_INST, $a['ConsAdmi'], $cons]);
+        $consEsGe = $st->fetchColumn();
+        if ($consEsGe !== false) {
+            hc_actualizar($pdo, 'EstaGene', $exam + ['FechModi' => $ahora['FechModi'], 'HoraModi' => $ahora['HoraModi'], 'UsuaModi' => $login],
+                          ['ConsEsGe' => (int) $consEsGe], $a);
+        } else {
+            hc_insertar($pdo, 'EstaGene', ['CodiInst' => CODI_INST, 'ConsAdmi' => $a['ConsAdmi'],
+                'ConsEsGe' => hc_siguiente($pdo, 'EstaGene', 'ConsEsGe', $a['ConsAdmi']), 'ConsCons' => $cons] + $exam + $ahora);
+        }
+
+        // Signos de la consulta: la toma ligada con ConsCons se reemplaza si ya existe
         if ($d['signos']) {
-            signos_insertar($pdo, $a, $d['signos'] + ['FechToma' => $d['FechCons'], 'HoraToma' => $d['HoraCons']], $login, 0, $cons);
+            $pdo->prepare('DELETE FROM SignVita WHERE CodiInst = ? AND ConsAdmi = ? AND ConsCons = ?')
+                ->execute([CODI_INST, $a['ConsAdmi'], $cons]);
+            $s = $d['signos'] + ['FechToma' => $d['FechCons'], 'HoraToma' => $d['HoraCons']];
+            $n = signos_insertar($pdo, $a, $s, $login, 0, $cons);
+            if ($d['PeriCint'] || $d['PeriCade']) {
+                $icc = ($d['PeriCint'] && $d['PeriCade']) ? round($d['PeriCint'] / $d['PeriCade'], 2) : 0;
+                $pdo->prepare('UPDATE SignVita SET PeriCint = ?, PeriCade = ?, ResCXC = ? WHERE CodiInst = ? AND ConsAdmi = ? AND ConsSign = ?')
+                    ->execute([$d['PeriCint'] ?? 0, $d['PeriCade'] ?? 0, $icc, CODI_INST, $a['ConsAdmi'], $n]);
+            }
         }
         return $cons;
     });
+}
+
+/** Datos de una consulta guardada para volver a mostrarla en el formulario (editar una consulta abierta). */
+function consulta_a_datos(array $c): array
+{
+    $d = $c;
+    $d['ConsDest'] = sprintf('%02d', (int) $c['DestSali']);
+    foreach ($c['antecedentes'] ?? [] as $k => $v) {
+        $d[$k] = $v;
+    }
+    foreach ($c['examen'] ?? [] as $k => $v) {
+        if ($k !== 'EstaGene' || !isset($d['EstaGene'])) {
+            $d[$k] = $v;
+        }
+    }
+    $d['EstaGene'] = $c['examen']['EstaGene'] ?? '';
+    foreach ($c['signos'] ?? [] as $k => $v) {
+        $d[$k] = $v;
+    }
+    foreach (['FechRegl', 'FechPart'] as $k) {
+        if (($d[$k] ?? '') === '0000-00-00') $d[$k] = '';
+    }
+    $d['HoraCons'] = substr((string) $c['HoraCons'], 0, 5);
+    return $d;
+}
+
+/** UPDATE de una fila de la admisión: $fila [columna => valor] (columnas del código), $llave [columna => valor]. */
+function hc_actualizar(PDO $pdo, string $tabla, array $fila, array $llave, array $a): void
+{
+    $sql = 'UPDATE `' . $tabla . '` SET ' . implode(', ', array_map(fn ($c) => "`$c` = ?", array_keys($fila)))
+         . ' WHERE CodiInst = ? AND ConsAdmi = ? AND ' . implode(' AND ', array_map(fn ($c) => "`$c` = ?", array_keys($llave)));
+    $pdo->prepare($sql)->execute(array_merge(array_values($fila), [CODI_INST, $a['ConsAdmi']], array_values($llave)));
 }
 
 /** Consultas de la admisión (más reciente arriba), con antecedentes y examen físico ligados. */
@@ -420,11 +581,16 @@ function consultas_de_admision(string $cons): array
     $r = $st->fetchAll();
     $ante = db()->prepare('SELECT * FROM Antecede WHERE CodiInst = ? AND ConsAdmi = ? AND ConsCons = ? LIMIT 1');
     $exam = db()->prepare('SELECT * FROM EstaGene WHERE CodiInst = ? AND ConsAdmi = ? AND ConsCons = ? LIMIT 1');
+    $sign = db()->prepare('SELECT Peso, Talla, Pulso, Respirac, Temperat, PANume, PADeno, FetoCard, Saturaci, Oximetria, GlucMetr,
+                                  PeriCint, PeriCade, ResCXC
+                             FROM SignVita WHERE CodiInst = ? AND ConsAdmi = ? AND ConsCons = ? ORDER BY ConsSign DESC LIMIT 1');
     foreach ($r as &$c) {
         $ante->execute([CODI_INST, $cons, $c['ConsCons']]);
         $c['antecedentes'] = $ante->fetch() ?: null;
         $exam->execute([CODI_INST, $cons, $c['ConsCons']]);
         $c['examen'] = $exam->fetch() ?: null;
+        $sign->execute([CODI_INST, $cons, $c['ConsCons']]);
+        $c['signos'] = $sign->fetch() ?: null;
     }
     return $r;
 }
@@ -435,26 +601,29 @@ function consultas_de_admision(string $cons): array
 
 function plan_validar(array $a): array
 {
+    // Como SIHOS, sin selector: el plan es el de la consulta más reciente de la admisión
     $d = [];
     $e = [];
-    $d['ConsCons'] = (int) campo('PlanCons', 6);
-    $st = db()->prepare('SELECT ConsCons FROM RipsCons WHERE CodiInst = ? AND ConsAdmi = ? AND ConsCons = ?');
-    $st->execute([CODI_INST, $a['ConsAdmi'], $d['ConsCons']]);
-    if ($st->fetchColumn() === false) {
-        $e['PlanCons'] = 'Registre primero la consulta.';
+    $d['ConsCons'] = hc_ultima_consulta($a['ConsAdmi']);
+    if ($d['ConsCons'] === 0) {
+        $e['ObseRecoPlan'] = 'Registre primero la consulta.';
     }
-    $d['ObseRecoPlan'] = campo('ObseRecoPlan', 5000);
-    if ($d['ObseRecoPlan'] === '') $e['ObseRecoPlan'] = 'Escriba el plan de manejo y recomendaciones.';
+    $d['ObseReco'] = campo('ObseRecoPlan', 5000);
+    if ($d['ObseReco'] === '') $e['ObseRecoPlan'] = 'Escriba las recomendaciones y el plan de manejo.';
+    $d['DestSali'] = hc_de_lista('DestSali', 'PlanDest', false, $e, 'Seleccione un destino válido.', 2);
+    // Código Dorado: solo los textos (Acciones inmediatas, Continuidad y Estado no tienen catálogo local)
+    $d['Especif'] = campo('Especif', 5000);
+    $d['ObserCd'] = campo('ObserCd', 5000);
     return [$d, $e];
 }
 
-/** Actualiza el plan de manejo de la consulta. Devuelve ConsCons. */
+/** Actualiza el plan de manejo (ObseReco, DestSali, Especif, ObserCd) de la consulta. Devuelve ConsCons. */
 function plan_guardar(array $a, array $d, string $login): int
 {
     return hc_transaccion(function (PDO $pdo) use ($a, $d, $login) {
-        $pdo->prepare('UPDATE RipsCons SET ObseReco = ?, FechModi = CURDATE(), HoraModi = CURTIME(), UsuaModi = ?
-                        WHERE CodiInst = ? AND ConsAdmi = ? AND ConsCons = ?')
-            ->execute([$d['ObseRecoPlan'], $login, CODI_INST, $a['ConsAdmi'], $d['ConsCons']]);
+        hc_actualizar($pdo, 'RipsCons', ['ObseReco' => $d['ObseReco'], 'DestSali' => $d['DestSali'] !== '' ? (int) $d['DestSali'] : 4,
+            'Especif' => $d['Especif'] !== '' ? $d['Especif'] : null, 'ObserCd' => $d['ObserCd'] !== '' ? $d['ObserCd'] : null,
+            'FechModi' => date('Y-m-d'), 'HoraModi' => date('H:i:s'), 'UsuaModi' => $login], ['ConsCons' => $d['ConsCons']], $a);
         return $d['ConsCons'];
     });
 }

@@ -1308,3 +1308,31 @@ tr[data-href] { cursor: pointer; }
     .et-barra-campos .c-fecha, .et-barra-campos .c-hora, .et-barra-campos .c-auto { width: calc(50% - 6px); }
     .et-sep { display: none; }
 }
+
+/* Pestañas con los campos y botones de SIHOS (RECORRIDO_SIHOS §3) */
+.botonera-sihos { flex-wrap: wrap; }
+.botonera-sihos .boton[disabled] { opacity: .55; cursor: not-allowed; }
+.sin-columna label, .sin-columna .opcion { color: var(--texto-suave); }
+.sin-columna select, .sin-columna input, .sin-columna textarea { background: var(--superficie-3); cursor: not-allowed; }
+.tabla-antecedentes { border: 1px solid var(--borde); border-radius: var(--radio); overflow: hidden; margin: 8px 0; }
+.ta-cabeza, .ta-fila { display: grid; grid-template-columns: 200px 170px minmax(0, 1fr); gap: 0 12px; align-items: start; padding: 8px 12px; }
+.ta-cabeza { background: var(--superficie-3); font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .03em; color: var(--texto-2); }
+.ta-fila + .ta-fila { border-top: 1px solid var(--borde); }
+.ta-etiqueta { margin: 8px 0 0; font-weight: 700; font-size: 13.5px; }
+.ta-fila > select { min-height: 38px; }
+.ta-desc .rejilla { margin-top: 2px; }
+.ta-desc .sin-columna label { margin-top: 6px; }
+.cerrar-consulta { display: flex; align-items: center; flex-wrap: wrap; gap: 12px 20px; padding: 14px 0 4px; border-top: 1px solid var(--borde); margin-top: 12px; }
+.cerrar-consulta .duracion { display: inline-flex; align-items: center; gap: 6px; color: var(--texto-2); }
+.rejilla-grilla { overflow-x: auto; border: 1px solid var(--borde); border-radius: var(--radio); margin: 8px 0; }
+.rejilla-grilla table { border-collapse: collapse; width: 100%; min-width: 980px; font-size: 13.5px; }
+.rejilla-grilla th { background: var(--superficie-3); text-align: left; font-size: 12px; font-weight: 700; color: var(--texto-2); padding: 6px 8px; white-space: nowrap; }
+.rejilla-grilla td { padding: 4px 6px; border-top: 1px solid var(--borde); vertical-align: top; }
+.rejilla-grilla input, .rejilla-grilla select { min-height: 34px; padding: 4px 8px; font-size: 13.5px; width: 100%; }
+.rejilla-grilla input[type=checkbox] { width: auto; min-height: 0; }
+.rejilla-grilla .nota-campo { font-size: 11.5px; }
+.rejilla-grilla .c-cod { min-width: 150px; } .rejilla-grilla .c-num { width: 80px; } .rejilla-grilla .c-sel { min-width: 110px; }
+@media (max-width: 767px) {
+    .ta-cabeza { display: none; }
+    .ta-fila { grid-template-columns: 1fr; }
+}

@@ -169,7 +169,15 @@
 
     // --- Evitar doble envio --------------------------------------------------
     document.querySelectorAll('form[data-una-vez]').forEach(function (form) {
-        form.addEventListener('submit', function () {
+        form.addEventListener('submit', function (ev) {
+            // El boton pulsado puede llevar un valor (p. ej. name="boton" value="cerrar"): un boton deshabilitado
+            // no se envia, asi que su valor se copia en un campo oculto antes de deshabilitarlo
+            var b0 = ev.submitter;
+            if (b0 && b0.name) {
+                var h = document.createElement('input');
+                h.type = 'hidden'; h.name = b0.name; h.value = b0.value;
+                form.appendChild(h);
+            }
             form.querySelectorAll('button[type="submit"]').forEach(function (b) {
                 b.disabled = true;
                 b.textContent = 'Guardando…';

@@ -407,25 +407,31 @@ function diag_texto(?string $codigo): string
 }
 
 /**
- * Barra de la pestaña como en SIHOS: Nuevo, registros anteriores, Fecha, Hora (y campos extra), y a la
- * derecha Imprimir y Cargos deshabilitados (no aplican en la contingencia).
+ * Barra superior de la pestaña como en SIHOS: Nuevo/Nueva, No. (registros anteriores), Fecha, Hora, campos propios
+ * y, a la derecha, los botones de barra que tenga la pestaña en SIHOS (p. ej. Cargos · Consultar · Imprimir),
+ * deshabilitados porque no aplican en la contingencia.
  *  $anteriores: [id del elemento del registro => texto]; al escoger uno se abre y se muestra (js/interfaz.js).
  *  $cf / $ch: nombres de los campos de fecha y hora del formulario ('' si la barra no los lleva).
- *  $extra: HTML de campos adicionales de la barra (tipo de prescripción, tipo de incapacidad...).
+ *  $nuevoUrl: si se da, "Nuevo" es un enlace (formulario en blanco de un registro nuevo); si no, limpia el formulario.
  */
 function barra_registro(string $nuevo, array $anteriores, string $cf, string $ch, array $datos, array $errores,
-                        string $extra = '', string $profesional = ''): string
+                        string $extra = '', string $profesional = '', array $derecha = [], string $nuevoUrl = ''): string
 {
-    $html = '<div class="barra-registro">'
-          . '<button type="reset" class="boton boton-claro boton-chico" title="Formulario en blanco para un registro nuevo">'
-          . icono('plus') . e($nuevo) . '</button>';
-    $html .= '<div class="br-campo"><label>No.</label><select data-ir-registro aria-label="Registros anteriores"'
-           . ($anteriores ? '' : ' disabled') . '><option value="">' . ($anteriores ? 'Anteriores (' . count($anteriores) . ')' : 'Sin registros')
-           . '</option>';
-    foreach ($anteriores as $id => $texto) {
-        $html .= '<option value="' . e($id) . '">' . e($texto) . '</option>';
+    $html = '<div class="barra-registro">';
+    if ($nuevo !== '') {
+        $html .= $nuevoUrl !== ''
+            ? '<a href="' . e($nuevoUrl) . '" class="boton boton-claro boton-chico">' . icono('plus') . e($nuevo) . '</a>'
+            : '<button type="reset" class="boton boton-claro boton-chico" title="Formulario en blanco para un registro nuevo">' . icono('plus') . e($nuevo) . '</button>';
     }
-    $html .= '</select></div>';
+    if ($anteriores !== ['-']) {
+        $html .= '<div class="br-campo"><label>No.</label><select data-ir-registro aria-label="Registros anteriores"'
+               . ($anteriores ? '' : ' disabled') . '><option value="">' . ($anteriores ? 'Anteriores (' . count($anteriores) . ')' : 'Sin registros')
+               . '</option>';
+        foreach ($anteriores as $id => $texto) {
+            $html .= '<option value="' . e($id) . '">' . e($texto) . '</option>';
+        }
+        $html .= '</select></div>';
+    }
     if ($cf !== '') {
         $html .= '<div class="br-fecha">' . campos_fecha_hora($cf, $ch, $datos, $errores) . '</div>';
     }
@@ -433,10 +439,70 @@ function barra_registro(string $nuevo, array $anteriores, string $cf, string $ch
     if ($profesional !== '') {
         $html .= '<div class="br-campo br-profesional"><label>Profesional</label><span>' . e($profesional) . '</span></div>';
     }
-    return $html . '<div class="br-derecha">'
-         . '<button type="button" class="boton boton-claro boton-chico" disabled title="No aplica en contingencia">' . icono('file-text') . 'Imprimir</button>'
-         . '<button type="button" class="boton boton-claro boton-chico" disabled title="No aplica en contingencia">' . icono('clipboard-list') . 'Cargos</button>'
-         . '<small>no aplica en contingencia</small></div></div>';
+    if ($derecha) {
+        $html .= '<div class="br-derecha">';
+        foreach ($derecha as $b) {
+            $html .= boton_no_aplica($b, true);
+        }
+        $html .= '</div>';
+    }
+    return $html . '</div>';
+}
+
+/** Íconos de los botones de SIHOS. */
+const BOTON_ICONO = ['Guardar' => 'save', 'Modificar' => 'pencil', 'Consultar' => 'search', 'Imprimir' => 'printer',
+                     'Cancelar' => 'x', 'Limpiar' => 'refresh-cw', 'Eliminar' => 'trash-2', 'Cargos' => 'clipboard-list',
+                     'Cerrar Consulta' => 'lock', 'Nuevo' => 'plus', 'Nueva' => 'plus'];
+
+/** Botón de SIHOS que no aplica en la contingencia: visible y deshabilitado. */
+function boton_no_aplica(string $texto, bool $chico = false, string $motivo = 'No aplica en contingencia'): string
+{
+    return '<button type="button" class="boton boton-claro' . ($chico ? ' boton-chico' : '') . '" disabled title="' . e($motivo) . '">'
+         . icono(BOTON_ICONO[$texto] ?? 'info') . e($texto) . '</button>';
+}
+
+/**
+ * Botonera inferior de la pestaña con los botones de SIHOS en su orden. Los de $enviar son submit (el primero
+ * resaltado; ['Texto' => 'valor'] envía name="boton" con ese valor), los de $limpiar son reset y el resto se ve
+ * deshabilitado ("No aplica en contingencia").
+ */
+function botonera(array $lista, array $enviar = ['Guardar'], array $limpiar = ['Cancelar', 'Limpiar']): string
+{
+    $html = '<div class="acciones acciones-panel botonera-sihos">';
+    $primero = true;
+    foreach ($lista as $b) {
+        $valor = null;
+        $esEnvio = in_array($b, $enviar, true) || array_key_exists($b, $enviar);
+        if (array_key_exists($b, $enviar) && is_string($enviar[$b])) {
+            $valor = $enviar[$b];
+        }
+        if ($esEnvio) {
+            $html .= '<button type="submit" class="boton ' . ($primero ? 'boton-primario' : 'boton-claro') . '"'
+                   . ($valor !== null ? ' name="boton" value="' . e($valor) . '"' : '') . '>' . icono(BOTON_ICONO[$b] ?? 'save') . e($b) . '</button>';
+            $primero = false;
+        } elseif (in_array($b, $limpiar, true)) {
+            $html .= '<button type="reset" class="boton boton-claro">' . icono(BOTON_ICONO[$b] ?? 'x') . e($b) . '</button>';
+        } else {
+            $html .= boton_no_aplica($b);
+        }
+    }
+    return $html . '</div>';
+}
+
+/**
+ * Campo de SIHOS sin columna (o sin catálogo) en CRADOR-HC: se muestra deshabilitado para que la pantalla sea
+ * igual. $tipo: text | select | textarea | checkbox. Los campos deshabilitados no se envían.
+ */
+function campo_sin_columna(string $etiqueta, string $tipo = 'select', string $clase = '', string $valor = ''): string
+{
+    $t = 'title="Sin columna o sin catálogo en CRADOR-HC: no disponible en contingencia"';
+    if ($tipo === 'checkbox') {
+        return '<div class="' . e($clase) . ' sin-columna"><label class="opcion"><input type="checkbox" disabled ' . $t . '> ' . e($etiqueta) . '</label></div>';
+    }
+    $campo = $tipo === 'textarea' ? '<textarea rows="2" disabled ' . $t . '>' . e($valor) . '</textarea>'
+           : ($tipo === 'text' ? '<input type="text" value="' . e($valor) . '" disabled ' . $t . '>'
+           : '<select disabled ' . $t . '><option>' . e($valor !== '' ? $valor : '— No disponible —') . '</option></select>');
+    return '<div class="' . e($clase) . ' sin-columna"><label>' . e($etiqueta) . '</label>' . $campo . '</div>';
 }
 
 /** Lista Sí / No de SIHOS (1 = sí, 2 = no). $sinValor: texto de la opción vacía ('' = sin opción vacía). */

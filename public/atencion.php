@@ -111,16 +111,16 @@ const ACCIONES_HISTORIA = [
 /** Pestana de Consulta Externa (1 a 4 o 7) donde esta el primer campo con error de la consulta. */
 function consulta_ce_pestana(array $errores): string
 {
-    $antecedentes = [];
+    $antecedentes = ['FechRegl', 'FechPart'];
     foreach (ANTECEDENTES as $c => [, $desc]) {
         $antecedentes[] = $c;
         if ($desc !== null) $antecedentes[] = $desc;
     }
-    $revision = array_merge(['ReviSist', 'EstaGene', 'PeriAbdo', 'PeriTorx'], array_keys(SINTOMATICOS), array_keys(SIGNOS_RANGOS),
+    $revision = array_merge(['ReviSist', 'EstaGene', 'PeriAbdo', 'PeriTorx', 'PeriCint', 'PeriCade'], array_keys(SINTOMATICOS), array_keys(SIGNOS_RANGOS),
                             array_keys(EXAMEN_SISTEMAS), array_column(EXAMEN_SISTEMAS, 1));
     foreach (array_keys($errores) as $campo) {
         if (in_array($campo, ['FechCons', 'HoraCons', 'TipoCons', 'FinaCons', 'MotiCons', 'EnfeActu'], true)) return 'anamnesis';
-        if ($campo === 'ObseReco') return 'plan';
+        if (in_array($campo, ['ObseReco', 'Especif', 'ObserCd'], true)) return 'plan';
         if (in_array($campo, $revision, true)) return 'revision';
         if (in_array($campo, $antecedentes, true)) return 'antecedentes';
         return 'laboratorios';
@@ -176,6 +176,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         [$F[$accion], $E[$accion]] = $validar($a);
         if (!$E[$accion]) {
             $n = $guardar($a, $F[$accion], $accion === 'consulta' ? $u : $u['Login']);
+            if ($accion === 'consulta') {
+                // La consulta sigue abierta en el formulario (cada sección tiene su Guardar) hasta "Cerrar Consulta"
+                $cerrada = ($F[$accion]['boton'] ?? '') === 'cerrar';
+                flash('ok', $cerrada ? "Consulta No. $n cerrada." : "Consulta No. $n guardada.");
+                redirigir($aqui . '&tab=' . $pest . ($cerrada ? '' : '&cons=' . $n));
+            }
             flash('ok', sprintf($mensaje, $n));
             redirigir($aqui . '&tab=' . $pest);
         }
