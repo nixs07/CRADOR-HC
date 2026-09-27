@@ -159,6 +159,8 @@ REPLACE INTO priv_listas_elementos (id, codigo, nombre, prv_lista_tipo_id, activ
  (4609, '09', 'Educación a familiar o red de apoyo', 46, 1), (4610, '10', 'Otro', 46, 1),
  (4701, '01', 'Riesgo Alto', 47, 1), (4702, '02', 'Riesgo Moderado', 47, 1), (4703, '03', 'Riesgo Bajo', 47, 1),
  (4704, '04', 'Seguimiento', 47, 1), (4705, '05', 'Cerrado', 47, 1);
+-- id del medicamento para comu_antecedentes_multiples (CodiSumi.IdenUniMedi_id; valores inventados)
+UPDATE CodiSumi SET IdenUniMedi_id = 100 + CAST(SUBSTRING(CodiSumi, 3) AS UNSIGNED) WHERE CodiSumi LIKE 'MP%';
 -- Codigos fijos de SIHOS: 1 = enfermeria, 2 = medica, 5 = consentimiento
 DELETE FROM TipoNota WHERE CodiTipo NOT IN (1, 2, 5);
 REPLACE INTO TipoNota (CodiTipo, NombTipo) VALUES (1, 'NOTA ENFERMERIA'), (2, 'NOTA MEDICA'), (5, 'CONSENTIMIENTO');

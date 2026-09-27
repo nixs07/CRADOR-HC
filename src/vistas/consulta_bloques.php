@@ -29,22 +29,25 @@ function antecedente_opciones(string $c, array $d, string $etq): string
     return $h . '</select>';
 }
 
+/** Lista Sí/No de una pregunta de las ventanas de antecedentes (98 SI / 99 NO). */
+function pregunta_sino(int $pid, array $d, string $etq): string
+{
+    $v = (int) ($d['Preg' . $pid] ?? RESPUESTA_NO);
+    return '<div class="campo-sino"><label for="Preg' . $pid . '">' . e($etq) . '</label><select id="Preg' . $pid . '" name="Preg' . $pid . '">'
+         . '<option value="' . RESPUESTA_SI . '"' . ($v === RESPUESTA_SI ? ' selected' : '') . '>SI</option>'
+         . '<option value="' . RESPUESTA_NO . '"' . ($v !== RESPUESTA_SI ? ' selected' : '') . '>NO</option></select></div>';
+}
+
 /**
- * Antecedentes en el orden de SIHOS, con los campos adicionales de cada uno. Los que no tienen columna en
- * Antecede (método de planificación, parentesco, ventanas, tipo de alergia...) se ven deshabilitados.
+ * Antecedentes en el orden de SIHOS, con todos sus campos (nada en gris, docs/VALIDACIONES_SIHOS.md §1):
+ * método de planificación (Antecede.MetoDesc), parentesco y diagnóstico de Familiares, ventanas de Patológicos y
+ * Obstétricos, tipo de alergia y medicamento, tipo de medicamento de Farmacológicos y tipo de factor de riesgo
+ * (comu_antecedentes_multiples) y la Reconciliación Medicamentosa (RecoMedi).
  * Consulta Externa: sin Andrológicos ni Conciliación, y con FUR y Fecha Probable del Parto en Obstétricos.
  */
-function consulta_bloque_antecedentes(array $d, array $er, bool $esCE): void
+function consulta_bloque_antecedentes(array $d, array $er, bool $esCE, array $reco = []): void
 {
-    $extras = [
-        'MetoPlan' => [['Método', 'select']],
-        'Familiar' => [['Parentesco', 'select'], ['Diagnóstico CIE-10', 'text']],
-        'Patologi' => [['Hipertensión crónica, Diabetes, LES, Síndrome metabólico, ERC, Trombofilia/TVP, Anemia de células falciformes', 'text']],
-        'Obstetri' => [['Preeclampsia en gestación previa, Sepsis en gestaciones previas', 'text']],
-        'AlerSiNo' => [['Tipo de Alergia', 'select'], ['Alergia a Medicamentos', 'text']],
-        'Farmacol' => [['Tipo Medicamento', 'select']],
-        'FactRies' => [['Tipo', 'select']],
-    ];
+    $preguntas = lista('PregAnte');
     ?>
     <div class="tabla-antecedentes">
         <div class="ta-cabeza"><span>Antecedente</span><span>Si | No | No Sabe | No Corresponde</span><span>Descripción</span></div>
@@ -57,28 +60,57 @@ function consulta_bloque_antecedentes(array $d, array $er, bool $esCE): void
                         <input type="text" id="ante-<?= e($desc) ?>" name="<?= e($desc) ?>" value="<?= v($d, $desc) ?>" maxlength="2000"
                                aria-label="Descripción de <?= e($etq) ?>" class="<?= ce($er, $desc) ?>"><?= me($er, $desc) ?>
                     <?php endif; ?>
-                    <?php if ($c === 'Obstetri' && $esCE): ?>
-                        <div class="rejilla rejilla-4">
+                    <div class="rejilla rejilla-4">
+                    <?php if ($c === 'MetoPlan'): ?>
+                        <div><label for="MetoDesc">Método</label><input type="number" id="MetoDesc" name="MetoDesc" min="0" max="9" value="<?= e($d['MetoDesc'] ?? '') ?>" class="<?= ce($er, 'MetoDesc') ?>" title="Código del método (Antecede.MetoDesc)"><?= me($er, 'MetoDesc') ?></div>
+                    <?php elseif ($c === 'Familiar'): ?>
+                        <?= campo_lista('FamiPare', 'Parentesco', 'Parentes', $d, $er, false) ?>
+                        <?= campo_buscador('FamiDiag', 'Diagnóstico', $d, $er, 'diagnosticos') ?>
+                    <?php elseif ($c === 'Patologi' || $c === 'Obstetri'): ?>
+                        <?php foreach ($c === 'Patologi' ? PREGUNTAS_PATOLOGICOS : PREGUNTAS_OBSTETRICOS as $pid): ?>
+                            <?= pregunta_sino($pid, $d, $preguntas[(string) $pid] ?? ('Pregunta ' . $pid)) ?>
+                        <?php endforeach; ?>
+                        <?php if ($c === 'Obstetri' && $esCE): ?>
                             <div><label for="FechRegl">FUR</label><input type="date" id="FechRegl" name="FechRegl" value="<?= v($d, 'FechRegl') ?>" class="<?= ce($er, 'FechRegl') ?>"><?= me($er, 'FechRegl') ?></div>
                             <div><label for="FechPart">Fecha Probable del Parto</label><input type="date" id="FechPart" name="FechPart" value="<?= v($d, 'FechPart') ?>" class="<?= ce($er, 'FechPart') ?>"><?= me($er, 'FechPart') ?></div>
-                        </div>
+                        <?php endif; ?>
+                    <?php elseif ($c === 'AlerSiNo'): ?>
+                        <?= campo_lista('AlerTipo', 'Tipo de Alergia', 'TipoAlergia', $d, $er, false) ?>
+                        <?= campo_buscador('AlerMedi', 'Alergia a Medicamentos', $d, $er, 'suministros') ?>
+                    <?php elseif ($c === 'Farmacol'): ?>
+                        <?= campo_buscador('FarmMedi', 'Tipo Medicamento', $d, $er, 'suministros') ?>
+                    <?php elseif ($c === 'FactRies'): ?>
+                        <?= campo_lista('FactTipo', 'Tipo', 'FactorRiesgo', $d, $er, false) ?>
+                        <div><label for="FactDesc">Descripción</label><input type="text" id="FactDesc" name="FactDesc" value="<?= v($d, 'FactDesc') ?>" maxlength="2000"></div>
                     <?php endif; ?>
-                    <?php if (isset($extras[$c])): ?>
-                        <div class="rejilla rejilla-4">
-                            <?php foreach ($extras[$c] as [$et, $tipo]): ?><?= campo_sin_columna($et, $tipo) ?><?php endforeach; ?>
-                        </div>
-                    <?php endif; ?>
+                    </div>
                 </div>
             </div>
         <?php endforeach; ?>
         <div class="ta-fila">
             <span class="ta-etiqueta">Reconciliación Medicamentosa</span>
-            <?= campo_sin_columna('Reconciliación Medicamentosa', 'checkbox') ?>
-            <div class="ta-desc">
-                <div class="rejilla rejilla-4">
-                    <?php foreach (['Medicamento', 'Dosis', 'Frecuencia', 'Vía adminis.', 'Nota'] as $et): ?><?= campo_sin_columna($et, 'text') ?><?php endforeach; ?>
-                </div>
-                <p class="nota-campo">Tabla RecoMedi de SIHOS: falta su estructura (docs/consultas_sihos.sql).</p>
+            <div class="casillas"><?= casilla('RecoMedi', 'Reconciliación', $d) ?></div>
+            <div class="ta-desc" data-filas>
+                <?= me($er, 'RecoNomb') ?>
+                <div class="rejilla-grilla"><table>
+                    <thead><tr><th>Medicamento</th><th>Nombre</th><th>Dosis</th><th>Frecuencia</th><th>Vía adminis.</th><th>Nota</th><th></th></tr></thead>
+                    <tbody data-filas-cuerpo>
+                    <?php $filaReco = function () {
+                        return '<tr data-fila><td class="c-cod"><input type="text" name="RecoNomb[]" maxlength="200" data-buscar="suministros" autocomplete="off" aria-label="Medicamento"></td>'
+                             . '<td class="nota-campo"></td><td class="c-num"><input type="number" name="RecoCant[]" step="any" min="0" aria-label="Dosis"></td>'
+                             . '<td class="c-num"><input type="number" name="RecoFrec[]" min="1" max="99" aria-label="Frecuencia (horas)"></td>'
+                             . '<td class="c-sel"><select name="RecoVia[]" aria-label="Vía">' . opciones('ViaAdmi', '') . '</select></td>'
+                             . '<td><input type="text" name="RecoNota[]" maxlength="300" aria-label="Nota"></td>'
+                             . '<td><button type="button" class="boton-icono" data-quitar-fila aria-label="Quitar fila">' . icono('x') . '</button></td></tr>';
+                    };
+                    echo $filaReco(); ?>
+                    </tbody>
+                </table></div>
+                <template><?= $filaReco() ?></template>
+                <button type="button" class="boton boton-claro boton-chico" data-agregar-fila><?= icono('plus') ?>Agregar</button>
+                <?php if ($reco): ?>
+                    <p class="nota-campo">Registradas: <?= e(implode(' · ', array_map(fn ($r) => $r['NombSumi'] . ' ' . (float) $r['CantSumi'] . ' c/' . (int) $r['FrecApli'] . ' h', $reco))) ?></p>
+                <?php endif; ?>
             </div>
         </div>
     </div>

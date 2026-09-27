@@ -153,8 +153,19 @@ async function buscarDocumento(p, modulo, tipo, doc) {
   await p.click('#consulta summary:has-text("Antecedentes")');
   await p.selectOption('#ante-Patologi', '1'); await p.fill('#ante-PatoDesc', 'GASTRITIS HACE 2 AÑOS');
   await p.selectOption('#ante-AlerSiNo', '1'); await p.fill('#ante-AlerDesc', 'PENICILINA (inventado)');
+  await p.selectOption('#AlerTipo', '21'); await autocompletar(p, '#AlerMedi', 'MP0001', 'MP0001');
   await p.selectOption('#ante-ToxiAler', '1'); await p.fill('#ante-ToxiDesc', 'TABAQUISMO (inventado)');
+  await p.selectOption('#ante-Familiar', '1'); await p.fill('#ante-FamiDesc', 'PADRE DIABETICO (inventado)');
+  await p.selectOption('#FamiPare', '1'); await autocompletar(p, '#FamiDiag', 'E86X', 'E86X');
+  await p.selectOption('#Preg502', '98');
+  await p.selectOption('#ante-FactRies', '1'); await p.selectOption('#FactTipo', '28');
   await p.selectOption('#ante-Andropo', '4');
+  // Reconciliacion medicamentosa (RecoMedi)
+  await p.check('#RecoMedi');
+  const rc = p.locator('#consulta [data-filas] tbody tr').filter({ has: p.locator('input[name="RecoNomb[]"]') }).first();
+  await autocompletar(p, rc.locator('input[name="RecoNomb[]"]'), 'omepra', 'MP0004');
+  await rc.locator('input[name="RecoCant[]"]').fill('20'); await rc.locator('input[name="RecoFrec[]"]').fill('24');
+  await rc.locator('select[name="RecoVia[]"]').selectOption('1'); await rc.locator('input[name="RecoNota[]"]').fill('LO TOMA EN CASA (inventado)');
   await guardar('#consulta button[name=boton][value=antecedentes]', 'consulta: guardar antecedentes');
   await p.click('#consulta summary:has-text("Revisión por Sistema")');
   await p.fill('#ConsRevi', 'NIEGA OTROS SINTOMAS'); await p.selectOption('#SintResp', '2');
@@ -343,6 +354,7 @@ async function buscarDocumento(p, modulo, tipo, doc) {
   await foto(p, '46_ce_revision');
   await pestana('antecedentes');
   await p.selectOption('#ante-Familiar', '1'); await p.fill('#ante-FamiDesc', 'MADRE CON HIPERTENSION (inventado)');
+  await p.selectOption('#FamiPare', '2'); await autocompletar(p, '#FamiDiag', 'R101', 'R101');
   await pestana('laboratorios');
   await p.fill('#LaboImag', 'NO TRAE PARACLINICOS'); await p.fill('#cons-CodiDiag', 'Z000'); await p.selectOption('#cons-TipoDiag', '1');
   await pestana('plan');

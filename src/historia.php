@@ -381,15 +381,17 @@ function consulta_validar(array $a): array
     $d['Conducta'] = hc_de_lista('Conducta', 'Conducta', false, $e, 'El campo Conducta es obligatorio', 10);
     if ($conPlan && $d['Conducta'] === '') $e['Conducta'] = 'El campo Conducta es obligatorio';
     $d['EstaCodo'] = $ce ? hc_de_lista('EstaCodo', 'EstaCodo', false, $e, 'Seleccione un estado válido.', 2) : '';
-    // Antecedentes: Si | No | No Sabe | No Corresponde (ver ANTE_OPCIONES)
+    // Antecedentes: Si | No | No Sabe | No Corresponde (CodiSino 1-4, confirmado)
     foreach (antecedentes_modulo($ce) as $c => [$etq, $desc]) {
         $v = campo($c, 1);
         $d[$c] = isset(ANTE_OPCIONES[$v]) ? (int) $v : 2;
         if ($desc !== null) {
             $d[$desc] = campo($desc, 2000);
-            if ($d[$c] === 1 && $d[$desc] === '') $e[$desc] = "Describa los antecedentes $etq.";
+            if ($d[$c] === 1 && $d[$desc] === '') $e[$desc] = 'Ingrese una descripción';
         }
     }
+    antecedentes_multiples_validar($d, $e);
+    reconciliacion_validar($d, $e);
     // Consulta Externa: FUR y Fecha Probable del Parto en Obstétricos (Antecede.FechRegl / FechPart)
     foreach (['FechRegl' => 'FUR', 'FechPart' => 'Fecha probable del parto'] as $c => $etq) {
         $v = $ce ? campo($c, 10) : '';
@@ -416,6 +418,138 @@ function consulta_validar(array $a): array
         if ($d[$c] === 2 && $d[$desc] === '') $e[$desc] = "Describa el hallazgo anormal en $etq.";
     }
     return [$d, $e];
+}
+
+/** Preguntas de la ventana de Patológicos (tipo 500) y de Obstétricos (tipo 501): ids de la lista 45. */
+const PREGUNTAS_PATOLOGICOS = [502, 503, 504, 505, 506, 507, 508];
+const PREGUNTAS_OBSTETRICOS = [509, 510];
+/** Respuestas de las ventanas: 98 SI, 99 NO (valores reales de comu_antecedentes_multiples.respuesta_id). */
+const RESPUESTA_SI = 98;
+const RESPUESTA_NO = 99;
+
+/** Medicamento de un antecedente: CodiSumi -> id del medicamento (CodiSumi.IdenUniMedi_id, supuesto por confirmar). */
+function medicamento_id(string $codigo): ?int
+{
+    if ($codigo === '') {
+        return null;
+    }
+    $st = db()->prepare('SELECT IdenUniMedi_id FROM CodiSumi WHERE CodiSumi = ?');
+    $st->execute([$codigo]);
+    $v = (int) $st->fetchColumn();
+    return $v > 0 ? $v : null;
+}
+
+/** id del diagnóstico (CausMorb.id) para comu_antecedentes_multiples.diagnostico_id. */
+function diagnostico_id(string $codigo): ?int
+{
+    if ($codigo === '') {
+        return null;
+    }
+    $st = db()->prepare('SELECT id FROM CausMorb WHERE ' . buscador_codigo_sql('CodiDiag') . ' = ? LIMIT 1');
+    $st->execute([strtoupper($codigo)]);
+    $v = $st->fetchColumn();
+    return $v === false ? null : (int) $v;
+}
+
+/**
+ * Lo "múltiple" de los antecedentes (comu_antecedentes_multiples, docs/VALIDACIONES_SIHOS.md §1): método de
+ * planificación (Antecede.MetoDesc), Familiares (parentesco + diagnóstico, tipo 34), Alérgicos (tipo de alergia +
+ * medicamento, 35), Factor de riesgo (36), Farmacológicos (medicamento, 128), ventanas de Patológicos (500) y
+ * Obstétricos (501). Mensajes de SIHOS.
+ */
+function antecedentes_multiples_validar(array &$d, array &$e): void
+{
+    $d['multiples'] = [];
+    $d['MetoDesc'] = null;
+    if (($d['MetoPlan'] ?? 2) === 1) {
+        $v = campo('MetoDesc', 1);
+        if ($v === '' || !ctype_digit($v)) $e['MetoDesc'] = 'Debe ingresar un tipo de planificacion familiar';
+        $d['MetoDesc'] = $v === '' ? null : (int) $v;
+    }
+    if (($d['Familiar'] ?? 2) === 1) {
+        $pare = hc_de_lista('Parentes', 'FamiPare', false, $e, 'Seleccione un parentesco', 2);
+        if ($pare === '') $e['FamiPare'] = 'Seleccione un parentesco';
+        $dx = hc_diagnostico('FamiDiag', false, $e);
+        if ($dx === '' && !isset($e['FamiDiag'])) $e['FamiDiag'] = 'Seleccione un diagnóstico';
+        $d['FamiPare'] = $pare;
+        $d['FamiDiag'] = $dx;
+        $d['multiples'][] = ['tipo_antecedente_id' => 34, 'parentesco_id' => $pare !== '' ? (int) $pare : null,
+                             'diagnostico_id' => diagnostico_id($dx), 'descripcion' => $d['FamiDesc']];
+    }
+    if (($d['AlerSiNo'] ?? 2) === 1) {
+        $tipo = hc_de_lista('TipoAlergia', 'AlerTipo', false, $e, 'Seleccione un tipo de alergia', 10);
+        if ($tipo === '') $e['AlerTipo'] = 'Seleccione un tipo de alergia';
+        $med = campo('AlerMedi', 20);
+        if ((int) $tipo === 21 && $med === '') $e['AlerMedi'] = 'Seleccione un medicamento';
+        if ($med !== '' && suministro_nombre($med) === null) $e['AlerMedi'] = 'Seleccione un medicamento';
+        if ($d['AlerDesc'] === '') $e['AlerDesc'] = 'Ingrese una descripción de la alergia';
+        $d['AlerTipo'] = $tipo;
+        $d['AlerMedi'] = $med;
+        $d['multiples'][] = ['tipo_antecedente_id' => 35, 'tipo_alergia_id' => $tipo !== '' ? (int) $tipo : null,
+                             'tipo_medicamento_id' => medicamento_id($med), 'descripcion' => $d['AlerDesc']];
+    }
+    if (($d['FactRies'] ?? 2) === 1) {
+        $fr = hc_de_lista('FactorRiesgo', 'FactTipo', false, $e, 'Debe seleccionar un tipo de riesgo', 10);
+        if ($fr === '') $e['FactTipo'] = 'Debe seleccionar un tipo de riesgo';
+        $d['FactTipo'] = $fr;
+        $d['FactDesc'] = campo('FactDesc', 2000);
+        $d['multiples'][] = ['tipo_antecedente_id' => 36, 'factor_riesgo_id' => $fr !== '' ? (int) $fr : null,
+                             'descripcion' => $d['FactDesc']];
+    }
+    if (($d['Farmacol'] ?? 2) === 1) {
+        $med = campo('FarmMedi', 20);
+        if ($med !== '' && suministro_nombre($med) === null) $e['FarmMedi'] = 'Seleccione un medicamento';
+        $d['FarmMedi'] = $med;
+        $d['multiples'][] = ['tipo_antecedente_id' => 128, 'farmacologico_id' => medicamento_id($med), 'descripcion' => $d['FarmDesc']];
+    }
+    foreach (['Patologi' => [500, PREGUNTAS_PATOLOGICOS], 'Obstetri' => [501, PREGUNTAS_OBSTETRICOS]] as $col => [$tipo, $preguntas]) {
+        if (($d[$col] ?? 2) !== 1) {
+            continue;
+        }
+        foreach ($preguntas as $pid) {
+            $r = (int) campo('Preg' . $pid, 2) === RESPUESTA_SI ? RESPUESTA_SI : RESPUESTA_NO;
+            $d['Preg' . $pid] = $r;
+            $d['multiples'][] = ['tipo_antecedente_id' => $tipo, 'preguntas_antecedentes_id' => $pid, 'respuesta_id' => $r];
+        }
+    }
+}
+
+/**
+ * Reconciliación Medicamentosa (RecoMedi, por admisión): casilla + filas Medicamento · Dosis · Frecuencia · Vía ·
+ * Nota, todas obligatorias. Filas nuevas; las ya guardadas se muestran debajo.
+ */
+function reconciliacion_validar(array &$d, array &$e): void
+{
+    $d['reco'] = [];
+    $d['RecoMedi'] = campo('RecoMedi', 1) === '1' ? 1 : 0;
+    if (!$d['RecoMedi']) {
+        return;
+    }
+    $filas = hc_filas(['RecoNomb' => 200, 'RecoCant' => 12, 'RecoFrec' => 2, 'RecoVia' => 1, 'RecoNota' => 300], 'RecoNomb');
+    if (!$filas) {
+        $e['RecoNomb'] = 'Debe ingresar por lo menos un registro de Reconciliacion Medicamentosa. Si no tiene registro, escribalo en la Nota';
+    }
+    foreach ($filas as $i => $f) {
+        $n = $i + 1;
+        $cant = hc_numero($f['RecoCant']);
+        if ($cant === null || $cant <= 0) $e["reco{$n}c"] = "Reconciliación $n: escriba la dosis.";
+        if (!ctype_digit($f['RecoFrec']) || (int) $f['RecoFrec'] < 1) $e["reco{$n}f"] = "Reconciliación $n: escriba la frecuencia.";
+        if (!lista_valida('ViaAdmi', $f['RecoVia'])) $e["reco{$n}v"] = "Reconciliación $n: seleccione la vía.";
+        if ($f['RecoNota'] === '') $e["reco{$n}n"] = "Reconciliación $n: escriba la nota.";
+        // El medicamento se escoge con el buscador (código) y se guarda su nombre; si no es un código, el texto escrito
+        $nombre = suministro_nombre($f['RecoNomb']) ?? $f['RecoNomb'];
+        $d['reco'][] = ['NombSumi' => mb_substr($nombre, 0, 200), 'CantSumi' => $cant ?? 0, 'FrecApli' => (int) $f['RecoFrec'],
+                        'ViaAdmin' => (int) $f['RecoVia'], 'NotaSumi' => $f['RecoNota']];
+    }
+}
+
+/** Reconciliación medicamentosa de un paciente (todas sus admisiones), más reciente primero. */
+function reconciliacion_de_paciente(string $tipoDocu, string $numeUsua): array
+{
+    $st = db()->prepare('SELECT r.* FROM RecoMedi r JOIN Admision a ON a.CodiInst = r.CodiInst AND a.ConsAdmi = r.ConsAdmi
+                          WHERE a.CodiInst = ? AND a.TipoDocu = ? AND a.NumeUsua = ? ORDER BY r.FechDigi DESC, r.id DESC LIMIT 30');
+    $st->execute([CODI_INST, $tipoDocu, $numeUsua]);
+    return $st->fetchAll();
 }
 
 /**
@@ -471,7 +605,7 @@ function consulta_guardar(array $a, array $d, array $u): int
 
         // Antecedentes: una fila por consulta (ConsCons)
         $ante = ['TipoDocu' => $a['TipoDocu'], 'NumeUsua' => $a['NumeUsua'], 'CodiModu' => $modu,
-                 'FechRegl' => $d['FechRegl'], 'FechPart' => $d['FechPart']];
+                 'FechRegl' => $d['FechRegl'], 'FechPart' => $d['FechPart'], 'MetoDesc' => $d['MetoDesc']];
         foreach (antecedentes_modulo($d['ce']) as $c => [, $desc]) {
             $ante[$c] = $d[$c];
             if ($desc !== null) {
@@ -487,6 +621,19 @@ function consulta_guardar(array $a, array $d, array $u): int
         } else {
             hc_insertar($pdo, 'Antecede', ['CodiInst' => CODI_INST, 'ConsAdmi' => $a['ConsAdmi'],
                 'ConsAnte' => hc_siguiente($pdo, 'Antecede', 'ConsAnte', $a['ConsAdmi']), 'ConsCons' => $cons] + $ante + $ahora);
+        }
+        // Lo multiple de los antecedentes (comu_antecedentes_multiples), ligado a Antecede.id: se reemplaza
+        $st = $pdo->prepare('SELECT id FROM Antecede WHERE CodiInst = ? AND ConsAdmi = ? AND ConsCons = ? LIMIT 1');
+        $st->execute([CODI_INST, $a['ConsAdmi'], $cons]);
+        $anteId = (int) $st->fetchColumn();
+        $pdo->prepare('DELETE FROM comu_antecedentes_multiples WHERE antecedente_id = ?')->execute([$anteId]);
+        foreach ($d['multiples'] as $m) {
+            hc_insertar($pdo, 'comu_antecedentes_multiples', ['antecedente_id' => $anteId] + $m
+                + ['activo' => 1, 'created_at' => date('Y-m-d H:i:s'), 'updated_at' => date('Y-m-d H:i:s')]);
+        }
+        // Reconciliacion medicamentosa (RecoMedi, por admision): filas nuevas
+        foreach ($d['reco'] as $r) {
+            hc_insertar($pdo, 'RecoMedi', ['CodiInst' => CODI_INST, 'ConsAdmi' => $a['ConsAdmi']] + $r + $ahora);
         }
 
         // Examen fisico (EstaGene), ligado por ConsCons
@@ -542,6 +689,15 @@ function consulta_a_datos(array $c): array
     foreach (['FechRegl', 'FechPart'] as $k) {
         if (($d[$k] ?? '') === '0000-00-00') $d[$k] = '';
     }
+    foreach ($c['multiples'] ?? [] as $m) {
+        switch ((int) $m['tipo_antecedente_id']) {
+            case 34: $d['FamiPare'] = $m['parentesco_id']; $d['FamiDiag'] = trim((string) $m['dx_codigo']); break;
+            case 35: $d['AlerTipo'] = $m['tipo_alergia_id']; $d['AlerMedi'] = (string) $m['med_codigo']; break;
+            case 36: $d['FactTipo'] = $m['factor_riesgo_id']; $d['FactDesc'] = $m['descripcion']; break;
+            case 128: $d['FarmMedi'] = (string) $m['med_codigo']; break;
+            case 500: case 501: $d['Preg' . (int) $m['preguntas_antecedentes_id']] = (int) $m['respuesta_id']; break;
+        }
+    }
     $d['HoraCons'] = substr((string) $c['HoraCons'], 0, 5);
     return $d;
 }
@@ -591,6 +747,16 @@ function consultas_de_admision(string $cons): array
         $c['examen'] = $exam->fetch() ?: null;
         $sign->execute([CODI_INST, $cons, $c['ConsCons']]);
         $c['signos'] = $sign->fetch() ?: null;
+        $c['multiples'] = [];
+        if ($c['antecedentes']) {
+            $mul = db()->prepare('SELECT m.*, cm.CodiDiag AS dx_codigo,
+                                         (SELECT s.CodiSumi FROM CodiSumi s WHERE s.IdenUniMedi_id > 0
+                                             AND s.IdenUniMedi_id = IFNULL(m.tipo_medicamento_id, m.farmacologico_id) LIMIT 1) AS med_codigo
+                                    FROM comu_antecedentes_multiples m LEFT JOIN CausMorb cm ON cm.id = m.diagnostico_id
+                                   WHERE m.antecedente_id = ? AND (m.activo = 1 OR m.activo IS NULL)');
+            $mul->execute([$c['antecedentes']['id']]);
+            $c['multiples'] = $mul->fetchAll();
+        }
     }
     return $r;
 }

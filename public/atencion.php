@@ -675,7 +675,15 @@ foreach ($disponibles as $vista) {
                 <?php endif; ?>
             <?php endforeach; ?>
             <h3 class="subtitulo-panel">Reconciliación Medicamentosa</h3>
-            <p class="nota-campo">No disponible en contingencia (tabla RecoMedi de SIHOS; ver docs/consultas_sihos.sql).</p>
+            <?php $recoAlerta = reconciliacion_de_paciente($a['TipoDocu'], $a['NumeUsua']); ?>
+            <?php if (!$recoAlerta): ?>
+                <p class="nota-campo">Sin registros.</p>
+            <?php else: ?>
+                <ul class="lista-alertas"><?php foreach ($recoAlerta as $r): ?>
+                    <li><?= e($r['NombSumi']) ?> · <?= e((float) $r['CantSumi']) ?> · cada <?= (int) $r['FrecApli'] ?> h · <?= e(lista_nombre('ViaAdmi', $r['ViaAdmin'])) ?>
+                        <small>(<?= e($r['NotaSumi']) ?> · <?= e($r['ConsAdmi']) ?>)</small></li>
+                <?php endforeach; ?></ul>
+            <?php endif; ?>
             <div class="acciones"><a href="<?= e($aqui) ?>&amp;tab=<?= e($tab) ?>" class="boton boton-primario" data-cerrar-ventana>Aceptar</a></div>
         </div>
     </div>

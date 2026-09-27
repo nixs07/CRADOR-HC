@@ -37,6 +37,7 @@ if (isset($F['consulta'])) {
     $d = $editando ? consulta_a_datos($editando) : $nueva;
 }
 $er = $E['consulta'] ?? [];
+$reco = reconciliacion_de_paciente($a['TipoDocu'], $a['NumeUsua']);
 $consEdit = (int) ($editando['ConsCons'] ?? 0);
 $sub = count($consultas) . ' ' . (count($consultas) === 1 ? 'consulta registrada' : 'consultas registradas')
      . ($consEdit ? ' · editando la consulta No. ' . $consEdit : ' · consulta nueva');
@@ -62,7 +63,7 @@ if (!$esCE): ?>
         };
         ?>
         <?= $abrir('Anamnesis', 'file-text', true) ?><?php consulta_bloque_anamnesis($d, $er, false, $profesional); ?><?= $guardarSeccion('anamnesis') ?></div></details>
-        <?= $abrir('Antecedentes', 'history', false) ?><?php consulta_bloque_antecedentes($d, $er, false); ?><?= $guardarSeccion('antecedentes') ?></div></details>
+        <?= $abrir('Antecedentes', 'history', false) ?><?php consulta_bloque_antecedentes($d, $er, false, $reco); ?><?= $guardarSeccion('antecedentes') ?></div></details>
         <?= $abrir('Revisión por Sistema y Exámen', 'activity', false) ?><?php consulta_bloque_revision($d, $er, 'cons-', false); ?><?= $guardarSeccion('revision') ?></div></details>
         <?= $abrir('Laboratorios y Diagnósticos', 'clipboard-list', true) ?><?php consulta_bloque_laboratorios($d, $er); ?><?= $guardarSeccion('laboratorios') ?></div></details>
         <?= $abrir('Plan de Manejo y Recomendaciones', 'clipboard-plus', true) ?><?php consulta_bloque_plan($d, $er, false); ?><?= $guardarSeccion('plan') ?></div></details>
@@ -103,7 +104,7 @@ foreach ($bloques as $id => [$icono, $sub2]): ?>
         <?php elseif ($id === 'revision'): ?>
             <?php consulta_bloque_revision($d, $er, 'cons-', true); ?>
         <?php elseif ($id === 'antecedentes'): ?>
-            <?php consulta_bloque_antecedentes($d, $er, true); ?>
+            <?php consulta_bloque_antecedentes($d, $er, true, $reco); ?>
         <?php elseif ($id === 'laboratorios'): ?>
             <div class="barra-registro">
                 <div class="br-campo"><label>Fecha</label><span><?= e(date('d/m/Y', strtotime($d['FechCons']))) ?></span></div>
