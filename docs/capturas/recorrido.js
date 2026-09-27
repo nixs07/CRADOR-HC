@@ -33,6 +33,17 @@ async function cerrarAlertas(p, foto_) {
     await p.click('#alertas-paciente a.boton-primario');
   }
 }
+// Autocompletar propio: escribe, espera la lista y escoge la opcion con ese codigo (loc: selector o Locator)
+async function autocompletar(p, loc, texto, codigo, foto_) {
+  const inp = typeof loc === 'string' ? p.locator(loc) : loc;
+  await inp.click(); await inp.fill(''); await inp.pressSequentially(texto, { delay: 30 });
+  const op = p.locator('.ac-lista:not([hidden]) li', { hasText: codigo }).first();
+  await op.waitFor({ state: 'visible', timeout: 5000 });
+  if (foto_) { await inp.evaluate(el => el.scrollIntoView({ block: 'center' })); await p.waitForTimeout(200); await p.screenshot({ path: `${OUT}/${foto_}.png` }); console.log('FOTO', foto_); }
+  await op.click();
+  const v = await inp.inputValue();
+  console.log('-- autocompletar', JSON.stringify(texto), '->', v);
+}
 // Busca el documento en el encabezado de la pantalla del modulo
 async function buscarDocumento(p, modulo, tipo, doc) {
   await p.goto(B + 'atencion.php?modulo=' + modulo + '&nueva=1');
@@ -117,6 +128,8 @@ async function buscarDocumento(p, modulo, tipo, doc) {
   await p.fill('#triage #MotiCons', 'ME DUELE EL ESTOMAGO DESDE AYER');
   await p.fill('#HallClin', 'Paciente consciente, abdomen blando, dolor en epigastrio. Datos inventados.');
   await signos('', { PANume: '120', PADeno: '80', Pulso: '88', Respirac: '18', Temperat: '37.2', Saturaci: '97', Peso: '72', Talla: '170', FetoCard: '', Oximetria: '96' });
+  // Diagnostico por nombre con el autocompletar (Z002: el codigo que antes el servidor rechazaba)
+  await autocompletar(p, '#CodiDiag', 'crecimiento', 'Z002');
   await foto(p, '12_triage');
   await guardar('#triage button[type=submit]', 'triage guardado');
 
@@ -150,7 +163,7 @@ async function buscarDocumento(p, modulo, tipo, doc) {
   await p.selectOption('#ex-Abdomen', '2'); await p.fill('#consulta input[name=AbdoDesc]', 'DOLOR A LA PALPACION EN EPIGASTRIO');
   await p.selectOption('#ex-Ano', '');
   await p.fill('#LaboImag', 'SIN PARACLINICOS PREVIOS (inventado)');
-  await p.fill('#cons-CodiDiag', 'K297'); await p.selectOption('#cons-TipoDiag', '1');
+  await autocompletar(p, '#cons-CodiDiag', 'gastritis', 'K297'); await p.selectOption('#cons-TipoDiag', '1');
   await p.fill('#cons-CodiRel1', 'E86X'); await p.selectOption('#cons-TipoDia1', '2');
   await p.selectOption('#ConsDest', '04');
   await p.fill('#ObseReco', 'OMEPRAZOL, DIETA BLANDA, CONTROL EN 24 HORAS');
@@ -168,13 +181,14 @@ async function buscarDocumento(p, modulo, tipo, doc) {
   // Rejilla de SIHOS: Cantidad por dosis · Unidad · Vía · Cada · A partir de · Número (Dosis) · Cantidad solicitada
   await p.selectOption('#TipoPres', '1'); await p.selectOption('#PresRel1', 'E86X');
   const f1 = p.locator('#prescripcion tbody [data-fila]').nth(0);
-  await f1.locator('input[name="CodiSumi[]"]').fill('MP0004'); await f1.locator('input[name="CantSumi[]"]').fill('20');
+  await autocompletar(p, f1.locator('input[name="CodiSumi[]"]'), 'omepra', 'MP0004', '53_prescripcion_autocompletar');
+  await f1.locator('input[name="CantSumi[]"]').fill('20');
   await f1.locator('select[name="UnidMedi[]"]').selectOption('1'); await f1.locator('select[name="CodiVia[]"]').selectOption('1');
   await f1.locator('input[name="CantFrec[]"]').fill('24'); await f1.locator('input[name="NumeDosi[]"]').fill('7');
   await f1.locator('input[name="HoraInic[]"]').fill('08:00'); await f1.locator('input[name="CantSoli[]"]').fill('7');
   await f1.locator('select[name="MediPrin[]"]').selectOption('1');
   const f2 = p.locator('#prescripcion tbody [data-fila]').nth(1);
-  await f2.locator('input[name="CodiSumi[]"]').fill('MP0002'); await f2.locator('input[name="CantSumi[]"]').fill('1');
+  await autocompletar(p, f2.locator('input[name="CodiSumi[]"]'), 'MP0002', 'MP0002'); await f2.locator('input[name="CantSumi[]"]').fill('1');
   await f2.locator('select[name="UnidMedi[]"]').selectOption('4'); await f2.locator('select[name="CodiVia[]"]').selectOption('2');
   await f2.locator('input[name="CantFrec[]"]').fill('8'); await f2.locator('input[name="NumeDosi[]"]').fill('3');
   await foto(p, '28_prescripcion_formulario');
@@ -189,9 +203,9 @@ async function buscarDocumento(p, modulo, tipo, doc) {
   await pestana('ordenacion');
   await p.selectOption('#OrdeFina', '10'); await p.selectOption('#OrdeRel1', 'E86X');
   const o1 = p.locator('#ordenacion tbody [data-fila]').nth(0);
-  await o1.locator('input[name="OrdProc[]"]').fill('902210');
+  await autocompletar(p, o1.locator('input[name="OrdProc[]"]'), 'hemograma', '902210', '54_ordenacion_autocompletar');
   const o2 = p.locator('#ordenacion tbody [data-fila]').nth(1);
-  await o2.locator('input[name="OrdProc[]"]').fill('871121'); await o2.locator('input[name="OrdObse[]"]').fill('DESCARTAR NEUMOPERITONEO');
+  await autocompletar(p, o2.locator('input[name="OrdProc[]"]'), 'radiografia', '871121'); await o2.locator('input[name="OrdObse[]"]').fill('DESCARTAR NEUMOPERITONEO');
   await guardar('#ordenacion button[type=submit]', 'ordenes guardadas');
   await foto(p, '29_ordenacion');
 
@@ -236,7 +250,7 @@ async function buscarDocumento(p, modulo, tipo, doc) {
   await foto(p, '40_medicamentos');
   await pestana('materiales');
   const mt = p.locator('#materiales tbody [data-fila]').first();
-  await mt.locator('input[name="CodiMate[]"]').fill('MQ0002'); await mt.locator('select[name="UnidMate[]"]').selectOption('01');
+  await autocompletar(p, mt.locator('input[name="CodiMate[]"]'), 'MQ0002', 'MQ0002'); await mt.locator('select[name="UnidMate[]"]').selectOption('01');
   await mt.locator('input[name="CantMate[]"]').fill('1'); await mt.locator('input[name="MateObse[]"]').fill('CANALIZACION VENA ANTEBRAZO IZQUIERDO');
   await guardar('#materiales button[type=submit]', 'material registrado');
   await foto(p, '41_materiales');
@@ -310,7 +324,7 @@ async function buscarDocumento(p, modulo, tipo, doc) {
   await p.fill('#egre-EgreRel1', 'E86X'); await p.selectOption('#egre-EgreTipoRel1', '2');
   await foto(p, '33_egreso');
   await guardar('#egreso form:has(input[name=accion][value=egreso]) button[type=submit]', 'egreso guardado (sin cerrar)');
-  await p.fill('#DiasInca', '2');
+  await p.fill('#ObseSali', 'SALE EN BUENAS CONDICIONES, CITA DE CONTROL (datos inventados)');
   await guardar('#egreso form:has(input[name=accion][value=egreso]) button[type=submit]', 'egreso modificado');
   await p.click('#egreso a[data-abrir-ventana=cerrar-historia]');
   await foto(p, '51_cerrar_historia');

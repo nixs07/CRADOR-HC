@@ -50,8 +50,9 @@ $porCerrar = array_values(array_filter($consultas, fn ($c) => ($c['FechCier'] ??
             <?= campo_lista('EstaSali', 'Estado', 'EstaSali', $d, $er) ?>
             <?= campo_lista('CausSali', 'Causa', 'CausSali', $d, $er) ?>
             <?= campo_lista('DestSali', 'Destino', 'DestSali', $d, $er) ?>
-            <div><label for="DiasInca">Incapacidad (días)</label>
-                <input type="number" id="DiasInca" name="DiasInca" value="<?= v($d, 'DiasInca') ?>" min="0" max="99" class="<?= ce($er, 'DiasInca') ?>"><?= me($er, 'DiasInca') ?></div>
+            <?php $diasInca = dias_incapacidad($a['ConsAdmi']); ?>
+            <div class="campo-lectura" title="Se toma de la pestaña Incapacidad (suma de los días registrados)"><span class="cl-etiqueta">Incapacidad (días)</span>
+                <span class="cl-valor" id="DiasInca"><?= $diasInca > 0 ? $diasInca . ' día(s)' : 'Sin incapacidad' ?></span></div>
         </div>
         <h3 class="subtitulo-panel"><?= icono('file-text') ?>Diagnósticos</h3>
         <?= tabla_diagnosticos([['Egreso', 'DiagEgre', 'EgreTipoDiag'], ['Rela 1', 'EgreRel1', 'EgreTipoRel1'], ['Rela 2', 'EgreRel2', 'EgreTipoRel2'],

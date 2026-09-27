@@ -61,7 +61,7 @@ actual: el error abre la pestaña 1), una Prescripción A (fórmula de salida), 
 
 | Archivo | Pantalla |
 | --- | --- |
-| `12_triage.png` | Urgencias 1. Triage (con Continuar en el consultorio) |
+| `12_triage.png` | Urgencias 1. Triage (sin consultorio; diagnóstico escogido con el autocompletar) |
 | `27_consulta_formulario.png` | Urgencias 2. Consultas: cinco acordeones con su Guardar, Cerrar Consulta y Duración |
 | `27_consulta.png` | 2. Consultas guardada |
 | `49_plan_manejo.png` | Urgencias 20. Plan de Manejo (ObseReco de la consulta) |
@@ -88,5 +88,7 @@ actual: el error abre la pestaña 1), una Prescripción A (fórmula de salida), 
 | `47_ce_cerrar_historia.png` | Consulta Externa: ventana "Cerrar Historia" del encabezado |
 | `51_cerrar_historia.png` | Observación: confirmación de Cerrar Historia en la página (sin casilla) |
 | `52_ventana_antecedentes.png` | Ventana automática al abrir la historia: antecedentes tóxicos, alérgicos y reconciliación |
+| `53_prescripcion_autocompletar.png` | Prescripción: autocompletar propio desplegado (búsqueda por nombre en la columna Código) |
+| `54_ordenacion_autocompletar.png` | Ordenación: autocompletar propio desplegado |
 | `35_ce_cerrada.png` | Consulta Externa cerrada |
 | `48_movil_consulta.png` | Celular · 2. Consultas |

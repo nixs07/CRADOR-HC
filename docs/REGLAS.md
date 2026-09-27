@@ -326,3 +326,21 @@ revisión del 26/09/2026 en [`REVISION_SIHOS.md`](REVISION_SIHOS.md), que manda 
   "Continuar en el consultorio" (`Triage.CodiCons` se guarda `''`) y Historias Abiertas no tiene el filtro
   "Seleccione consultorio" ni la columna "Consultorio".
 - EPS, Contrato, Tipo de usuario, Afiliación y Categoría se ven en el encabezado (en SIHOS están ocultos).
+
+## Buscadores (autocompletar) y validación
+
+- Todos los buscadores (diagnósticos CIE-10, procedimientos/CUPS, Tipo/Actividad, suministros y materiales) usan un
+  **autocompletar propio** (`public/js/formularios.js`, sin librerías ni `<datalist>`): desde 2 caracteres y 250 ms de
+  espera muestra "CÓDIGO · Nombre", busca por código o por nombre, se maneja con flechas/Enter/Esc o mouse/touch y al
+  escoger deja el CÓDIGO en el campo y el nombre al lado (en las rejillas, en la columna Nombre). Un código exacto
+  escrito a mano también se toma. Los campos conservan su `name`/`id` y el servidor vuelve a validar.
+- **Una sola regla para buscar y validar** (`BUSCADORES` en `src/listas.php`): tabla, código, nombre y filtro de
+  activos (CIE-10: `CausMorb.Activo = 1 o NULL`; CUPS: `CodiProc.Activo = 1`; suministros: `CodiSumi.SumiActi = 1`).
+  El código se compara **limpio** (sin espacios, tabuladores ni saltos de línea). Causa del error "El diagnóstico no
+  existe en el CIE-10 activo" con Z002: el buscador encontraba el código con `LIKE 'Z00%'` pero la validación usaba
+  `CodiDiag = 'Z002'`, y un código copiado de SIHOS con un carácter de sobra al final (p. ej. `Z002` + salto de línea)
+  pasa el `LIKE` pero no el `=`. Ahora las dos usan el código limpio (los datos de prueba incluyen ese caso).
+- El Egreso muestra **Incapacidad (días)** en solo lectura: la **suma** de `IncaPaci.DiasInca` de la admisión (una
+  incapacidad y sus prórrogas suman los días otorgados); "Sin incapacidad" si no hay. Al guardar, `SaliInte.DiasInca`
+  se calcula en el servidor e ignora lo que venga en el formulario.
+- Botón **Nuevo/Nueva** de las barras: verde de marca, alto 44 px, en todas las pestañas.
