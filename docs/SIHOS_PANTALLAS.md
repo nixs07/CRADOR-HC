@@ -1,7 +1,7 @@
 # Pantallas de SIHOS por módulo (referencia para CRADOR-HC)
 
-> **Manda `docs/RECORRIDO_SIHOS.md`** (recorrido contra SIHOS producción del 26/09/2026): si algo de este archivo
-> no coincide con el recorrido, vale el recorrido. La barra de pestañas real depende de los permisos del usuario
+> **Mandan `docs/VALIDACIONES_SIHOS.md` y `docs/RESULTADO_CONSULTAS_SIHOS.md`**, y luego `docs/RECORRIDO_SIHOS.md`
+> (todos contra SIHOS producción del 26/09/2026): si algo de este archivo no coincide con ellos, valen ellos. La barra de pestañas real depende de los permisos del usuario
 > (§0.1 del recorrido); las listas de abajo son las del usuario NIXON07 y el respaldo fijo de CRADOR-HC.
 
 Levantado el 26/09/2026 a partir de 40 capturas de SIHOS (Urgencias, Consulta Externa, Procedimientos y
@@ -16,7 +16,7 @@ guarda el campo. "Sin columna identificada" = el campo no tiene una columna clar
 
 Barra: **Admisión** (Admision.ConsAdmi), **Cama** (solo Observación, selector de cama: Admision.CamaActu; en
 CRADOR-HC el cambio de cama es "Traslado de cama" → TrasCama), **Fecha** (FechIngr), **Hora** (HoraIngr),
-**Autorización** (NumeAuto), **SOAT** (sin columna identificada), botón de carné, estado **Abierta/Cerrada**
+**Autorización** (NumeAuto), **SOAT** (Admision.NumePoli, confirmado), botón de carné, estado **Abierta/Cerrada**
 (Cerrado).
 
 | Etiqueta SIHOS | Tipo | Tabla.columna |
@@ -34,7 +34,7 @@ CRADOR-HC el cambio de cama es "Traslado de cama" → TrasCama), **Fecha** (Fech
 | Cama Actual | lista | Admision.CamaActu |
 | Entorno De Atención | lista | Admision.EntoAten |
 | Causa Externa | lista | Admision.CausExte |
-| Estado Ingreso | lista | Admision.EstaIngr |
+| Estado Ingreso | lista | Admision.EstaIngr (catálogo EstaIngr) |
 | Condición | lista | Admision.CondUsua |
 | Discapacidad | lista | sin columna identificada en Admision |
 | Diagnóstico | código + nombre | Admision.DiagIngr |
@@ -117,21 +117,21 @@ Acordeones (en Consulta Externa, pestañas):
 
 | Etiqueta SIHOS | Tabla.columna |
 | --- | --- |
-| Planificación (Sí/No + método) | Antecede.MetoPlan (método: MetoDesc, sin catálogo local) |
-| Familiares (Sí/No + parentesco + diagnóstico) | Antecede.Familiar / FamiDesc |
+| Planificación (Sí/No + método) | Antecede.MetoPlan / MetoDesc (lista del método por confirmar) |
+| Familiares (Sí/No + parentesco + diagnóstico) | Antecede.Familiar / FamiDesc + comu_antecedentes_multiples (tipo 34) |
 | Personales | Antecede.Personal / PersDesc |
-| Patológicos | Antecede.Patologi / PatoDesc |
-| Obstétricos | Antecede.Obstetri / ObstDesc |
+| Patológicos | Antecede.Patologi / PatoDesc + comu_antecedentes_multiples (tipo 500, preguntas 502–508) |
+| Obstétricos | Antecede.Obstetri / ObstDesc + comu_antecedentes_multiples (tipo 501) |
 | Ginecológicos | Antecede.Ginecolo / GineDesc |
 | Quirúrgicos | Antecede.Quirurgi / QuirDesc |
 | Tóxicos | Antecede.ToxiAler / ToxiDesc |
-| Alérgicos (+ tipo de alergia, alergia a medicamentos) | Antecede.AlerSiNo / AlerDesc |
+| Alérgicos (+ tipo de alergia, alergia a medicamentos) | Antecede.AlerSiNo / AlerDesc + comu_antecedentes_multiples (tipo 35) |
 | Fisiológicos | Antecede.Fisiolog / FisiDesc |
 | Alimentarios | Antecede.Alimenta / AlimDesc |
 | Traumáticos | Antecede.Traumati / TrauDesc |
-| Farmacológicos (+ tipo medicamento) | Antecede.Farmacol / FarmDesc |
-| Factor de Riesgo (+ tipo) | Antecede.FactRies (sin columna de descripción) |
-| Reconciliación medicamentosa | sin columna identificada |
+| Farmacológicos (+ tipo medicamento) | Antecede.Farmacol / FarmDesc + comu_antecedentes_multiples (tipo 128) |
+| Factor de Riesgo (+ tipo) | Antecede.FactRies + comu_antecedentes_multiples (tipo 36) |
+| Reconciliación medicamentosa | RecoMedi (una fila por medicamento) |
 
 **Revisión por Sistema y Exámen** (CE: 2.Rev.Sistemas y Ex.Físico)
 
@@ -164,7 +164,7 @@ Obligatorio en Urgencias y Observación (lleno en el 100 % de las consultas).
 | Etiqueta SIHOS | Tipo | Tabla.columna |
 | --- | --- | --- |
 | Destino | lista | RipsCons.DestSali (4 en Consulta Externa) |
-| Conducta | lista | RipsCons.Conducta (lista tipo 33, sin catálogo local) |
+| Conducta | lista | RipsCons.Conducta (id del elemento de priv_listas_elementos, lista 33: 121–127) |
 | Plan de Manejo y Recomendaciones | texto largo | RipsCons.ObseReco |
 | Duración | texto calculado | — |
 
@@ -255,14 +255,14 @@ nombre), Vía, Cantidad Aplicar, Unidad, Aplicar, Observaciones, Profesional, M�
 Disponible para aplicar, Entregado en farmacia, Devuelto en farmacia → HojaMedi (FechMedi, HoraMedi, FechPlan,
 HoraPlan, CodiMedi, ViaAdmi, CantMedi, UnidMedi, EstaApli, IndiAdic, UsuaAsis, CodiModu).
 
-### Remisiones (Urgencias 15, Observación 24, CE después de Imágenes) — sin verificar
+### Remisiones (Urgencias 15, Observación 24, CE después de Imágenes) — verificada
 
 Barra: Nuevo, No., Fecha, Hora, Autorización "…" (Remision.NumeAuto).
 
 | Etiqueta SIHOS | Tipo | Tabla.columna |
 | --- | --- | --- |
 | Especialidad | lista | Remision.EspeRemi |
-| Institución | lista | Remision.InstRemi (sin catálogo local de instituciones) |
+| Institución | lista | Remision.InstRemi (= InstRemi.CodInsRe) |
 | Acepta (Nombre) | texto | Remision.NombAcep |
 | Cargo | texto | Remision.CargAcep |
 | Autorización | texto | Remision.NumeAuto |

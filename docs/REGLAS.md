@@ -1,5 +1,12 @@
 # Reglas de negocio (verificadas contra SIHOS real, septiembre 2026)
 
+> **Mandan sobre todo este archivo (y sobre `RECORRIDO_SIHOS.md` y `REVISION_SIHOS.md`)**:
+> [`VALIDACIONES_SIHOS.md`](VALIDACIONES_SIHOS.md) (obligatorios, mensajes, búsquedas y antecedentes) y
+> [`RESULTADO_CONSULTAS_SIHOS.md`](RESULTADO_CONSULTAS_SIHOS.md) (estructuras reales, catálogos y supuestos
+> confirmados o corregidos), ambos verificados contra SIHOS producción el 26/09/2026. Solo se apartan de ellos las
+> decisiones explícitas del usuario (sección "Decisiones del usuario"). Lo aplicado está en las secciones
+> "Obligatorios y mensajes de SIHOS" y "Catálogos reales, antecedentes y supuestos confirmados" (al final).
+
 ## Módulos y servicios
 
 | Módulo | CodiServ | TipoAten | CodiModu (SIHOS) |
@@ -39,9 +46,13 @@ Cada admisión entra completa o no entra (transacción por admisión). La base d
 
 - `MasaCorp` (IMC) = peso / (talla en metros)²; `TM` (presión arterial media) = (sistólica + 2 × diastólica) / 3.
 - `CodiModu`: 6 Urgencias, 8 Observación, 5 Consulta Externa. `ValoEdad`/`UnidEdad` se copian de la admisión.
-- **Como SIHOS (recorrido 26/09/2026, `docs/RECORRIDO_SIHOS.md` §0.2): sin mínimos, máximos ni obligatorios**
-  (SIHOS guarda PA 1/1 y TM 0). Solo se valida que sea un número ≥ 0 y que quepa en la columna (p. ej. `Peso`
-  decimal(5,2) ≤ 999.99, `Temperat` decimal(4,2) ≤ 99.99). Campos y orden en Triage, Consultas, Evolución y
+- **Como SIHOS (`VALIDACIONES_SIHOS.md` §2)**: **obligatorios en Triage** (Peso, Talla, FC, FR, Temperatura,
+  PA sistólica y diastólica, Saturación) **y en Evolución** (Peso, Talla, FC, FR, Temperatura, PA), con los mensajes
+  de SIHOS ("Digite el peso", "Digite la talla", "Digite la frecuencia cardiaca"…). Oximetría, Glucometría y
+  Fetocardia son opcionales. **Sin límites de valor** (SIHOS guarda temperaturas de 1 °C y PA 1/1) **salvo el peso
+  máximo de 300 Kg** ("Por favor verifique el peso, este no puede sobrepasar 300 Kg."); los demás topes son solo el
+  tamaño de la columna (p. ej. `Temperat` decimal(4,2) ≤ 99.99). En la pestaña Signos Vitales cada toma debe ser
+  **posterior** a la última ("…no puede ser inferior o igual a los anteriormente digitados"). Campos y orden en Triage, Consultas, Evolución y
   Signos Vitales: Peso (Kg) · Talla (cm) · IMC (calculado) · FC (Min) · FR (Min) · Temp (°C) · PA (sist / diast) ·
   TM (calculada) · Fetocardia (Lat/min) · Saturación (%) · Oximetría · Glucometría.
 - **"Dolor" no existe en SIHOS**: no se muestra y `SignVita.Dolor` se guarda en 0.
@@ -50,7 +61,8 @@ Cada admisión entra completa o no entra (transacción por admisión). La base d
 
 ## Valores fijos de la admisión (lo que SIHOS guarda en la práctica, ago-sep 2026)
 
-`EstaIngr = 1`, `EntoAten = 20`, `VienRefe = 0`, `CentCost = CentEgre = ''`, `NumePoli = ''`, `Reingres = 0`,
+`EstaIngr = 1` (catálogo `EstaIngr`: 1 Conciente), `EntoAten = 20`, `VienRefe = 0`, `CentCost = CentEgre = ''`,
+`NumePoli` = SOAT (vacío salvo accidentes de tránsito; confirmado), `Reingres = 0`,
 `ServEgre = CodiServ`, `CamaActu = CodiCama` (solo Observación lleva cama), `MotiCons = '.'` si no se escribe.
 Por módulo: Urgencias vía de ingreso 1, Observación 1, Consulta Externa 2; causa externa habitual 13;
 grupo poblacional O; condición de la usuaria 4 (mujer) o 5 (no aplica).
@@ -152,11 +164,11 @@ carga (fase 3)** comparando con una admisión real de cada módulo.
 | --- | --- |
 | Consecutivos | `ConsCons`, `ConsAnte`, `ConsEsGe`, `ConsPres`, `ConsOrde`, `ConsData`, `ConsHoPr`, `ConsHoEn`, `ConsHoMe`, `ConsEvol`: `MAX + 1` por admisión, dentro de la transacción (`SELECT … FOR UPDATE`). |
 | Consulta (RipsCons) | `UsuaCons = UsuaAsis` = login. `CodiEspe` = especialidad del usuario. Cierre y `TipoCons`: ver "Verificado contra SIHOS". |
-| Antecedentes (Antecede) | Se guarda una fila por consulta, ligada por `ConsCons`. Lista Sí/No de SIHOS: 1 = sí, 2 = no (por defecto). En el orden de SIHOS: Planificación (`MetoPlan`), Familiares, Personales, Patológicos, Obstétricos, Ginecológicos, Quirúrgicos, Tóxicos, Alérgicos (`AlerSiNo`), Fisiológicos, Alimentarios, Traumáticos, Farmacológicos y Factor de riesgo (`FactRies`), cada uno con su columna `*Desc` (obligatoria si es Sí). Planificación y Factor de riesgo no tienen columna de descripción. |
+| Antecedentes (Antecede) | Se guarda una fila por consulta, ligada por `ConsCons`. Lo múltiple (familiares, alergias, factores, farmacológicos, preguntas) va en `comu_antecedentes_multiples` (ver al final). Lista Sí/No de SIHOS (`CodiSino`, confirmada): 1 Si, 2 No (por defecto), 3 No Sabe, 4 No Corresponde. En el orden de SIHOS: Planificación (`MetoPlan`), Familiares, Personales, Patológicos, Obstétricos, Ginecológicos, Quirúrgicos, Tóxicos, Alérgicos (`AlerSiNo`), Fisiológicos, Alimentarios, Traumáticos, Farmacológicos y Factor de riesgo (`FactRies`), cada uno con su columna `*Desc` (obligatoria si es Sí). Planificación y Factor de riesgo no tienen columna de descripción. |
 | Examen físico (EstaGene) | Sistemas y etiquetas de SIHOS: Cabeza, Ojos, Oídos, Nariz, Boca, Cuello, Tórax (`CardPulm`), Abdomen, G/U (`GeniUrin`), Ano, Extremidades, Neurológico, Osteomuscular y Piel. Valores: ver "Verificado contra SIHOS". `ConsHoPr = 0`. |
-| Prescripción | `TipoPres` 1 regular / 2 control (Tipo de prescripción), `FechEntr = Fecha`, `CodiFina` del detalle = `NULL`, `HoraApli = 0` (no hay catálogo `HoraApli` local), `HoraInic` = hora de la prescripción. `NumeDosi` = duración ÷ frecuencia (en horas, con `CodiTiem` 1 = horas, 2 = días, 3 = meses según el comentario de `DetaPres`) y `CantTota = CantSumi × NumeDosi`. Si no se escribe la indicación, `PresMedi` se arma con dosis, vía, frecuencia y duración. `PresSali`: ver "Verificado contra SIHOS". |
+| Prescripción | `TipoPres` 1 Regular / 2 Control / 3 Domiciliaria (supuesto: en SIHOS solo se usan 0 y 1), `FechEntr = Fecha`, `CodiFina` del detalle = `NULL`, `HoraApli = 0` (no hay catálogo `HoraApli` local), `HoraInic` = hora de la prescripción. `NumeDosi` = duración ÷ frecuencia (en horas, con `CodiTiem` 1 = horas, 2 = días, 3 = meses según el comentario de `DetaPres`) y `CantTota = CantSumi × NumeDosi`. La Nota (`PresMedi`) es obligatoria en la prescripción hospitalaria; en la Prescripción A, si no se escribe, se arma con dosis, vía, frecuencia y duración. `PresSali`: ver "Verificado contra SIHOS". |
 | Administración de medicamentos (HojaMedi) | Pestaña Medicamentos. Solo de lo prescrito en la admisión; `Item = Item` de `DetaPres`; `EstaApli = 1`; plan = hora de aplicación. Suma la cantidad en `DetaPres.CantApli`. |
-| Órdenes (EncaOrde/DetaOrde) | Pestaña Ordenación. La finalidad es de la orden (`EncaOrde.CodiFina`, catálogo `FinaCons`) y `DetaOrde.CodiFina` queda `NULL`. `OrdeAmbu` (Ambulatoria): 1 marcado, 0 no. DXP y DXR1-DXR4 en `CodiDiag`, `CodiRel1-4`. `CantReal` suma al realizar el procedimiento del ítem. |
+| Órdenes (EncaOrde/DetaOrde) | Pestaña Ordenación. La finalidad (obligatoria) es de la orden (`EncaOrde.CodiFina`, catálogo `FinaCons`) y `DetaOrde.CodiFina` queda `NULL`. `OrdeAmbu` (Ambulatoria): 1 marcado, 0 no. DXP y DXR1-DXR4 en `CodiDiag`, `CodiRel1-4`. `CantReal` suma al realizar el procedimiento del ítem. |
 | Orden médica en texto | `EncaData/DetaData` con `TipoObje = 7`, `CodiItem` 131 Urgencias / 130 Observación. En Consulta Externa no se muestra. |
 | Procedimientos (HojaProc) | `CantProc` (Cant, 1 por defecto) y `ProcReal` (Realizado?, marcado por defecto) se escriben en la pestaña; diagnósticos Principal, Rela 1, Rela 2, Rela 3 y Compl en `DiagPrin/TipoDiag`, `DiagRela/TipoDiaR`, `DiagRel1/TipoDia1`, `DiagRel2/TipoDia2`, `DiagComp/TipoDiaC`; `NumePiez = CuadPiez = 0`, `NumeOrde = Item = 0` si no atiende una orden. |
 | Evolución (EvolInte) | Formato SOAP (`Subjetivo`, `Objetivo`, `Analisis`, `PlanMane`). No aplica en Consulta Externa (0 % de uso en la muestra). `ContSign/ContLiqu` = 1 marcado, 0 no. |
@@ -165,18 +177,18 @@ carga (fase 3)** comparando con una admisión real de cada módulo.
 | Confirmación | Cerrar Historia pide confirmar en una ventana de la página (sin casilla); el egreso ya no cierra la historia. |
 | Traslado de cama (TrasCama) | Pestaña 23. Cambio de Atención de Observación (antes en el encabezado). Cada fila es el tramo en la cama anterior: `CodiServ`/`CamaOrig` = servicio y cama de origen, `ServEgre`/`CamaDest` = destino, `FechIngr/HoraIngr` = inicio del tramo (ingreso o traslado anterior), `FechSali/HoraSali` = hora del traslado, `Dias` = días completos y `Horas` = horas restantes del tramo. Actualiza `Admision.CamaActu` y `ServEgre`; `CentEgre` no se toca (queda vacío, ver valores fijos). La cama destino debe estar activa y libre. |
 | Materiales (HojaMate) | Pestaña Materiales (Urgencias 16, Observación 18). `CodiMate` de `CodiSumi`, `UnidMate` de `CodiUnid`; `EsFact = 1`, `CantFact = 0`, `NumeOrde = Item = 0`, `UsuaAsis` = login. `CentCost`: ver "Verificado contra SIHOS". |
-| Remisión (Remision) — **sin verificar** | SIHOS no tiene remisiones recientes para compararlas: todo lo de esta fila es supuesto. Pestaña Remisiones (Urgencias 15, Observación 24, Consulta Externa 18). `RemiMoti` = código del catálogo `MotiRemi`; `MotiRemi` (texto) = resumen clínico; `ModaSoli` del catálogo `ModaSoli`; `EspeRemi` de `CodiEspe` (opcional). **No hay catálogo local de instituciones receptoras**: `InstRemi` queda vacío y el nombre de la institución se escribe al inicio de `MotiRemi` ("INSTITUCION DESTINO: …"). `CodiRemi` = consecutivo por admisión; `FechSali/HoraSali` = fecha de la remisión; `FechAcep/HoraAcep` = Fecha y Hora Aceptación de SIHOS; si se dejan vacías y se escribe quién acepta, la de la remisión; `Cerrado = 0`; `TipoDiag` guarda el código de `TipoDiag` como texto. No cierra la admisión (el egreso se hace aparte). |
-| Incapacidad (IncaPaci) | Pestaña Incapacidad (Urgencias 17, Observación 21, Consulta Externa 12). La fecha final (inicial + días − 1) solo se muestra. `TipoInca` del catálogo; `OrigInca` 1 = común, 2 = laboral (comentario de la columna); días de 1 a 540; `ConsInca` = consecutivo por admisión. |
+| Remisión (Remision) — **verificada** (660 remisiones reales) | Pestaña Remisiones (Urgencias 15, Observación 24, Consulta Externa 18). Obligatorios: institución (`InstRemi` = `InstRemi.CodInsRe`), especialidad (`EspeRemi`), persona que acepta (`NombAcep`), autorización (`NumeAuto`), texto (`MotiRemi`), modalidad (`ModaSoli`) y motivo (`RemiMoti`). Cargo (`CargAcep`), Ambulancia (`Ambulanc`, `PlacAmbu`) y Otro motivo (`OtroMoti`) opcionales. **`FechSali/HoraSali` se guardan vacías** (como SIHOS): la fecha de la remisión es `FechDigi/HoraDigi` (= la fecha y hora de la barra). `Cerrado = 0`. `DiagRemi`/`TipoDiag` salen de la última consulta con diagnóstico (o el de ingreso). No cierra la admisión. |
+| Incapacidad (IncaPaci) | Pestaña Incapacidad (Urgencias 17, Observación 21, Consulta Externa 12). La fecha final (inicial + días − 1) solo se muestra. `TipoInca` del catálogo; `OrigInca` 1 = común, 2 = laboral (comentario de la columna); días de 1 a 540; Nota (`ObseInca`) obligatoria; `ConsInca` = consecutivo por admisión. Licencia de maternidad (tipo cuyo nombre dice "MATERN"): fecha probable del parto, edad gestacional y nacidos vivos (> 0; no más de 1 si Embarazo múltiple = No) obligatorios. `EmbaMult` 1 Sí / 0 No (**supuesto**). |
 | Procedimiento de una orden | En la pestaña Procedimientos se puede escoger un ítem de `DetaOrde` pendiente (`CantReal < CantSumi`): el procedimiento sale del ítem, `HojaProc.NumeOrde` = `EncaOrde.ConsOrde` (número de la orden **dentro de la admisión**, no el `Consecut` global; verificado contra SIHOS: 500 de 500) e `Item` = ítem, y `DetaOrde.CantReal` suma 1 (se busca por `ConsAdmi` + `ConsOrde` + `Item`). `CentCost = ''`. |
 | Pestañas después de las visibles | Observación 27-31 (PyP, Imágenes, Laboratorios y Diagnósticos, SALUD PUBLICA, Atención del Menor) y Consulta Externa 16-21 (Medicamentos, No POS, Remisiones, Notas Enfermería, SALUD PUBLICA, Cambio de Atención) no tienen número visible en SIHOS: aquí se numeran a continuación. Las pestañas sin tablas en CRADOR-HC se muestran deshabilitadas "No disponible en contingencia" (Líquidos también: no hay captura de sus campos). |
 | Consulta en Consulta Externa | Las pestañas 1. Anamnesis, 2. Rev.Sistemas y Ex.Físico, 3. Antecedentes, 4. Laboratorios y Diagnósticos y 7. Plan de Manejo son **un solo formulario** (una fila de `RipsCons`). Si hay un error se abre la pestaña donde está. |
 | Barra de cada pestaña | Nuevo (formulario en blanco), No. (registros anteriores: lleva al registro), Fecha, Hora y campos propios (Tipo de prescripción, Tipo de incapacidad, Autorización, Profesional). Imprimir y Cargos están deshabilitados: no aplican en contingencia. |
 | Notas (HojaEnfe) | Sin selector de tipo (lo da la pestaña, ver "Verificado contra SIHOS"). La casilla Revisada de Notas Médicas llena `Reviza = 1`, `UsuaRevi`, `FechRevi`, `HoraRevi`. |
-| Signos en consulta y evolución | La fila de signos de Consultas (Revisión por sistema) y de Evolución es opcional: si se escribe alguno se guarda una toma de `SignVita` con `ConsCons` o `ConsEvol` (sin obligatorios). `Oximetria` queda `NULL` si no se escribe. |
+| Signos en consulta y evolución | Consultas: la fila de signos es opcional al guardar cada acordeón (se guarda una toma de `SignVita` con `ConsCons`), pero **Cerrar Consulta** la exige ("Falta Diligenciar los Signos Vitales"). Evolución: **obligatorios** (ver "Signos vitales"); la toma lleva `ConsEvol`. `Oximetria` queda `NULL` si no se escribe. |
 | Triage | "Continuar en el consultorio" no se muestra (decisión del usuario): `Triage.CodiCons` se guarda vacío. |
-| Consulta (campos de SIHOS) | Sintomáticos (`SintResp`, `SintPiel`, `SintNerv`, `TubeMult`: 1 sí / 2 no), `PeriAbdo` (0-200) y `PeriTorx` (0-150), `LaboImag`, diagnósticos Principal y Rela 1-4 con tipo (`TipoDiag`, `TipoDia1-4`, 0 si no hay), Destino en Urgencias y Observación (`DestSali`, catálogo `DestSali`, se guarda como número; 4 si no se escoge). Prescripción: Tipo de prescripción (`TipoPres` 1 regular / 2 control), DXP, DXR 1 y DXR 2. Evolución: Rela 1-4 con tipo (`TipoDiag1-4`). Egreso: Rela 1-3 y Complicación (`DiagComp`, su tipo en `TipoDia4`). |
+| Consulta (campos de SIHOS) | Sintomáticos (`SintResp`, `SintPiel`, `SintNerv`, `TubeMult`: 1 sí / 2 no), `PeriAbdo` (0-200) y `PeriTorx` (0-150), `LaboImag`, diagnósticos Principal y Rela 1-4 con tipo (`TipoDiag`, `TipoDia1-4`, 0 si no hay), Destino en Urgencias y Observación (`DestSali`, catálogo `DestSali`, se guarda como número; 4 si no se escoge). Prescripción: Tipo de prescripción (`TipoPres` 1 Regular / 2 Control / 3 Domiciliaria), DXP (obligatorio) y DXR 1-4. Evolución: Rela 1-4 con tipo (`TipoDiag1-4`). Egreso: Rela 1-3 y Complicación (`DiagComp`, su tipo en `TipoDia4`). |
 | Plan de Manejo (Urgencias 20, Observación 25) | Es el mismo `RipsCons.ObseReco` del acordeón de Consultas. Sin selector de consulta (como SIHOS): edita el plan, el destino y el Código Dorado (`Especif`, `ObserCd`) de la consulta más reciente. Sin consulta: "Registre primero la consulta". |
-| Campos de SIHOS sin guardar | No se piden porque no tienen columna o catálogo local: Lepra (`TipoLepr`), Tipo de discapacidad, Conducta de la consulta (lista 33), método de planificación (`MetoDesc`), Sivigila/Protocolo, Id Estudio, Revisado del procedimiento y de la evolución, índice cintura-cadera, órdenes posfechadas, Alcance, Incapacidad retroactiva, Grupo de servicios y Modalidad de la incapacidad, Institución receptora de la remisión (va como texto en `MotiRemi`). |
+| Campos de SIHOS sin guardar | No se piden porque no tienen columna o catálogo local: Lepra (`TipoLepr`), Tipo de discapacidad, Sivigila/Protocolo, Id Estudio, órdenes posfechadas, Alcance, Incapacidad retroactiva, Grupo de servicios y Modalidad de la incapacidad, Código Dorado: Acciones inmediatas y Continuidad del cuidado (formato por confirmar). Conducta, método de planificación, Estado del Código Dorado, Institución de la remisión, Revisado, índice cintura-cadera y Embarazo múltiple **ya se guardan** (ver al final). |
 
 ## Verificado contra SIHOS (septiembre 2026)
 
@@ -193,15 +205,15 @@ revisión del 26/09/2026 en [`REVISION_SIHOS.md`](REVISION_SIHOS.md), que manda 
 | Cierre de `RipsCons` | Urgencias y Observación: se cierra al guardar (`FechCier/HoraCier/UsuaCier` llenos). Consulta Externa: `EstaReal = 1` **sin cierre** (`FechCier = '0000-00-00'`, `HoraCier = '00:00:00'`, `UsuaCier = ''`). |
 | `RipsCons.TipoCons` | Obligatorio y siempre lleno. Por defecto 890701 en Urgencias, 89060102 en Observación y 890201 en Consulta Externa (otros comunes: Observación 890601; Consulta Externa 890301, 890208). |
 | `RipsCons.DestSali` | 4 en Consulta Externa (no se pide). |
-| `EstaGene` (sistemas) | Normal (1) por defecto en todos los sistemas; Anormal (2) exige descripción. |
+| `EstaGene` (sistemas) | Normal (1) por defecto en todos los sistemas; Anormal (2) exige descripción; **No se Explora = 3** (confirmado). |
 | `CentCost` de `HojaMate`, `HojaProc` y `HojaMedi` | `''` (vacío; en SIHOS aparece `''` casi siempre o `'0'`). |
-| `EncaOrde` | `CodiFina = '10'` por defecto; `Autoriza = 0` y `OrdeSali = 0` **siempre** (no hay casilla de autorización). |
+| `EncaOrde` | `CodiFina` obligatoria (sin valor por defecto; SIHOS pide la finalidad antes de agregar); `Autoriza = 0` y `OrdeSali = 0` **siempre** (no hay casilla de autorización). |
 | `HojaMedi.NumeOrde` | = `EncaPres.ConsPres` de la prescripción aplicada. |
 | `HojaProc.NumeOrde` | = `EncaOrde.ConsOrde` de la orden atendida (número dentro de la admisión), **no** `EncaOrde.Consecut`. |
 | `HojaProc` usuarios | `UsuaDigi`, `UsuaModi`, `CodiProf` y `UsuaAsis` son `varchar(8)`: login recortado a 8 caracteres. |
 | Consulta Externa sin `SaliInte` | Solo "Cerrar Historia" (marca la admisión cerrada). |
 | `Triage.ConsTria` | Consecutivo por paciente (no por admisión). |
-| Remisión | **Sin verificar**: no hay remisiones recientes en SIHOS; se deja como está (ver la fila de supuestos). |
+| Remisión | **Verificada** con 660 remisiones (ago–sep): `FechSali/HoraSali` vacías, fecha en `FechDigi/HoraDigi`, `Cerrado = 0`, `ModaSoli` 1 casi siempre, `InstRemi` = código de `InstRemi`. Consulta Externa no tiene remisiones en los datos (la pestaña se deja). |
 
 ## Encabezado y cierre (recorrido SIHOS 26/09/2026, `docs/RECORRIDO_SIHOS.md` §1)
 
@@ -210,8 +222,9 @@ revisión del 26/09/2026 en [`REVISION_SIHOS.md`](REVISION_SIHOS.md), que manda 
   (C.Costos) (`CodiServ` + `CentCost`) · Cama Origen (`CodiCama`) · Vía Ingreso · Servicio Actual (`ServEgre`) ·
   Cama Actual (`CamaActu`) · Entorno de Atención. Fila 3: Causa Externa · Estado Ingreso (`EstaIngr`) · Condición ·
   Discapacidad · Diagnóstico. EPS, Contrato, Tipo de usuario, Afiliación y Categoría **se quedan** (decisión del usuario).
-- **SOAT**: no hay columna identificada en `Admision` (¿`NumePoli`? **pendiente confirmar**): se muestra deshabilitado.
-- **Estado Ingreso**: se muestra el código de `EstaIngr` (no hay catálogo local; CRADOR guarda 1). **Pendiente**: nombre de la lista.
+- **SOAT** = `Admision.NumePoli` (**confirmado**): se escribe al crear la admisión y se muestra en la barra.
+- **Estado Ingreso**: nombre del catálogo `EstaIngr` (1 Conciente, 2 Inconsciente, 3 Muerto; se guarda 1).
+- **Paciente inactivo** (`Paciente.Activo = 0`): solo puede admitirse por Urgencias (como SIHOS).
 - **Discapacidad**: `Admision` no tiene columna; se muestra `Paciente.TipoDisc` con el catálogo `TipoDisc`, o
   "Sin discapacidad" si es 0.
 - Botones Modificar · Eliminar · Imprimir · Anular: visibles y **deshabilitados** (no aplican en contingencia).
@@ -230,16 +243,16 @@ revisión del 26/09/2026 en [`REVISION_SIHOS.md`](REVISION_SIHOS.md), que manda 
   `ModuObje.Orden`** de cada objeto, empate por **`CodiObje`**, numerados 1..N. Las pestañas que CRADOR-HC no
   implementa se muestran deshabilitadas con su número.
 - `pestanas_usuario($login, $modulo)` (src/formulario.php) arma la barra desde los catálogos `UsuaGrup`,
-  `Permisos`, `ModuObje` y `Objetos`. **Sus estructuras no están en sql/ y sus columnas no están confirmadas**:
-  `sql/04_permisos_PROVISIONAL.sql` las crea con lo mínimo (confirmados: `ModuObje.Orden` y `CodiObje`; el resto
-  son marcadores). El objeto se liga a su panel por el nombre (sin tildes) de la lista fija.
+  `Permisos`, `ModuObje` y `Objetos`, con sus **estructuras reales** en `sql/04_listas_permisos.sql`: objetos de
+  `Permisos` (por `CodiGrup` y `CodiModu`) de los grupos del usuario, con `Objetos.Activo = 1`, sin los de
+  `ModuObje.Orden >= 99` (reportes), orden por `MIN(ModuObje.Orden)` y empate por `CodiObje`. El objeto se liga a
+  su panel por el nombre (sin tildes) de la lista fija.
 - Si las tablas no existen, están vacías para el usuario o la consulta falla, se usa la **lista fija**
   `pestanas_lista()`: Urgencias según `docs/REVISION_SIHOS.md`; Observación y Consulta Externa según
   `docs/RECORRIDO_SIHOS.md` §4 y §5 (Observación: 5 No POS, 6 Ordenación; Consulta Externa: 12 Atención del Menor,
   13 Incapacidad). Las pestañas después de las visibles se numeran a continuación.
-- Pendiente del usuario: correr `docs/consultas_sihos.sql` en SIHOS (sección 1), reemplazar las definiciones
-  provisionales, ajustar la consulta de `pestanas_usuario()` y copiar los catálogos con
-  `bin/actualizar_catalogos.php --tablas=UsuaGrup,Permisos,ModuObje,Objetos` (ya los incluye).
+- Se copian desde SIHOS con "Actualizar catálogos" / `bin/actualizar_catalogos.php` (incluye todo
+  `sql/04_listas_permisos.sql`).
 
 ## Pestañas con los campos y botones de SIHOS (`docs/RECORRIDO_SIHOS.md` §3 a §5)
 
@@ -256,11 +269,11 @@ revisión del 26/09/2026 en [`REVISION_SIHOS.md`](REVISION_SIHOS.md), que manda 
   `ResCXC` (= cintura / cadera). FUR y Fecha Probable del Parto → `Antecede.FechRegl` y `FechPart`. Pestaña 7: Destino
   (siempre 4), Recomendaciones y Plan de Manejo y Código Dorado.
 - **Antecedentes**: orden de SIHOS con Andrológicos (`Andropo/AndroDesc`) y Conciliación medicamentosa
-  (`Consilia/ConsiDesc`) solo en Urgencias/Observación. Opciones Si | No | No Sabe | No Corresponde:
-  **pendiente confirmar** que No Sabe = 3 y No Corresponde = 4 (1 y 2 sí son sí/no).
+  (`Consilia/ConsiDesc`) solo en Urgencias/Observación. Opciones Si | No | No Sabe | No Corresponde = `CodiSino`
+  1 | 2 | 3 | 4 (**confirmado**).
 - **Examen físico**: orden de sistemas de Urgencias (Cabeza, Cuello, Tórax, Abdomen, G/U, Extremidades, Neurológico,
   Nariz, Oídos, Boca, Ojos, Piel, Ano, Osteomuscular) y el de Consulta Externa (§5). Normal (1) por defecto, Anormal
-  (2, con descripción) y No se Explora (**`NULL`, pendiente confirmar**).
+  (2, con descripción) y No se Explora (**3, confirmado**).
 - **Plan de Manejo (Urgencias 20, Observación 25)**: sin selector; edita el plan de la consulta más reciente:
   `ObseReco`, `DestSali` y del Código Dorado `Especif` y `ObserCd`.
 - **Prescripción** en rejilla (6 filas + Agregar). Urgencias/Observación: Cantidad por dosis (`CantSumi`) · Unidad ·
@@ -270,8 +283,9 @@ revisión del 26/09/2026 en [`REVISION_SIHOS.md`](REVISION_SIHOS.md), que manda 
   (tope 127, `tinyint`) y `TiemPeDu` = `TiemFrec`. Prescripción A (Consulta Externa): Dosis · Vía · Frecuencia ·
   Periodo de duración (`CantPeDu/TiemPeDu`) · Total (Dosis) calculado · Cantidad solicitada · Nota. DXP y DXR 1-4 son
   listas con los diagnósticos de las consultas (`CodiDiag`, `CodiRel1-4`); Responsable de la entrega → `PersEntr`.
-  `PresSali` = 1 en Urgencias/Observación y 2 en Consulta Externa (sin casilla). **Tipo "Domiciliaria": pendiente
-  confirmar** su código en `TipoPres` (se ve deshabilitada; se guardan 1 Regular y 2 Control).
+  `PresSali` = 1 en Urgencias/Observación y 2 en Consulta Externa (sin casilla). Tipo "Domiciliaria" = `TipoPres` 3
+  (**supuesto**: SIHOS no tiene registros con Control ni Domiciliaria). Un solo buscador por código o nombre llena
+  código, nombre, unidad (`CodiSumi.UnidMedi`) y vía (`CodiSumi.ViaAdmin`) de la fila.
 - **ORDENES MEDICAS**: etiqueta "1. Orden medica:"; Modificar deshabilitado.
 - **Ordenación** en rejilla: Código · Nombre · Cant · Susp · Nota · Tomar A (Cada, sin columna en `DetaOrde`).
   (Solicitar Autorización para EPS) y Salida visibles y deshabilitados (`Autoriza = OrdeSali = 0`, verificado).
@@ -284,12 +298,10 @@ revisión del 26/09/2026 en [`REVISION_SIHOS.md`](REVISION_SIHOS.md), que manda 
   aplicación y planeada, cantidad y observaciones; se guardan las filas con cantidad (una fila de `HojaMedi` cada una).
 - **Materiales** en rejilla de 5 filas: Fecha · Hora · Código · Nombre · Cant · Unidad · Indicaciones (Orden, Item y
   Factura informativos, vacíos).
-- **Remisiones** (pestaña propia en los 3 módulos; **sin verificar**): Especialidad y **Institución** en listas.
-  El catálogo "Instituciones de Remisión" no está en sql/: `sql/05_instituciones_remision_PROVISIONAL.sql` crea
-  `InstRemision (CodiInre, NombInre)` como **marcador** (nombre y columnas sin confirmar) → `Remision.InstRemi`. La
-  pantalla no pide diagnóstico ni placa: `DiagRemi`/`TipoDiag` salen de la última consulta con diagnóstico (o el de
-  ingreso) y `PlacAmbu` queda vacía.
-- **Incapacidad**: Maternidad → `IncaPaci.FePoPart`, `EdadGest`, `NaciVivo`. Fecha inicial = Fecha (`FechInca`).
+- **Remisiones** (pestaña propia en los 3 módulos; verificada): Especialidad e **Institución** (catálogo real
+  `InstRemi`, 01–07; se guarda `CodInsRe`) en listas; Autorización, Acepta, Cargo, Modalidad, Motivo, Otro motivo,
+  Incluir Ambulancia y Placa (`PlacAmbu`), Fecha y Hora de aceptación y texto. Ver la fila "Remisión" de supuestos.
+- **Incapacidad**: Maternidad → `IncaPaci.FePoPart`, `EdadGest`, `EmbaMult` (Sí/No, supuesto), `NaciVivo`. Fecha inicial = Fecha (`FechInca`).
 - **Cambio de Atención (Observación 23)** es pestaña (ya no está en el encabezado): traslado de cama dentro de la
   institución (`TrasCama`, `CoinDest` vacío).
 
@@ -297,14 +309,13 @@ revisión del 26/09/2026 en [`REVISION_SIHOS.md`](REVISION_SIHOS.md), que manda 
 
 | Pantalla | Campos |
 | --- | --- |
-| Encabezado | SOAT (¿`NumePoli`?); Estado Ingreso muestra el código |
-| Consultas | Antecedentes: método de planificación (`MetoDesc` sin catálogo), parentesco y diagnóstico de familiares, ventanas de Patológicos y Obstétricos, Tipo de Alergia y Alergia a Medicamentos, Tipo Medicamento, Tipo de factor de riesgo, **Reconciliación Medicamentosa** (tabla `RecoMedi`); Revisión: Tuberculosis Multidrogoresistente (7 opciones), Lepra (`TipoLepr` sin catálogo), Tipo de Discapacidad; Plan: Conducta (lista 33); Código Dorado: Acciones inmediatas, Continuidad del cuidado, Estado (lista 47) |
+| Consultas | Revisión: Tuberculosis Multidrogoresistente (7 opciones), Lepra (`TipoLepr` sin catálogo), Tipo de Discapacidad; Código Dorado: Acciones inmediatas y Continuidad del cuidado (`Accinme`, `ContCuid`: formato por confirmar) |
 | Consulta Externa 4 | Laboratorios (resultados) |
-| Prescripción | Susp, Unidad de la cantidad solicitada, tipo Domiciliaria, Sugerido/Protocolo/Plantilla/Experiencia |
+| Prescripción | Susp, Unidad de la cantidad solicitada, Sugerido/Protocolo/Plantilla/Experiencia |
 | Ordenación | (Solicitar Autorización para EPS), Salida, Susp, Tomar A (Cada), Plantillas/Sugerido/Protocolo |
 | Procedimientos | Id Estudio |
 | Evolución | Finalidad |
-| Incapacidad | Alcance, Incapacidad retroactiva, Grupo de servicios, Modalidad de prestación, Embarazo múltiple |
+| Incapacidad | Alcance, Incapacidad retroactiva, Grupo de servicios, Modalidad de prestación |
 | Egreso | Insumos pendientes por descargar (inventario) |
 
 ## Historias Abiertas y ventana automática (`docs/RECORRIDO_SIHOS.md` §2 y §4)
@@ -312,12 +323,14 @@ revisión del 26/09/2026 en [`REVISION_SIHOS.md`](REVISION_SIHOS.md), que manda 
 - Filtros de SIHOS: Seleccione Servicio · Mostrar N registros (10, 25, 50, 100). Se quitó el buscador libre (SIHOS no
   lo tiene).
 - Columnas: Servicio · Cama · Admisión · Fecha · Duración · T · Autoriza. (`NumeAuto`) · Triage · Med · Ord · Paciente ·
-  Edad · Estado · Profesional; filas coloreadas por triage. **Supuestos**: "T" = color del triage;
-  "Med" = medicamentos prescritos pendientes por aplicar (`DetaPres.CantApli < CantTota`, sin suspender); "Ord" =
-  ítems de órdenes pendientes (`DetaOrde.CantReal < CantSumi`); Estado = "Abierta".
+  Edad · Estado · Profesional; filas coloreadas por triage. **"T" = tipo de contrato** (confirmado): `E` Evento
+  (`Contrato.TipoCont = 1`), `C` Cápita (`TipoCont = 2`). **Med / Ord son íconos indicadores** (probable, no
+  verificado en datos): jeringa si hay medicamentos prescritos pendientes por aplicar (`DetaPres.CantApli < CantTota`,
+  sin suspender) o visto si ya se aplicaron; matraz si hay ítems de órdenes pendientes (`DetaOrde.CantReal < CantSumi`).
+  Estado = "Abierta".
 - Al abrir una historia de Urgencias u Observación (sin pestaña en la dirección) sale una ventana propia con los
   Antecedentes Tóxicos y Alérgicos del paciente (`Antecede.ToxiAler/ToxiDesc`, `AlerSiNo/AlerDesc`, de todas sus
-  admisiones) y la Reconciliación Medicamentosa ("no disponible": falta la tabla `RecoMedi`). Se cierra con Esc,
+  admisiones) y la Reconciliación Medicamentosa (tabla `RecoMedi` de sus admisiones). Se cierra con Esc,
   la X o Aceptar.
 
 ## Decisiones del usuario que se apartan de "igual que SIHOS"
@@ -326,6 +339,10 @@ revisión del 26/09/2026 en [`REVISION_SIHOS.md`](REVISION_SIHOS.md), que manda 
   "Continuar en el consultorio" (`Triage.CodiCons` se guarda `''`) y Historias Abiertas no tiene el filtro
   "Seleccione consultorio" ni la columna "Consultorio".
 - EPS, Contrato, Tipo de usuario, Afiliación y Categoría se ven en el encabezado (en SIHOS están ocultos).
+- **Marca HSCJ** (septiembre 2026): el nombre visible de la app es **HSCJ** y su único subtítulo "Excelencia y
+  servicio a la comunidad"; la pantalla de ingreso es vertical y centrada (logo, HSCJ, lema, Usuario, Clave,
+  Ingresar). Los identificadores técnicos siguen con "crador" (repositorio, contenedores `crador_db`/`crador_app`,
+  base `crador_hc`, `.env`, tablas `cont_*`): cambiarlos rompería las instalaciones.
 
 ## Buscadores (autocompletar) y validación
 
@@ -344,3 +361,71 @@ revisión del 26/09/2026 en [`REVISION_SIHOS.md`](REVISION_SIHOS.md), que manda 
   incapacidad y sus prórrogas suman los días otorgados); "Sin incapacidad" si no hay. Al guardar, `SaliInte.DiasInca`
   se calcula en el servidor e ignora lo que venga en el formulario.
 - Botón **Nuevo/Nueva** de las barras: verde de marca, alto 44 px, en todas las pestañas.
+
+## Obligatorios y mensajes de SIHOS (`VALIDACIONES_SIHOS.md` §2)
+
+Se usan los **mismos mensajes** de SIHOS donde el documento los trae.
+
+| Pantalla | Obligatorio (mensaje) |
+| --- | --- |
+| Triage | Motivo, hallazgos, impresión diagnóstica, clasificación y signos (ver "Signos vitales"). |
+| Evolución | Signos ("Digite el peso / la talla / la frecuencia cardiaca / la frecuencia respiratoria / la temperatura / la presion arterial sistolica / diastolica"), Tipo = consulta de la evolución ("Debe seleccionar la consulta"), diagnóstico principal ("Debe seleccionar el DX principal"), Subjetivo, Objetivo, Análisis y Plan ("Debe digitar alguna informacion"), tipo de cada Rela diligenciada. |
+| Signos Vitales | Fecha y hora posteriores a la última toma. |
+| Consultas / Anamnesis | "Por favor, digite el tipo de consulta / el motivo de la consulta / la enfermedad actual". Diagnóstico principal y su tipo; "Ningun diagnostico debe repetirse" (todas las pantallas con Rela). |
+| Plan (acordeón y pestaña) | "Ingresar por favor el destino", "El campo Conducta es obligatorio" y el plan; pestaña: "Por favor complete todos los campos". |
+| Cerrar Consulta y Egreso | La consulta (en el egreso, la última de la admisión) debe estar completa: "Falta Diligenciar uno de los Siguientes Campos: Motivo de la Consulta / Enfermedad Actual", "Falta Diligenciar el Diagnostico Principal", "…los Signos Vitales", "…los Antecedentes", "…el Plan de Manejo y Recomendaciones", "Falta Diligenciar Revision por Sistema". |
+| Prescripción (hospitalaria) | "Debe formular al menos un medicamento", diagnóstico, cantidad > 0, vía, "Debe indicar el tiempo de Aplicacion", Nota, "No es posible prescribir para mas de 24 Horas" (número de dosis × frecuencia), sin suministros repetidos. |
+| Prescripción A (Consulta Externa) | Cantidad > 0, tipo de prescripción, diagnóstico, sin suministros repetidos. |
+| Ordenación | Finalidad, al menos un procedimiento, cantidad > 0, sin procedimientos repetidos. |
+| Procedimientos | Procedimiento, descripción, diagnóstico principal y tipos, cantidad > 0. |
+| Notas | Nota obligatoria; Actividad opcional (0 de 22.044 notas la llenan). |
+| Medicamentos | Cantidad > 0 y no mayor a lo ordenado pendiente (`CantTota − CantApli`); fecha no anterior al ingreso. |
+| Remisiones | Institución, especialidad, acepta, autorización, texto, modalidad y motivo. |
+| Incapacidad | Tipo, días y nota; maternidad (ver supuestos). |
+| Encabezado | Tipo de documento; paciente inactivo solo por Urgencias. |
+
+## Catálogos reales, antecedentes y supuestos confirmados (`RESULTADO_CONSULTAS_SIHOS.md`)
+
+- **Catálogos nuevos** (`sql/04_listas_permisos.sql`, se copian con "Actualizar catálogos"): `UsuaGrup`,
+  `Permisos`, `ModuObje`, `Objetos` (estructuras reales), `priv_listas_tipos` y `priv_listas_elementos` (listas
+  genéricas), `EstaIngr` e `InstRemi`. Reemplazan `sql/04_permisos_PROVISIONAL.sql` y
+  `sql/05_instituciones_remision_PROVISIONAL.sql` (borrados).
+- **Conducta** (Plan): lista 33 de `priv_listas_elementos`; `RipsCons.Conducta` guarda el **`id` del elemento**
+  (121–127), no el código. **Estado del Código Dorado** (Consulta Externa): lista 47; `RipsCons.EstaCodo` guarda el
+  **código como número** (01 → 1).
+- **Antecedentes sin nada en gris**: `Antecede` con todas sus columnas reales (incluye `MetoDesc`, `Andropo/AndroDesc`,
+  `Consilia/ConsiDesc`, `FechRegl`, `FechPart`) y **`comu_antecedentes_multiples`** (`sql/05_tablas_clinicas_nuevas.sql`),
+  ligada a `Antecede.id`, con los `tipo_antecedente_id` reales de SIHOS: 34 Familiares (`parentesco_id` =
+  `Parentes.CodiPare`, `diagnostico_id` = `CausMorb.id`), 35 Alérgicos (`tipo_alergia_id` lista 13,
+  `tipo_medicamento_id`), 36 Factor de riesgo (`factor_riesgo_id` lista 14), 128 Farmacológicos (`farmacologico_id`),
+  500 Patológicos y 501 Obstétricos (`preguntas_antecedentes_id` lista 45, `respuesta_id` 98 SI / 99 NO). Al guardar
+  la consulta se reemplazan las filas de ese `Antecede.id`.
+- **Reconciliación Medicamentosa**: tabla `RecoMedi` (estructura real), una fila por medicamento de la admisión
+  (nombre, dosis, frecuencia en horas, vía, nota; todos obligatorios si se marca "Reconciliación").
+- **Supuestos confirmados**: No Sabe = 3 y No Corresponde = 4 (`CodiSino`); SOAT = `Admision.NumePoli`; Estado
+  Ingreso = `EstaIngr`; T de Historias Abiertas = tipo de contrato. **Corregido**: examen físico "No se Explora" = 3.
+
+### Dónde quedan las admisiones creadas aquí (`VALIDACIONES_SIHOS.md` §5)
+
+En la base local: tabla `Admision` con número temporal `C` + AAMMDD + 5 dígitos y una fila en `cont_carga_sihos`
+con estado `pendiente`. Se ven en **Historias abiertas** de su módulo y en el **Tablero** del administrador
+("Pendientes por cargar a SIHOS"). Pasan a SIHOS en la **fase 3** (carga por el administrador), donde reciben el
+número definitivo.
+
+### Pendiente por confirmar (antes de producción)
+
+- **Tipos de columna** de `priv_listas_tipos`, `priv_listas_elementos` y `comu_antecedentes_multiples` (el documento
+  trae las columnas, no los tipos): reemplazar por su `SHOW CREATE TABLE` de SIHOS.
+- **A qué tabla apunta el id de medicamento** de `tipo_medicamento_id` / `farmacologico_id` (¿`CodUniPro.id`,
+  `IdenUniMedi.id`?). Hoy se usa `CodiSumi.IdenUniMedi_id`.
+- **Método de planificación** (`Antecede.MetoDesc`): no se sabe qué lista usa; se escribe el código a mano.
+- **Orden y número de las preguntas** 502–510 de la lista 45 (Patológicos 502–508, Obstétricos 509–510 según el
+  documento; los textos de prueba son supuestos) y los ids de las listas 46/47 en los datos de prueba (inventados).
+- **Código Dorado**: formato de Acciones inmediatas (`Accinme`) y Continuidad del cuidado (`ContCuid`): siguen deshabilitados.
+- **Embarazo múltiple** (`IncaPaci.EmbaMult`): 1 Sí / 0 No, supuesto. **Domiciliaria** = `TipoPres` 3, supuesto.
+- **Med / Ord** de Historias Abiertas: significado probable, no verificado en datos.
+- **Instalaciones existentes**: las tablas provisionales anteriores (`UsuaGrup`, `Permisos`, `ModuObje`, `Objetos`
+  con columnas marcador e `InstRemision`) deben **borrarse** antes de correr `sql/04_listas_permisos.sql` y
+  `sql/05_tablas_clinicas_nuevas.sql` (usan `CREATE TABLE IF NOT EXISTS` y no cambian una tabla que ya existe). Ver
+  `docs/INSTALACION.md`, "Actualizar una instalación que ya existía".
+

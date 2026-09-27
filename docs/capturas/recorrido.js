@@ -59,6 +59,9 @@ async function buscarDocumento(p, modulo, tipo, doc) {
   p.on('response', r => { if (r.status() >= 400) console.log('HTTP', r.status(), r.url()); });
 
   await p.goto(B + 'login.php'); await foto(p, '01_login');
+  // Ingreso vertical y centrado también en celular
+  await p.setViewportSize({ width: 390, height: 800 }); await foto(p, '02_login_movil');
+  await p.setViewportSize({ width: 1280, height: 900 });
   await p.fill('#login', 'MEDPRUEBA'); await p.fill('#clave', 'malaclave');
   await p.click('main button[type=submit]'); await estado(p, 'login malo');
   await p.fill('#login', 'MEDPRUEBA'); await p.fill('#clave', 'prueba123');
@@ -122,7 +125,12 @@ async function buscarDocumento(p, modulo, tipo, doc) {
   await cerrarAlertas(p);
   console.log('-- pestañas urg', JSON.stringify(await p.$$eval('[data-pestanas] > *', l => l.map(x => x.innerText.replace(/\s+/g, ' ').trim()))));
 
-  // 1. Triage (sin consultorio: decision del usuario)
+  // 1. Triage (sin consultorio: decision del usuario). Primero sin signos y con peso de 350: mensajes de SIHOS
+  await pestana('triage');
+  await p.fill('#Peso', '350');
+  await p.$eval('#triage form', f => { f.noValidate = true; });
+  await guardar('#triage button[type=submit]', 'triage sin signos (mensajes de SIHOS)');
+  await foto(p, '55_triage_obligatorios');
   await pestana('triage');
   await p.selectOption('#ClasTria', '3');
   await p.fill('#triage #MotiCons', 'ME DUELE EL ESTOMAGO DESDE AYER');

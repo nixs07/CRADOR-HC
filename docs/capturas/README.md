@@ -1,6 +1,6 @@
 # Capturas de pantalla (fase 2, bloque 1 · pantalla de trabajo por módulo)
 
-Tomadas el 25/09/2026 con la app corriendo en Docker (`docker compose up -d`) y los **datos de prueba
+Regeneradas el 26/09/2026 (marca HSCJ, obligatorios y mensajes de SIHOS) con la app corriendo en Docker (`docker compose up -d`) y los **datos de prueba
 inventados** (`docker compose exec db sh /crador/cargar_datos_prueba.sh`). Ningún dato es de pacientes reales.
 Usuario: `MEDPRUEBA` / `prueba123` (la captura 19 es con `NIXON07`, administrador).
 
@@ -28,7 +28,8 @@ OUT=docs/capturas NODE_PATH=$(npm root -g) node docs/capturas/recorrido.js
 
 | Archivo | Pantalla |
 | --- | --- |
-| `01_login.png` | Ingreso |
+| `01_login.png` | Ingreso HSCJ: vertical y centrado (logo, HSCJ, lema, Usuario, Clave, Ingresar) |
+| `02_login_movil.png` | Ingreso en celular |
 | `23_seleccion_modulo.png` | Selección de módulo |
 | `15_lista_urg.png` | Urgencias: ventana de historias abiertas |
 | `03_pacientes_busqueda.png` | Búsqueda de pacientes por nombre (botón "…") |
@@ -92,3 +93,14 @@ actual: el error abre la pestaña 1), una Prescripción A (fórmula de salida), 
 | `54_ordenacion_autocompletar.png` | Ordenación: autocompletar propio desplegado |
 | `35_ce_cerrada.png` | Consulta Externa cerrada |
 | `48_movil_consulta.png` | Celular · 2. Consultas |
+
+## Obligatorios y mensajes de SIHOS (`docs/VALIDACIONES_SIHOS.md`)
+
+| Archivo | Pantalla |
+| --- | --- |
+| `55_triage_obligatorios.png` | Triage guardado sin signos y con peso 350: mensajes de SIHOS ("Digite la talla"…, "Por favor verifique el peso, este no puede sobrepasar 300 Kg.") |
+
+El recorrido también comprueba: signos obligatorios en Evolución, toma de Signos Vitales posterior a la anterior,
+Cerrar Consulta completa (signos y Revisión por Sistema), Nota y máximo 24 horas en la Prescripción, buscador de
+medicamentos que llena unidad y vía ("dipirona" → AMPOLLA / INTRAVENOSA), remisión con placa de ambulancia y
+examen físico "No se Explora" = 3.
