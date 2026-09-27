@@ -207,7 +207,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 redirigir($aqui . '&tab=triage');
             }
             [$t, $et] = triage_validar();
-            [$st, $es] = signos_validar(false);
+            [$st, $es] = signos_validar(false, SIGNOS_OBLIGATORIOS_TRIAGE);
             $eT = $et + $es;
             if (!$eT && $t['FechTria'] . ' ' . $t['HoraTria'] < $ingreso) {
                 $eT['HoraTria'] = 'El triage no puede ser anterior al ingreso (' . fecha_hora($ingreso) . ').';
@@ -222,6 +222,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             [$sv, $eS] = signos_validar(true);
             if (!$eS && $sv['FechToma'] . ' ' . $sv['HoraToma'] < $ingreso) {
                 $eS['HoraToma'] = 'La toma no puede ser anterior al ingreso (' . fecha_hora($ingreso) . ').';
+            }
+            // Como SIHOS: la toma debe ser POSTERIOR a la ultima registrada
+            $ultima = $eS ? '' : signos_ultima_toma($a['ConsAdmi']);
+            if ($ultima !== '' && $sv['FechToma'] . ' ' . $sv['HoraToma'] <= $ultima) {
+                $eS['HoraToma'] = 'La fecha y hora de la toma no puede ser inferior o igual a los anteriormente digitados ('
+                                . fecha_hora($ultima) . ').';
             }
             if (!$eS) {
                 $n = signos_guardar($a, $sv, $u['Login']);
@@ -544,7 +550,7 @@ pestanas_historia($a, $mod, $tab, $conteos ?? []);
             <textarea id="MotiCons" name="MotiCons" rows="2" maxlength="5000" class="<?= ce($eT, 'MotiCons') ?>" required><?= v($t, 'MotiCons') ?></textarea><?= me($eT, 'MotiCons') ?>
             <div class="subgrupo">
                 <h3><?= icono('heart-pulse') ?>Signos vitales</h3>
-                <?php campos_signos($st, $eT); ?>
+                <?php campos_signos($st, $eT, '', SIGNOS_OBLIGATORIOS_TRIAGE); ?>
             </div>
             <label for="HallClin">Hallazgos Clínicos <span class="obligatorio" aria-hidden="true">*</span></label>
             <textarea id="HallClin" name="HallClin" rows="4" maxlength="5000" class="<?= ce($eT, 'HallClin') ?>" required><?= v($t, 'HallClin') ?></textarea><?= me($eT, 'HallClin') ?>
@@ -584,7 +590,7 @@ pestanas_historia($a, $mod, $tab, $conteos ?? []);
             ?>
             <?= barra_registro('Nuevo', ['-'], 'FechToma', 'HoraToma', $sv, $eS) ?>
             <div class="subgrupo">
-                <?php campos_signos($sv, $eS, $prefijoSignos); ?>
+                <?php campos_signos($sv, $eS, $prefijoSignos, []); ?>
             </div>
             <?= botonera(['Guardar', 'Cancelar', 'Imprimir']) ?>
         </form>

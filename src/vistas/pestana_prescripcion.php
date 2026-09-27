@@ -65,9 +65,10 @@ $selDx = function (string $name, string $etq, ?string $valor) use ($dx) {
         $anteriores['reg-pres-' . (int) $p['ConsPres']] = (int) $p['ConsPres'] . ' · ' . fecha_hora($p['Fecha'] . ' ' . $p['Hora']);
     }
     $tipoPres = '<div class="br-campo"><label for="TipoPres">Tipo de Prescripción</label><select id="TipoPres" name="TipoPres">'
-              . '<option value="1"' . ((string) ($d['TipoPres'] ?? '1') !== '2' ? ' selected' : '') . '>Regular</option>'
+              . '<option value="1"' . (!in_array((string) ($d['TipoPres'] ?? '1'), ['2', '3'], true) ? ' selected' : '') . '>Regular</option>'
               . '<option value="2"' . ((string) ($d['TipoPres'] ?? '') === '2' ? ' selected' : '') . '>Control</option>'
-              . ($amb ? '' : '<option disabled>Domiciliaria (pendiente confirmar)</option>') . '</select></div>';
+              // Domiciliaria = 3: supuesto (RESULTADO_CONSULTAS_SIHOS.md §4)
+              . ($amb ? '' : '<option value="3"' . ((string) ($d['TipoPres'] ?? '') === '3' ? ' selected' : '') . '>Domiciliaria</option>') . '</select></div>';
     ?>
     <div class="panel-cuerpo">
     <?= errores_resumen($er) ?>

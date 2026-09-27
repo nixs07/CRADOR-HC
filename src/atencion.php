@@ -269,6 +269,10 @@ function admision_validar(array $mod, array $pac): array
         'TeleAcom' => campo('TeleAcom', 10),
     ];
     $e = [];
+    // Como SIHOS (VALIDACIONES_SIHOS.md §2): un paciente inactivo (Paciente.Activo = 0) solo se atiende por Urgencias
+    if (isset($pac['Activo']) && (int) $pac['Activo'] === 0 && ($mod['clave'] ?? '') !== 'urg') {
+        $e['Paciente'] = 'El paciente está inactivo: solo puede atenderse por Urgencias.';
+    }
     if (!in_array($d['CodiServ'], $mod['servicios'], true)) $e['CodiServ'] = 'Servicio no válido para este módulo.';
     $d['HoraIngr'] = hora_valida($d['HoraIngr']) ?? $d['HoraIngr'];
     if (!fecha_valida($d['FechIngr'])) {
@@ -498,35 +502,52 @@ function triage_guardar(array $a, array $t, array $s, string $login): void
 // ---------------------------------------------------------------------
 
 /**
- * Signos vitales en el orden de SIHOS: campo => [etiqueta, minimo, maximo, obligatorio].
- * Como SIHOS: SIN minimos clinicos, maximos ni obligatorios (SIHOS guarda PA 1/1 y TM 0). El unico tope es el
- * tamano de la columna de SignVita (p. ej. Peso decimal(5,2) = 999.99), para que el INSERT no falle.
+ * Signos vitales en el orden de SIHOS: campo => [etiqueta, minimo, maximo, mensaje de SIHOS si falta].
+ * Como SIHOS (docs/VALIDACIONES_SIHOS.md, seccion 2): SIN limites clinicos de valor (SIHOS guarda temperaturas de 1 °C);
+ * el unico limite es el PESO MAXIMO de 300 Kg. Los demas maximos son el tamano de la columna de SignVita
+ * (p. ej. Temperat decimal(4,2) = 99.99), solo para que el INSERT no falle.
  * "Dolor" no existe en la pantalla de SIHOS: SignVita.Dolor se guarda en 0.
  */
 const SIGNOS_RANGOS = [
-    'Peso'      => ['Peso (Kg)', 0, 999.99, false],
-    'Talla'     => ['Talla (cm)', 0, 99999, false],
-    'Pulso'     => ['FC (Min)', 0, 99999, false],
-    'Respirac'  => ['FR (Min)', 0, 99999, false],
-    'Temperat'  => ['Temp (°C)', 0, 99.99, false],
-    'PANume'    => ['PA sistólica', 0, 999, false],
-    'PADeno'    => ['PA diastólica', 0, 999, false],
-    'FetoCard'  => ['Fetocardia (Lat/min)', 0, 999, false],
-    'Saturaci'  => ['Saturación (%)', 0, 999.99, false],
-    'Oximetria' => ['Oximetría', 0, 9999, false],
-    'GlucMetr'  => ['Glucometría', 0, 999, false],
+    'Peso'      => ['Peso (Kg)', 0, 300, 'Digite el peso'],
+    'Talla'     => ['Talla (cm)', 0, 99999, 'Digite la talla'],
+    'Pulso'     => ['FC (Min)', 0, 99999, 'Digite la frecuencia cardiaca'],
+    'Respirac'  => ['FR (Min)', 0, 99999, 'Digite la frecuencia respiratoria'],
+    'Temperat'  => ['Temp (°C)', 0, 99.99, 'Digite la temperatura'],
+    'PANume'    => ['PA sistólica', 0, 999, 'Digite la presion arterial sistolica'],
+    'PADeno'    => ['PA diastólica', 0, 999, 'Digite la presion arterial diastolica'],
+    'FetoCard'  => ['Fetocardia (Lat/min)', 0, 999, ''],
+    'Saturaci'  => ['Saturación (%)', 0, 999.99, 'Digite la saturacion'],
+    'Oximetria' => ['Oximetría', 0, 9999, ''],
+    'GlucMetr'  => ['Glucometría', 0, 999, ''],
 ];
 
-/** Valida los signos del POST. Devuelve [datos, errores]. $conFecha: pide FechToma/HoraToma. */
-function signos_validar(bool $conFecha): array
+/** Mensaje de SIHOS cuando el peso pasa de 300 Kg (el unico limite de valor de SIHOS). */
+const SIGNOS_PESO_MAXIMO = 'Por favor verifique el peso, este no puede sobrepasar 300 Kg.';
+
+/**
+ * Signos obligatorios por pantalla (datos reales de SIHOS, septiembre 2026). Oximetria, Glucometria y Fetocardia
+ * son opcionales en todas.
+ */
+const SIGNOS_OBLIGATORIOS_TRIAGE = ['Peso', 'Talla', 'Pulso', 'Respirac', 'Temperat', 'PANume', 'PADeno', 'Saturaci'];
+const SIGNOS_OBLIGATORIOS_EVOLUCION = ['Peso', 'Talla', 'Pulso', 'Respirac', 'Temperat', 'PANume', 'PADeno'];
+
+/**
+ * Valida los signos del POST. Devuelve [datos, errores].
+ * $conFecha: pide FechToma/HoraToma. $obligatorios: campos que no pueden quedar vacios (mensaje de SIHOS).
+ */
+function signos_validar(bool $conFecha, array $obligatorios = []): array
 {
     $d = [];
     $e = [];
-    foreach (SIGNOS_RANGOS as $c => [$etiqueta, $min, $max, $oblig]) {
+    foreach (SIGNOS_RANGOS as $c => [$etiqueta, $min, $max, $falta]) {
         $v = campo_numero($c);
-        if ($v === null) {
-            if ($oblig) $e[$c] = "Escriba $etiqueta.";
+        if ($v === null || ($v == 0 && in_array($c, $obligatorios, true))) {
+            if (in_array($c, $obligatorios, true)) $e[$c] = $falta;
             $d[$c] = 0;
+        } elseif ($c === 'Peso' && $v > 300) {
+            $e[$c] = SIGNOS_PESO_MAXIMO;
+            $d[$c] = $v;
         } elseif ($v < $min || $v > $max) {
             $e[$c] = "$etiqueta: el valor no cabe en la columna ($min a $max).";
             $d[$c] = $v;
@@ -544,6 +565,14 @@ function signos_validar(bool $conFecha): array
         }
     }
     return [$d, $e];
+}
+
+/** Fecha y hora (Y-m-d H:i:s) de la ultima toma de signos de la admision, o '' si no hay. */
+function signos_ultima_toma(string $consAdmi): string
+{
+    $st = db()->prepare("SELECT MAX(CONCAT(FechToma, ' ', HoraToma)) FROM SignVita WHERE CodiInst = ? AND ConsAdmi = ?");
+    $st->execute([CODI_INST, $consAdmi]);
+    return (string) $st->fetchColumn();
 }
 
 /**

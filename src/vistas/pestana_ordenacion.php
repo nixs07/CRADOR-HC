@@ -51,7 +51,7 @@ if (!$do['items']) {
         <?= barra_registro('Nuevo', $anteriores, 'FechOrde', 'HoraOrde', $do, $eo, '', '', ['Plantillas', 'Sugerido', 'Protocolo']) ?>
         <div class="rejilla">
             <?= campo_sin_columna('(Solicitar Autorización para EPS)', 'checkbox') ?>
-            <?= campo_lista('OrdeFina', 'Finalidad', 'FinaCons', $do + ['OrdeFina' => $do['CodiFina'] ?? '10'], $eo, false) ?>
+            <?= campo_lista('OrdeFina', 'Finalidad', 'FinaCons', $do + ['OrdeFina' => $do['CodiFina'] ?? ''], $eo, true) ?>
             <?= campo_sin_columna('Salida', 'checkbox') ?>
             <div class="casillas"><?= casilla('OrdeAmbu', 'Ambulatoria', $do) ?></div>
         </div>

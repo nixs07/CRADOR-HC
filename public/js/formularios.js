@@ -274,4 +274,15 @@
             });
         });
     });
+
+    // Mensajes de SIHOS en la validacion del navegador: data-mensaje (campo vacio) y data-mensaje-max (tope).
+    document.addEventListener('invalid', function (ev) {
+        var c = ev.target;
+        if (!c.dataset) return;
+        if (c.validity.valueMissing && c.dataset.mensaje) c.setCustomValidity(c.dataset.mensaje);
+        else if (c.validity.rangeOverflow && c.dataset.mensajeMax) c.setCustomValidity(c.dataset.mensajeMax);
+    }, true);
+    document.addEventListener('input', function (ev) {
+        if (ev.target.setCustomValidity) ev.target.setCustomValidity('');
+    }, true);
 })();

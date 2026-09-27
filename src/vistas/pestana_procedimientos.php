@@ -30,7 +30,7 @@ $er = $E['procedimiento'] ?? [];
             <?= campo_sin_columna('Id Estudio', 'text') ?>
             <div class="casillas"><?= casilla('ProcReal', 'Realizado?', $d) ?></div>
         </div>
-        <?= campo_texto('IndiAdic', 'Descripción', $d, $er, 4) ?>
+        <?= campo_texto('IndiAdic', 'Descripción', $d, $er, 4, true) ?>
         <h3 class="subtitulo-panel"><?= icono('file-text') ?>Diagnósticos</h3>
         <?= tabla_diagnosticos([['Principal', 'DiagPrin', 'ProcTipoDiag'], ['Rela 1', 'DiagRela', 'ProcTipoDiaR'], ['Rela 2', 'DiagRel1', 'ProcTipoDia1'],
                                 ['Rela 3', 'DiagRel2', 'ProcTipoDia2'], ['Compl', 'DiagComp', 'ProcTipoDiaC']], $d, $er, true, 'proc-') ?>

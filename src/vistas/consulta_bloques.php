@@ -138,7 +138,7 @@ function consulta_bloque_revision(array $d, array $er, string $prefijo, bool $es
     </div>
     <div class="subgrupo">
         <h3><?= icono('heart-pulse') ?>Signos Vitales</h3>
-        <?php campos_signos($d, $er, $prefijo, false); ?>
+        <?php campos_signos($d, $er, $prefijo, []); ?>
     </div>
     <?= campo_texto('EstaGene', $esCE ? 'Estado General' : 'Hallazgos Estado General', $d, $er, 2) ?>
     <div class="rejilla rejilla-4">

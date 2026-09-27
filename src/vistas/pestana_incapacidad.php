@@ -47,10 +47,12 @@ foreach ($incapacidades as $i) {
         <div class="rejilla">
             <div><label for="FePoPart">Fecha probable del parto</label><input type="date" id="FePoPart" name="FePoPart" value="<?= e(($di['FePoPart'] ?? '') === '0000-00-00' ? '' : ($di['FePoPart'] ?? '')) ?>" class="<?= ce($eri, 'FePoPart') ?>"><?= me($eri, 'FePoPart') ?></div>
             <div><label for="EdadGest">Edad gestacional</label><input type="number" id="EdadGest" name="EdadGest" value="<?= (int) ($di['EdadGest'] ?? 0) ?: '' ?>" min="0" max="45" class="<?= ce($eri, 'EdadGest') ?>"><?= me($eri, 'EdadGest') ?></div>
-            <?= campo_sin_columna('Embarazo múltiple', 'select') ?>
+            <div><label for="EmbaMult">Embarazo múltiple</label><select id="EmbaMult" name="EmbaMult" title="IncaPaci.EmbaMult: 1 Sí / 0 No (supuesto por confirmar)">
+                <option value="0"<?= (int) ($di['EmbaMult'] ?? 0) === 1 ? '' : ' selected' ?>>No</option>
+                <option value="1"<?= (int) ($di['EmbaMult'] ?? 0) === 1 ? ' selected' : '' ?>>Sí</option></select></div>
             <div><label for="NaciVivo">Nacidos vivos</label><input type="number" id="NaciVivo" name="NaciVivo" value="<?= (int) ($di['NaciVivo'] ?? 0) ?: '' ?>" min="0" max="9" class="<?= ce($eri, 'NaciVivo') ?>"><?= me($eri, 'NaciVivo') ?></div>
         </div>
-        <?= campo_texto('ObseInca', 'Nota', $di, $eri, 3) ?>
+        <?= campo_texto('ObseInca', 'Nota', $di, $eri, 3, true) ?>
         <?= botonera(['Guardar', 'Consultar', 'Imprimir', 'Cancelar']) ?>
     </form>
     </div>

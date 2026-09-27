@@ -136,12 +136,18 @@ async function buscarDocumento(p, modulo, tipo, doc) {
   // Continuar (pie) pasa a la pestaña 2 sin recargar; 18. Signos Vitales
   await p.click('[data-continuar]'); console.log('-- continuar lleva a', await p.$eval('a.actual', a => a.dataset.tab));
   await pestana('signos');
+  // Como SIHOS: cada toma debe ser POSTERIOR a la anterior (el triage es la primera)
+  const horaMas = async (min) => {   // hora por defecto del formulario (hora del servidor) + min minutos
+    const [h, m] = (await p.inputValue('#HoraToma')).split(':').map(Number); const t = (h * 60 + m + min) % 1440;
+    await p.fill('#HoraToma', String(Math.floor(t / 60)).padStart(2, '0') + ':' + String(t % 60).padStart(2, '0'));
+  };
+  await horaMas(1);
   await signos('toma-', { PANume: '118', PADeno: '76', Pulso: '82', Respirac: '17', Temperat: '36.8', Saturaci: '98', GlucMetr: '105' });
   await foto(p, '13_signos');
   await guardar('#signos button[type=submit]', 'signos guardados');
-  // Sin límites ni obligatorios (como SIHOS): una toma solo con PA 1/1
+  // Sin límites de valor (como SIHOS; solo peso <= 300 Kg): una toma solo con PA 1/1
   await pestana('signos');
-  await signos('toma-', { PANume: '1', PADeno: '1' });
+  await horaMas(2); await signos('toma-', { PANume: '1', PADeno: '1' });
   await guardar('#signos button[type=submit]', 'signos PA 1/1 guardados (sin limites)');
   await foto(p, '14_ficha_urg_con_triage_y_signos');
 
@@ -195,13 +201,15 @@ async function buscarDocumento(p, modulo, tipo, doc) {
   await autocompletar(p, f1.locator('input[name="CodiSumi[]"]'), 'omepra', 'MP0004', '53_prescripcion_autocompletar');
   await f1.locator('input[name="CantSumi[]"]').fill('20');
   await f1.locator('select[name="UnidMedi[]"]').selectOption('1'); await f1.locator('select[name="CodiVia[]"]').selectOption('1');
-  await f1.locator('input[name="CantFrec[]"]').fill('24'); await f1.locator('input[name="NumeDosi[]"]').fill('7');
-  await f1.locator('input[name="HoraInic[]"]').fill('08:00'); await f1.locator('input[name="CantSoli[]"]').fill('7');
+  await f1.locator('input[name="CantFrec[]"]').fill('24'); await f1.locator('input[name="NumeDosi[]"]').fill('1');
+  await f1.locator('input[name="HoraInic[]"]').fill('08:00'); await f1.locator('input[name="CantSoli[]"]').fill('1');
+  await f1.locator('input[name="PresMedi[]"]').fill('EN AYUNAS');
   await f1.locator('select[name="MediPrin[]"]').selectOption('1');
   const f2 = p.locator('#prescripcion tbody [data-fila]').nth(1);
   await autocompletar(p, f2.locator('input[name="CodiSumi[]"]'), 'MP0002', 'MP0002'); await f2.locator('input[name="CantSumi[]"]').fill('1');
   await f2.locator('select[name="UnidMedi[]"]').selectOption('4'); await f2.locator('select[name="CodiVia[]"]').selectOption('2');
   await f2.locator('input[name="CantFrec[]"]').fill('8'); await f2.locator('input[name="NumeDosi[]"]').fill('3');
+  await f2.locator('input[name="PresMedi[]"]').fill('DILUIR EN 100 CC SSN');
   await foto(p, '28_prescripcion_formulario');
   await guardar('#prescripcion button[type=submit]', 'prescripcion guardada');
   await foto(p, '28_prescripcion');
@@ -234,8 +242,8 @@ async function buscarDocumento(p, modulo, tipo, doc) {
 
   // 8. Evolución (con fila de signos y Rela 1)
   await pestana('evolucion');
-  await p.fill('#Subjetivo', 'REFIERE MEJORIA DEL DOLOR'); await p.fill('#Objetivo', 'ABDOMEN BLANDO, DOLOR LEVE EN EPIGASTRIO');
-  await signos('evol-', { PANume: '114', PADeno: '72', Pulso: '78', Respirac: '16', Temperat: '36.6' });
+  await p.fill('#EvolProc', '89060102'); await p.fill('#Subjetivo', 'REFIERE MEJORIA DEL DOLOR'); await p.fill('#Objetivo', 'ABDOMEN BLANDO, DOLOR LEVE EN EPIGASTRIO');
+  await signos('evol-', { Peso: '68', Talla: '165', PANume: '114', PADeno: '72', Pulso: '78', Respirac: '16', Temperat: '36.6' });
   await p.fill('#evol-EvolDiag', 'K297'); await p.fill('#evol-EvolRel1', 'E86X'); await p.selectOption('#evol-EvolTipoRel1', '2');
   await p.fill('#Analisis', 'EVOLUCION FAVORABLE'); await p.fill('#PlanMane', 'CONTINUAR MANEJO, VALORAR SALIDA');
   await p.check('#ContSign'); await p.check('#EvolRevi');
@@ -266,7 +274,7 @@ async function buscarDocumento(p, modulo, tipo, doc) {
   await guardar('#materiales button[type=submit]', 'material registrado');
   await foto(p, '41_materiales');
   await pestana('remisiones');
-  await p.selectOption('#EspeRemi', { index: 1 }); await p.selectOption('#InstRemi', '02'); await p.fill('#RemiAuto', 'AUT-0001'); await p.check('#Ambulanc');
+  await p.selectOption('#EspeRemi', { index: 1 }); await p.selectOption('#InstRemi', '02'); await p.fill('#RemiAuto', 'AUT-0001'); await p.check('#Ambulanc'); await p.fill('#PlacAmbu', 'OAA123');
   await p.fill('#NombAcep', 'MEDICO DE PRUEBA RECEPTOR'); await p.fill('#CargAcep', 'MEDICO DE TURNO');
   await p.selectOption('#RemiMoti', '2'); await p.selectOption('#ModaSoli', '2');
   await p.fill('#FechAcep', await p.inputValue('#FechRemi')); await p.fill('#HoraAcep', await p.inputValue('#HoraRemi'));
@@ -311,6 +319,10 @@ async function buscarDocumento(p, modulo, tipo, doc) {
   await p.goto(B + 'atencion.php?id=' + adm.obs + '&tab=consulta');
   await p.fill('#ConsMoti', 'DIARREA DE 2 DIAS (datos inventados)'); await p.fill('#EnfeActu', 'Deposiciones liquidas, sin sangre. Datos inventados.');
   await p.fill('#cons-CodiDiag', 'A09X'); await p.selectOption('#cons-TipoDiag', '1');
+  // Cerrar Consulta exige (como SIHOS) signos vitales y Revisión por Sistema
+  await p.click('#consulta summary:has-text("Revisión por Sistema")');
+  await p.fill('#ConsRevi', 'NIEGA OTROS SINTOMAS');
+  await signos('cons-', { Peso: '70', Talla: '170', PANume: '110', PADeno: '70', Pulso: '84', Respirac: '18', Temperat: '37', Saturaci: '97' });
   await p.fill('#ObseReco', 'HIDRATACION ORAL, CONTROL DE LIQUIDOS');
   await p.selectOption('#ConsDest', '03'); await p.selectOption('#Conducta', '125');
   await guardar('#consulta button[name=boton][value=cerrar]', 'consulta obs guardada y cerrada');

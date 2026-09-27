@@ -23,14 +23,14 @@ foreach ($evoluciones as $v) {
         <input type="hidden" name="accion" value="evolucion">
         <?= barra_registro('Nueva', $anteriores, 'FechEvol', 'HoraEvol', $d, $er) ?>
         <div class="rejilla">
-            <?= campo_buscador('EvolProc', 'Tipo', $d, $er, 'procedimientos') ?>
+            <?= campo_buscador('EvolProc', 'Tipo', $d, $er, 'procedimientos', true) ?>
             <?= campo_sin_columna('Finalidad', 'select') ?>
         </div>
-        <?= campo_texto('Subjetivo', 'Subjetivo', $d, $er, 3) ?>
-        <?= campo_texto('Objetivo', 'Objetivo', $d, $er, 3) ?>
+        <?= campo_texto('Subjetivo', 'Subjetivo', $d, $er, 3, true) ?>
+        <?= campo_texto('Objetivo', 'Objetivo', $d, $er, 3, true) ?>
         <div class="subgrupo">
-            <h3><?= icono('heart-pulse') ?>Signos Vitales <small class="legend-nota">Opcional: si escribe alguno se guarda una toma ligada a la evolución</small></h3>
-            <?php campos_signos($d, $er, 'evol-', false); ?>
+            <h3><?= icono('heart-pulse') ?>Signos Vitales <small class="legend-nota">Obligatorios como en SIHOS (Oximetría, Glucometría y Fetocardia opcionales); se guarda una toma ligada a la evolución</small></h3>
+            <?php campos_signos($d, $er, 'evol-', SIGNOS_OBLIGATORIOS_EVOLUCION); ?>
         </div>
         <h3 class="subtitulo-panel"><?= icono('file-text') ?>Diagnósticos</h3>
         <?= tabla_diagnosticos([['Principal', 'EvolDiag', 'EvolTipoDiag'], ['Rela 1', 'EvolRel1', 'EvolTipoRel1'], ['Rela 2', 'EvolRel2', 'EvolTipoRel2'],

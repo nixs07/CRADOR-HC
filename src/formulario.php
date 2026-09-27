@@ -353,9 +353,9 @@ const SIGNOS_CORTOS = [
  * Campos de signos vitales (se usan en triage y en la toma de signos), en el orden de SIHOS:
  * Peso, Talla, IMC, FC, FR, Temp, PA, TM, Fetocardia, Saturacion, Oximetria, Glucometria (sin Dolor: no existe en SIHOS).
  * $prefijo: se antepone al id (nunca al name) cuando hay dos formularios de signos en la pagina.
- * $requeridos = false: fila de signos opcional (consulta, evolución): sin campos obligatorios.
+ * $obligatorios: campos que se marcan obligatorios (SIGNOS_OBLIGATORIOS_TRIAGE, _EVOLUCION o [] = ninguno).
  */
-function campos_signos(array $d, array $e, string $prefijo = '', bool $requeridos = true): void
+function campos_signos(array $d, array $e, string $prefijo = '', array $obligatorios = []): void
 {
     $orden = ['Peso', 'Talla', 'IMC', 'Pulso', 'Respirac', 'Temperat', 'PANume', 'PADeno', 'TM', 'FetoCard', 'Saturaci',
               'Oximetria', 'GlucMetr'];
@@ -366,12 +366,13 @@ function campos_signos(array $d, array $e, string $prefijo = '', bool $requerido
                 <div class="calculado" title="<?= $c === 'IMC' ? 'Índice de masa corporal (se calcula solo)' : 'Presión arterial media (se calcula sola)' ?>">
                     <span><?= $c === 'IMC' ? 'IMC (Kg/m²)' : 'TM' ?></span><strong id="<?= e($prefijo) ?>calc-<?= strtolower($c) ?>" data-calc="<?= strtolower($c) ?>">—</strong></div>
             <?php continue; endif;
-            [$etiqueta, $min, $max, $oblig] = SIGNOS_RANGOS[$c];
-            $oblig = $oblig && $requeridos;
+            [$etiqueta, $min, $max] = SIGNOS_RANGOS[$c];
+            $oblig = in_array($c, $obligatorios, true);
             $valor = (isset($d[$c]) && (float) $d[$c] != 0) ? (float) $d[$c] : ''; ?>
             <div class="signo"><label for="<?= e($prefijo . $c) ?>" title="<?= e($etiqueta) ?>"><?= e(SIGNOS_CORTOS[$c] ?? $etiqueta) ?><?= $oblig ? ' <span class="obligatorio" aria-hidden="true">*</span>' : '' ?></label>
                 <input type="number" id="<?= e($prefijo . $c) ?>" name="<?= e($c) ?>" value="<?= e($valor) ?>" step="any"
                        min="<?= e($min) ?>" max="<?= e($max) ?>" inputmode="decimal" class="<?= ce($e, $c) ?>"<?= $oblig ? ' required' : '' ?>
+                       data-mensaje="<?= e($oblig ? SIGNOS_RANGOS[$c][3] : '') ?>"<?= $c === 'Peso' ? ' data-mensaje-max="' . e(SIGNOS_PESO_MAXIMO) . '"' : '' ?>
                        aria-label="<?= e($etiqueta) ?>">
                 <?= me($e, $c) ?></div>
         <?php endforeach; ?>

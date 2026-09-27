@@ -182,11 +182,20 @@ function hc_signos_opcionales(): array
  * Diagnostico principal y relacionados con su tipo (catalogo TipoDiag), como la tabla de
  * diagnosticos de SIHOS (Principal, Rela 1..n). $campos: [campoCodigo => campoTipo], el primero es el principal.
  */
-function hc_diagnosticos(array $campos, array &$d, array &$e, bool $principalObligatorio = true): void
+function hc_diagnosticos(array $campos, array &$d, array &$e, bool $principalObligatorio = true, string $faltaPrincipal = ''): void
 {
     $primero = true;
+    $vistos = [];
     foreach ($campos as $cd => $ct) {
         $d[$cd] = hc_diagnostico($cd, $primero && $principalObligatorio, $e, $primero ? 'el diagnóstico principal' : 'el diagnóstico');
+        if ($primero && $faltaPrincipal !== '' && $d[$cd] === '' && isset($e[$cd])) {
+            $e[$cd] = $faltaPrincipal;   // mensaje propio de la pantalla de SIHOS
+        }
+        // Como SIHOS: "Ningun diagnostico debe repetirse"
+        if ($d[$cd] !== '' && !isset($e[$cd])) {
+            if (in_array($d[$cd], $vistos, true)) $e[$cd] = 'Ningun diagnostico debe repetirse';
+            $vistos[] = $d[$cd];
+        }
         $d[$ct] = ($d[$cd] !== '' || $primero)
             ? hc_de_lista('TipoDiag', $ct, $d[$cd] !== '', $e, 'Seleccione el tipo de diagnóstico.', 1) : '';
         if ($d[$ct] === '') {
@@ -347,19 +356,20 @@ function consulta_validar(array $a): array
     hc_fecha_hora($a, $d, $e, 'FechCons', 'HoraCons', 'consulta');
     // Anamnesis (siempre): TipoCons obligatorio (verificado), finalidad, motivo y enfermedad actual
     $d['TipoCons'] = hc_procedimiento('TipoCons', true, $e);
+    if ($d['TipoCons'] === '') $e['TipoCons'] = 'Por favor, digite el tipo de consulta';
     $d['FinaCons'] = hc_de_lista('FinaCons', 'FinaCons', true, $e, 'Seleccione la finalidad de la consulta.', 2);
     foreach (['MotiCons', 'EnfeActu', 'ReviSist', 'ObseReco', 'LaboImag'] as $c) {
         $d[$c] = campo($c, 5000);
     }
-    if ($d['MotiCons'] === '') $e['MotiCons'] = 'Escriba el motivo de consulta.';
-    if ($d['EnfeActu'] === '') $e['EnfeActu'] = 'Escriba la enfermedad actual.';
+    if ($d['MotiCons'] === '') $e['MotiCons'] = 'Por favor, digite el motivo de la consulta';
+    if ($d['EnfeActu'] === '') $e['EnfeActu'] = 'Por favor, digite la enfermedad actual';
     // Diagnóstico principal: obligatorio al guardar Laboratorios y Diagnósticos, el Plan o al cerrar
     $conDx = in_array($d['boton'], ['laboratorios', 'plan', 'cerrar'], true) || campo('CodiDiag', 8) !== '';
     hc_diagnosticos(['CodiDiag' => 'TipoDiag', 'CodiRel1' => 'TipoDia1', 'CodiRel2' => 'TipoDia2',
                      'CodiRel3' => 'TipoDia3', 'CodiRel4' => 'TipoDia4'], $d, $e, $conDx);
     // Plan de manejo: obligatorio en Urgencias y Observación (100 % en SIHOS) al guardar el Plan o al cerrar
     if (!$ce && in_array($d['boton'], ['plan', 'cerrar'], true) && $d['ObseReco'] === '') {
-        $e['ObseReco'] = 'Escriba el plan de manejo y recomendaciones.';
+        $e['ObseReco'] = CONSULTA_FALTA['ObseReco'];
     }
     // Revision por sistemas: sintomaticos (1 = si, 2 = no) y perimetros
     foreach (SINTOMATICOS as $c => $etq) {
@@ -417,7 +427,74 @@ function consulta_validar(array $a): array
         $d[$desc] = campo($desc, 2000);
         if ($d[$c] === 2 && $d[$desc] === '') $e[$desc] = "Describa el hallazgo anormal en $etq.";
     }
+    // Cerrar Consulta: SIHOS revisa que la consulta este completa (mensajes de SIHOS)
+    if ($completa) {
+        $tieneSignos = $d['signos'] !== null
+            || ($d['editar'] && consulta_tiene_signos($a['ConsAdmi'], (int) $d['editar']['ConsCons']));
+        $faltan = consulta_faltantes([
+            'MotiCons' => $d['MotiCons'] !== '' && $d['EnfeActu'] !== '',
+            'CodiDiag' => $d['CodiDiag'] !== '',
+            'signos'   => $tieneSignos,
+            'Familiar' => isset($_POST['Familiar']),   // los antecedentes van en el mismo formulario
+            'ObseReco' => $d['ObseReco'] !== '',
+            'ReviSist' => $d['ReviSist'] !== '',
+        ]);
+        foreach ($faltan as $c => $m) {
+            $e[$c === 'signos' ? 'Peso' : $c] = $m;
+        }
+    }
     return [$d, $e];
+}
+
+/** Mensajes de SIHOS al cerrar la consulta o dar egreso con la consulta incompleta. */
+const CONSULTA_FALTA = [
+    'MotiCons' => 'Falta Diligenciar uno de los Siguientes Campos: Motivo de la Consulta / Enfermedad Actual',
+    'CodiDiag' => 'Falta Diligenciar el Diagnostico Principal',
+    'signos'   => 'Falta Diligenciar los Signos Vitales',
+    'Familiar' => 'Falta Diligenciar los Antecedentes',
+    'ObseReco' => 'Falta Diligenciar el Plan de Manejo y Recomendaciones',
+    'ReviSist' => 'Falta Diligenciar Revision por Sistema',
+];
+
+/** Recibe [clave de CONSULTA_FALTA => bool diligenciado] y devuelve [clave => mensaje] de lo que falta. */
+function consulta_faltantes(array $hay): array
+{
+    $f = [];
+    foreach (CONSULTA_FALTA as $c => $m) {
+        if (empty($hay[$c])) $f[$c] = $m;
+    }
+    return $f;
+}
+
+/** true si la consulta tiene una toma de signos ligada (SignVita.ConsCons). */
+function consulta_tiene_signos(string $consAdmi, int $consCons): bool
+{
+    $st = db()->prepare('SELECT COUNT(*) FROM SignVita WHERE CodiInst = ? AND ConsAdmi = ? AND ConsCons = ?');
+    $st->execute([CODI_INST, $consAdmi, $consCons]);
+    return (int) $st->fetchColumn() > 0;
+}
+
+/**
+ * Egreso: como SIHOS, la ultima consulta de la admision debe estar completa. Devuelve los mensajes que faltan
+ * (vacio si esta completa). Sin consulta: faltan todos.
+ */
+function consulta_faltantes_admision(string $consAdmi): array
+{
+    $st = db()->prepare('SELECT r.ConsCons, r.MotiCons, r.EnfeActu, r.CodiDiag, r.ObseReco, r.ReviSist,
+                                (SELECT COUNT(*) FROM Antecede x WHERE x.CodiInst = r.CodiInst AND x.ConsAdmi = r.ConsAdmi
+                                    AND x.ConsCons = r.ConsCons) AS ante
+                           FROM RipsCons r WHERE r.CodiInst = ? AND r.ConsAdmi = ? ORDER BY r.ConsCons DESC LIMIT 1');
+    $st->execute([CODI_INST, $consAdmi]);
+    $r = $st->fetch();
+    if (!$r) return consulta_faltantes([]);
+    return consulta_faltantes([
+        'MotiCons' => trim((string) $r['MotiCons']) !== '' && trim((string) $r['EnfeActu']) !== '',
+        'CodiDiag' => trim((string) $r['CodiDiag']) !== '',
+        'signos'   => consulta_tiene_signos($consAdmi, (int) $r['ConsCons']),
+        'Familiar' => (int) $r['ante'] > 0,
+        'ObseReco' => trim((string) $r['ObseReco']) !== '',
+        'ReviSist' => trim((string) $r['ReviSist']) !== '',
+    ]);
 }
 
 /** Preguntas de la ventana de Patológicos (tipo 500) y de Obstétricos (tipo 501): ids de la lista 45. */
@@ -844,16 +921,20 @@ function prescripcion_validar(array $a): array
     $d['PresSali'] = $amb ? 2 : 1;
     $d['ObseOrde'] = campo('ObseOrde', 5000);
     $d['PersEntr'] = campo('PersEntr', 15);
-    $d['CodiDiag'] = hc_diagnostico('PresDiag', false, $e);
+    // Diagnostico obligatorio (normativa 2275, como SIHOS)
+    $d['CodiDiag'] = hc_diagnostico('PresDiag', true, $e, 'el diagnóstico de la prescripción');
     foreach ([1, 2, 3, 4] as $k) {
         $d["CodiRel$k"] = hc_diagnostico("PresRel$k", false, $e);
     }
-    // Tipo de prescripcion: 1 = regular, 2 = control (comentario de EncaPres.TipoPres). Domiciliaria: pendiente confirmar
-    $d['TipoPres'] = campo('TipoPres', 1) === '2' ? 2 : 1;
+    // Tipo de prescripcion (EncaPres.TipoPres): 1 Regular, 2 Control, 3 Domiciliaria (supuesto de
+    // RESULTADO_CONSULTAS_SIHOS.md §4: en SIHOS solo se usan 0 y 1; no afecta datos reales)
+    $tp = campo('TipoPres', 1);
+    $d['TipoPres'] = in_array($tp, ['2', '3'], true) ? (int) $tp : 1;
     $d['items'] = hc_filas(PRES_CAMPOS, 'CodiSumi');
     if (!$d['items']) {
-        $e['CodiSumi'] = 'Agregue al menos un medicamento.';
+        $e['CodiSumi'] = 'Debe formular al menos un medicamento';
     }
+    $vistos = [];
     foreach ($d['items'] as $i => &$it) {
         $n = $i + 1;
         $nombre = suministro_nombre($it['CodiSumi']);
@@ -861,14 +942,19 @@ function prescripcion_validar(array $a): array
             $e["item$n"] = "Medicamento $n: el código {$it['CodiSumi']} no existe o no está activo.";
             continue;
         }
+        // Como SIHOS: no se repite el mismo suministro en la prescripcion
+        if (in_array(strtoupper($it['CodiSumi']), $vistos, true)) {
+            $e["item{$n}r"] = "Medicamento $n: el suministro {$it['CodiSumi']} ya está en la prescripción.";
+        }
+        $vistos[] = strtoupper($it['CodiSumi']);
         $it['NombSumi'] = $nombre;
         $it['MediPrin'] = $it['MediPrin'] === '1' ? 1 : 0;
         $cant = hc_numero($it['CantSumi']);
-        if ($cant === null || $cant <= 0 || $cant > 99999) $e["item{$n}c"] = "Medicamento $n: escriba la cantidad por dosis.";
+        if ($cant === null || $cant <= 0 || $cant > 99999) $e["item{$n}c"] = "Medicamento $n: la cantidad debe ser mayor que 0.";
         if (!lista_valida('UnidMedi', $it['UnidMedi'])) $e["item{$n}u"] = "Medicamento $n: seleccione la unidad.";
         if (!lista_valida('ViaAdmi', $it['CodiVia'])) $e["item{$n}v"] = "Medicamento $n: seleccione la vía.";
         $frec = (int) $it['CantFrec'];
-        if ($frec < 1 || $frec > 99 || !lista_valida('CodiTiem', $it['TiemFrec'])) $e["item{$n}f"] = "Medicamento $n: escriba cada cuánto.";
+        if ($frec < 1 || $frec > 99 || !lista_valida('CodiTiem', $it['TiemFrec'])) $e["item{$n}f"] = "Medicamento $n: Debe indicar el tiempo de Aplicacion";
         $hf = $frec * (TIEMPO_HORAS[(int) $it['TiemFrec']] ?? 0);
         if ($amb) {
             // Ambulatoria: Frecuencia y Periodo de duración; Total (Dosis) = duración / frecuencia
@@ -884,6 +970,12 @@ function prescripcion_validar(array $a): array
             $it['HoraInic'] = hora_valida($it['HoraInic']) ?? $d['HoraPres'];
             $it['CantPeDu'] = min(127, max(0, $it['NumeDosi'] * $frec));
             $it['TiemPeDu'] = $it['TiemFrec'];
+            // Como SIHOS: la prescripcion hospitalaria cubre maximo 24 horas (numero de dosis x frecuencia)
+            if (!isset($e["item{$n}n"], $e["item{$n}f"]) && $it['NumeDosi'] * $hf > 24) {
+                $e["item{$n}h"] = "Medicamento $n: No es posible prescribir para mas de 24 Horas";
+            }
+            // Nota obligatoria en la prescripcion hospitalaria
+            if ($it['PresMedi'] === '') $e["item{$n}o"] = "Medicamento $n: la Nota es obligatoria.";
         }
         $it['CantTota'] = round(($cant ?? 0) * $it['NumeDosi'], 2);
         $it['CantSumi'] = $cant ?? 0;
@@ -1015,17 +1107,20 @@ function ordenes_validar(array $a): array
     foreach ([1, 2, 3, 4] as $i) {
         $d["CodiRel$i"] = hc_diagnostico("OrdeRel$i", false, $e);
     }
-    // Finalidad de la orden (catalogo FinaCons, "No aplica" = 10 por defecto), autorizacion y ambulatoria
-    $d['CodiFina'] = hc_de_lista('FinaCons', 'OrdeFina', false, $e, 'Seleccione una finalidad válida.', 2);
-    if ($d['CodiFina'] === '') $d['CodiFina'] = '10';
+    // Finalidad de la orden (catalogo FinaCons): obligatoria como en SIHOS ("seleccione la finalidad antes de agregar")
+    $d['CodiFina'] = hc_de_lista('FinaCons', 'OrdeFina', true, $e, 'Seleccione la finalidad antes de agregar procedimientos.', 2);
     $d['Autoriza'] = 0;   // Verificado en SIHOS: siempre 0 (igual que OrdeSali)
     $d['OrdeAmbu'] = campo('OrdeAmbu', 1) === '1' ? 1 : 0;
     $d['items'] = hc_filas(ORDEN_CAMPOS, 'OrdProc');
     if (!$d['items']) {
         $e['OrdProc'] = 'Agregue al menos un procedimiento, laboratorio o imagen.';
     }
+    $vistos = [];
     foreach ($d['items'] as $i => &$it) {
         $n = $i + 1;
+        // Como SIHOS: no se repite el mismo procedimiento en la orden
+        if (in_array(strtoupper($it['OrdProc']), $vistos, true)) $e["ord{$n}r"] = "Ítem $n: el procedimiento {$it['OrdProc']} ya está en la orden.";
+        $vistos[] = strtoupper($it['OrdProc']);
         $it['NombProc'] = procedimiento_nombre($it['OrdProc']);
         if ($it['NombProc'] === null) $e["ord$n"] = "Ítem $n: el procedimiento {$it['OrdProc']} no existe o no está activo.";
         $cant = (int) $it['OrdCant'];
@@ -1116,6 +1211,7 @@ function procedimiento_validar(array $a): array
     hc_diagnosticos(['DiagPrin' => 'ProcTipoDiag', 'DiagRela' => 'ProcTipoDiaR', 'DiagRel1' => 'ProcTipoDia1',
                      'DiagRel2' => 'ProcTipoDia2', 'DiagComp' => 'ProcTipoDiaC'], $d, $e);
     $d['IndiAdic'] = campo('IndiAdic', 5000);
+    if ($d['IndiAdic'] === '') $e['IndiAdic'] = 'Escriba la descripción del procedimiento.';
     $cant = campo('CantProc', 5);
     $d['CantProc'] = $cant === '' ? 1 : (int) $cant;
     if ($cant !== '' && (!ctype_digit($cant) || (int) $cant < 1 || (int) $cant > 999)) $e['CantProc'] = 'La cantidad debe estar entre 1 y 999.';
@@ -1263,7 +1359,12 @@ function medicamento_validar(array $a): array
             $e["medi$n"] = "Fila $n: el medicamento no está prescrito.";
             continue;
         }
-        if ($cant < 0 || $cant > 99999) $e["medi{$n}c"] = "Fila $n: la cantidad no es válida.";
+        if ($cant < 0 || $cant > 99999) $e["medi{$n}c"] = "Fila $n: la cantidad debe ser mayor que 0.";
+        // Como SIHOS: no se aplica mas de lo ordenado (total prescrito menos lo ya aplicado)
+        $resta = (float) $pres[$clave]['CantTota'] - (float) $pres[$clave]['CantApli'];
+        if ($cant > 0 && (float) $pres[$clave]['CantTota'] > 0 && $cant > $resta + 0.001) {
+            $e["medi{$n}m"] = "Fila $n: la cantidad no puede ser mayor a la ordenada (quedan " . rtrim(rtrim(number_format(max(0, $resta), 2, '.', ''), '0'), '.') . ').';
+        }
         $f = ['det' => $pres[$clave], 'CantMedi' => $cant, 'IndiAdic' => mb_substr(trim((string) ($_POST['MediObse'][$i] ?? '')), 0, 255)];
         foreach (['FechMedi' => 'HoraMedi', 'FechPlan' => 'HoraPlan'] as $cf => $ch) {
             $f[$cf] = (string) ($_POST[$cf][$i] ?? '');
@@ -1331,17 +1432,19 @@ function evolucion_validar(array $a): array
     foreach (['Subjetivo', 'Objetivo', 'Analisis', 'PlanMane'] as $c) {
         $d[$c] = campo($c, 10000);
     }
-    if ($d['Subjetivo'] === '' && $d['Objetivo'] === '') $e['Subjetivo'] = 'Escriba lo subjetivo o lo objetivo.';
-    if ($d['Analisis'] === '') $e['Analisis'] = 'Escriba el análisis.';
-    if ($d['PlanMane'] === '') $e['PlanMane'] = 'Escriba el plan de manejo.';
+    // Como SIHOS: "Debe digitar alguna informacion" (Subjetivo, Objetivo, Analisis y Plan)
+    foreach (['Subjetivo', 'Objetivo', 'Analisis', 'PlanMane'] as $c) {
+        if ($d[$c] === '') $e[$c] = 'Debe digitar alguna informacion';
+    }
     hc_diagnosticos(['EvolDiag' => 'EvolTipoDiag', 'EvolRel1' => 'EvolTipoRel1', 'EvolRel2' => 'EvolTipoRel2',
-                     'EvolRel3' => 'EvolTipoRel3', 'EvolRel4' => 'EvolTipoRel4'], $d, $e);
+                     'EvolRel3' => 'EvolTipoRel3', 'EvolRel4' => 'EvolTipoRel4'], $d, $e, true, 'Debe seleccionar el DX principal');
     $d['CodiDiag'] = $d['EvolDiag'];
     $d['TipoDiag'] = $d['EvolTipoDiag'];
-    // Signos vitales de la evolucion (opcionales): toma de SignVita ligada con ConsEvol
-    [$d['signos'], $es] = hc_signos_opcionales();
+    // Signos vitales de la evolucion (OBLIGATORIOS como en SIHOS): toma de SignVita ligada con ConsEvol
+    [$d['signos'], $es] = signos_validar(false, SIGNOS_OBLIGATORIOS_EVOLUCION);
     $e += $es;
-    $d['CodiProc'] = hc_procedimiento('EvolProc', false, $e);
+    $d['CodiProc'] = hc_procedimiento('EvolProc', true, $e);
+    if ($d['CodiProc'] === '') $e['EvolProc'] = 'Debe seleccionar la consulta';   // EvolInte.CodiProc: consulta de la evolucion
     $d['ContSign'] = campo('ContSign', 1) === '1' ? 1 : 0;
     $d['ContLiqu'] = campo('ContLiqu', 1) === '1' ? 1 : 0;
     // Revisado (casilla de SIHOS): EvolInte.ContRevi, MediRevi, FechRevi, HoraRevi
@@ -1420,6 +1523,10 @@ function egreso_validar(array $a): array
     $d['DiagMuer'] = '';
     $d['FechMuer'] = '0000-00-00';
     $d['HoraMuer'] = '00:00:00';
+    // Como SIHOS: no hay egreso con la consulta incompleta
+    if ($f = consulta_faltantes_admision($a['ConsAdmi'])) {
+        $e['consulta'] = implode('. ', $f) . '.';
+    }
     if (!isset($e['EstaSali']) && estado_salida_muerto($d['EstaSali'])) {
         // DiagMuer es varchar(4): se guarda el CIE-10 de 4 caracteres
         $d['DiagMuer'] = hc_diagnostico('DiagMuer', true, $e, 'la causa de muerte');
@@ -1652,9 +1759,11 @@ function remision_validar(array $a): array
     hc_fecha_hora($a, $d, $e, 'FechRemi', 'HoraRemi', 'remisión');
     $d['RemiMoti'] = hc_de_lista('MotiRemi', 'RemiMoti', true, $e, 'Seleccione el motivo de remisión.', 2);
     $d['ModaSoli'] = hc_de_lista('ModaSoli', 'ModaSoli', true, $e, 'Seleccione la modalidad de la solicitud.', 2);
-    $d['EspeRemi'] = hc_de_lista('Espe', 'EspeRemi', false, $e, 'Seleccione una especialidad válida.', 3);
-    // Institución: lista del catálogo "Instituciones de Remisión" (PROVISIONAL, sql/05) -> Remision.InstRemi
-    $d['InstRemi'] = hc_de_lista('InstRemi', 'InstRemi', false, $e, 'Seleccione una institución de la lista.', 10);
+    // Como SIHOS (VALIDACIONES_SIHOS.md §2): institución, especialidad, acepta, autorización, descripción, modalidad
+    // y motivo obligatorios
+    $d['EspeRemi'] = hc_de_lista('Espe', 'EspeRemi', true, $e, 'Seleccione la especialidad.', 3);
+    // Institución: catálogo InstRemi de SIHOS; Remision.InstRemi guarda CodInsRe
+    $d['InstRemi'] = hc_de_lista('InstRemi', 'InstRemi', true, $e, 'Seleccione la institución.', 10);
     $d['MotiRemi'] = campo('MotiRemiTexto', 5000);
     if ($d['MotiRemi'] === '') $e['MotiRemiTexto'] = 'Describa el motivo de la remisión (resumen clínico).';
     $d['OtroMoti'] = campo('OtroMoti', 2000);
@@ -1666,10 +1775,12 @@ function remision_validar(array $a): array
     $d['DiagRemi'] = $ult ? trim((string) $ult['CodiDiag']) : (string) $a['DiagIngr'];
     $d['TipoDiag'] = $ult && (int) $ult['TipoDiag'] ? (string) (int) $ult['TipoDiag'] : '1';
     $d['NombAcep'] = mb_strtoupper(campo('NombAcep', 80));
+    if ($d['NombAcep'] === '') $e['NombAcep'] = 'Escriba el nombre de la persona que acepta.';
     $d['CargAcep'] = campo('CargAcep', 40);
     $d['NumeAuto'] = campo('RemiAuto', 15);
+    if ($d['NumeAuto'] === '') $e['RemiAuto'] = 'Escriba el número de autorización.';
     $d['Ambulanc'] = campo('Ambulanc', 1) === '1' ? 1 : 0;
-    $d['PlacAmbu'] = '';   // SIHOS no pide la placa en esta pantalla
+    $d['PlacAmbu'] = mb_strtoupper(campo('PlacAmbu', 10));   // Remision.PlacAmbu (RESULTADO_CONSULTAS_SIHOS.md §4)
     // Fecha y hora de aceptacion (opcionales, como en SIHOS); si no se escriben y hay quien acepta, se usa la de la remision
     $d['FechAcep'] = campo('FechAcep', 10);
     $d['HoraAcep'] = hora_valida(campo('HoraAcep', 8)) ?? '';
@@ -1691,11 +1802,13 @@ function remision_guardar(array $a, array $d, string $login): int
             'ModaSoli' => (int) $d['ModaSoli'], 'RemiMoti' => (int) $d['RemiMoti'], 'OtroMoti' => $d['OtroMoti'],
             'FechAcep' => ($d['FechAcep'] ?? '') !== '' ? $d['FechAcep'] : ($acepta ? $d['FechRemi'] : '0000-00-00'),
             'HoraAcep' => ($d['FechAcep'] ?? '') !== '' ? $d['HoraAcep'] : ($acepta ? $d['HoraRemi'] : '00:00:00'),
-            'TipoRemi' => 0, 'FechSali' => $d['FechRemi'], 'HoraSali' => $d['HoraRemi'],
+            // Como SIHOS: FechSali/HoraSali SIEMPRE vacías; la fecha de la remisión es FechDigi/HoraDigi
+            'TipoRemi' => 0, 'FechSali' => '0000-00-00', 'HoraSali' => '00:00:00',
             'FechLLega' => '0000-00-00', 'HoraLLega' => '00:00:00', 'FechCier' => '0000-00-00', 'HoraCier' => '00:00:00',
             'UsuaCier' => '', 'Cerrado' => 0,
             'DiagRemi' => $d['DiagRemi'], 'DiagRel1' => '', 'DiagRel2' => '', 'DiagRel3' => '', 'DiagRel4' => '', 'DiagComp' => '',
             'TipoDiag' => $d['TipoDiag'], 'TipoDia1' => '', 'TipoDia2' => '', 'TipoDia3' => '', 'TipoDia4' => '',
+            'FechDigi' => $d['FechRemi'], 'HoraDigi' => $d['HoraRemi'],
         ] + hc_digitacion($login));
         return $cons;
     });
@@ -1722,14 +1835,25 @@ function incapacidad_validar(array $a): array
     if (!ctype_digit($dias) || (int) $dias < 1 || (int) $dias > 540) $e['DiasIncaPaci'] = 'Los días de incapacidad deben estar entre 1 y 540.';
     $d['DiasInca'] = (int) $dias;
     $d['ObseInca'] = campo('ObseInca', 5000);
-    // Maternidad (IncaPaci.FePoPart, EdadGest, NaciVivo); opcionales. Embarazo múltiple, Alcance, retroactiva,
-    // grupo y modalidad no tienen catálogo local: se muestran deshabilitados
+    if ($d['ObseInca'] === '') $e['ObseInca'] = 'Escriba la nota de la incapacidad.';
+    // Maternidad (IncaPaci.FePoPart, EdadGest, EmbaMult, NaciVivo): obligatorios si el tipo es licencia de maternidad.
+    // EmbaMult: 1 = Sí, 0 = No (SUPUESTO por confirmar). Alcance, retroactiva, grupo y modalidad no tienen catálogo local.
+    $mater = !isset($e['TipoInca']) && stripos(lista_nombre('TipoInca', $d['TipoInca']), 'MATERN') !== false;
     $d['FePoPart'] = campo('FePoPart', 10);
     if ($d['FePoPart'] !== '' && !fecha_valida($d['FePoPart'])) $e['FePoPart'] = 'Fecha probable del parto no válida.';
+    if ($mater && $d['FePoPart'] === '') $e['FePoPart'] = 'Escriba la fecha probable del parto.';
     foreach (['EdadGest' => [0, 45, 'La edad gestacional'], 'NaciVivo' => [0, 9, 'Los nacidos vivos']] as $c => [$min, $max, $que]) {
         $v = campo($c, 3);
         $d[$c] = $v === '' ? 0 : (int) $v;
         if ($v !== '' && (!ctype_digit($v) || (int) $v > $max)) $e[$c] = "$que debe estar entre $min y $max.";
+    }
+    $d['EmbaMult'] = campo('EmbaMult', 1) === '1' ? 1 : 0;
+    if ($mater) {
+        if (!isset($e['EdadGest']) && $d['EdadGest'] < 1) $e['EdadGest'] = 'Escriba la edad gestacional.';
+        if (!isset($e['NaciVivo']) && $d['NaciVivo'] < 1) $e['NaciVivo'] = 'Los nacidos vivos deben ser mayor que 0.';
+        elseif (!isset($e['NaciVivo']) && $d['NaciVivo'] > 1 && !$d['EmbaMult']) {
+            $e['NaciVivo'] = 'Si el embarazo no es múltiple, los nacidos vivos no pueden ser más de 1.';
+        }
     }
     return [$d, $e];
 }
@@ -1742,7 +1866,7 @@ function incapacidad_guardar(array $a, array $d, string $login): int
             'CodiInst' => CODI_INST, 'ConsAdmi' => $a['ConsAdmi'], 'ConsInca' => $cons, 'CodiModu' => hc_modulo($a),
             'FechInca' => $d['FechInca'], 'HoraInca' => $d['HoraInca'], 'TipoInca' => (int) $d['TipoInca'],
             'OrigInca' => (int) $d['OrigInca'], 'DiasInca' => $d['DiasInca'], 'ObseInca' => $d['ObseInca'],
-            'TipoAlca' => 0, 'EmbaMult' => 0, 'FePoPart' => $d['FePoPart'] !== '' ? $d['FePoPart'] : '0000-00-00',
+            'TipoAlca' => 0, 'EmbaMult' => $d['EmbaMult'], 'FePoPart' => $d['FePoPart'] !== '' ? $d['FePoPart'] : '0000-00-00',
             'EdadGest' => $d['EdadGest'], 'NaciVivo' => $d['NaciVivo'],
         ] + hc_digitacion($login));
         return $cons;
