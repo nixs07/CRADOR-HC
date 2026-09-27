@@ -280,30 +280,29 @@ function botones_panel(string $guardar): string
          . '</button><button type="reset" class="boton boton-claro">' . icono('refresh-cw') . 'Limpiar</button></div>';
 }
 
-/** Etiquetas cortas de los signos para la fila compacta (como la tabla de signos de SIHOS). */
+/** Etiquetas de los signos en la fila compacta, como en SIHOS. */
 const SIGNOS_CORTOS = [
-    'Peso' => 'Peso (kg)', 'Talla' => 'Talla (cm)', 'Pulso' => 'FC (lpm)', 'Respirac' => 'FR (rpm)',
-    'Temperat' => 'Temp (°C)', 'PANume' => 'PA sistólica', 'PADeno' => 'PA diastólica',
-    'Saturaci' => 'Saturación (%)', 'GlucMetr' => 'Glucometría', 'Dolor' => 'Dolor (0-10)',
-    'FetoCard' => 'Fetocardia', 'Oximetria' => 'Oximetría',
+    'Peso' => 'Peso (Kg)', 'Talla' => 'Talla (cm)', 'Pulso' => 'FC (Min)', 'Respirac' => 'FR (Min)',
+    'Temperat' => 'Temp (°C)', 'PANume' => 'PA sist', 'PADeno' => 'PA diast', 'FetoCard' => 'Fetocardia (Lat/min)',
+    'Saturaci' => 'Saturación (%)', 'Oximetria' => 'Oximetría', 'GlucMetr' => 'Glucometría',
 ];
 
 /**
  * Campos de signos vitales (se usan en triage y en la toma de signos), en el orden de SIHOS:
- * Peso, Talla, IMC, FC, FR, Temp, PA, TM, Fetocardia, Saturacion, Oximetria, Glucometria (y dolor).
+ * Peso, Talla, IMC, FC, FR, Temp, PA, TM, Fetocardia, Saturacion, Oximetria, Glucometria (sin Dolor: no existe en SIHOS).
  * $prefijo: se antepone al id (nunca al name) cuando hay dos formularios de signos en la pagina.
  * $requeridos = false: fila de signos opcional (consulta, evolución): sin campos obligatorios.
  */
 function campos_signos(array $d, array $e, string $prefijo = '', bool $requeridos = true): void
 {
     $orden = ['Peso', 'Talla', 'IMC', 'Pulso', 'Respirac', 'Temperat', 'PANume', 'PADeno', 'TM', 'FetoCard', 'Saturaci',
-              'Oximetria', 'GlucMetr', 'Dolor'];
+              'Oximetria', 'GlucMetr'];
     ?>
     <div class="rejilla-signos">
         <?php foreach ($orden as $c):
             if ($c === 'IMC' || $c === 'TM'): ?>
                 <div class="calculado" title="<?= $c === 'IMC' ? 'Índice de masa corporal (se calcula solo)' : 'Presión arterial media (se calcula sola)' ?>">
-                    <span><?= $c === 'IMC' ? 'IMC' : 'TM (PAM)' ?></span><strong id="<?= e($prefijo) ?>calc-<?= strtolower($c) ?>" data-calc="<?= strtolower($c) ?>">—</strong></div>
+                    <span><?= $c === 'IMC' ? 'IMC (Kg/m²)' : 'TM' ?></span><strong id="<?= e($prefijo) ?>calc-<?= strtolower($c) ?>" data-calc="<?= strtolower($c) ?>">—</strong></div>
             <?php continue; endif;
             [$etiqueta, $min, $max, $oblig] = SIGNOS_RANGOS[$c];
             $oblig = $oblig && $requeridos;
@@ -413,4 +412,42 @@ function casilla(string $nombre, string $etiqueta, array $datos, string $id = ''
     $id = $id !== '' ? $id : $nombre;
     return '<label class="opcion" for="' . e($id) . '"><input type="checkbox" id="' . e($id) . '" name="' . e($nombre) . '" value="1"'
          . (!empty($datos[$nombre]) ? ' checked' : '') . '> ' . e($etiqueta) . '</label>';
+}
+
+/**
+ * Tabla de tomas de signos vitales. $historica = true: la tabla histórica de la pestaña Signos Vitales con las
+ * columnas de SIHOS (Cons · Evolución · Sede · Fecha · Hora · Peso · Talla · IMC · FC · FR · Temp · PA ·
+ * Fetocardia · Saturación · Glucometría · Profesional). false: la fila de signos del triage (§0.2 del recorrido).
+ * Los valores se muestran tal cual se guardaron (sin límites), 0 incluido.
+ */
+function tabla_signos(array $tomas, bool $historica): string
+{
+    $n = fn ($v) => e(rtrim(rtrim(number_format((float) $v, 2, '.', ''), '0'), '.'));
+    if ($historica) {
+        $h = '<div class="tabla-contenedor"><table class="tabla tabla-signos"><thead><tr><th>Cons</th><th>Evolución</th><th>Sede</th>'
+           . '<th>Fecha</th><th>Hora</th><th class="num">Peso</th><th class="num">Talla</th><th class="num">IMC</th><th class="num">FC</th>'
+           . '<th class="num">FR</th><th class="num">Temp</th><th>PA</th><th class="num">Fetocardia</th><th class="num">Saturación</th>'
+           . '<th class="num">Glucometría</th><th>Profesional</th></tr></thead><tbody>';
+        foreach ($tomas as $s) {
+            $h .= '<tr id="reg-signos-' . (int) $s['ConsSign'] . '"><td><span class="contador">' . (int) $s['ConsSign'] . '</span></td>'
+                . '<td class="num">' . ((int) ($s['ConsEvol'] ?? 0) ?: '') . '</td><td>' . e($s['CodiInst']) . '</td>'
+                . '<td class="sin-salto">' . e(date('d/m/Y', strtotime($s['FechToma']))) . '</td><td>' . e(substr($s['HoraToma'], 0, 5)) . '</td>'
+                . '<td class="num">' . $n($s['Peso']) . '</td><td class="num">' . $n($s['Talla']) . '</td><td class="num">' . $n($s['MasaCorp']) . '</td>'
+                . '<td class="num">' . (int) $s['Pulso'] . '</td><td class="num">' . (int) $s['Respirac'] . '</td><td class="num">' . $n($s['Temperat']) . '</td>'
+                . '<td class="sin-salto">' . (int) $s['PANume'] . '/' . (int) $s['PADeno'] . '</td><td class="num">' . (int) $s['FetoCard'] . '</td>'
+                . '<td class="num">' . $n($s['Saturaci']) . '</td><td class="num">' . (int) $s['GlucMetr'] . '</td><td>' . e($s['UsuaDigi']) . '</td></tr>';
+        }
+        return $h . '</tbody></table></div>';
+    }
+    $h = '<div class="tabla-contenedor tabla-triage"><table class="tabla"><thead><tr><th>Peso (Kg)</th><th>Talla (cm)</th><th>IMC (Kg/m²)</th>'
+       . '<th>FC (Min)</th><th>FR (Min)</th><th>Temp (°C)</th><th>PA</th><th>TM</th><th>Fetocardia (Lat/min)</th><th>Saturación (%)</th>'
+       . '<th>Oximetría</th><th>Glucometría</th></tr></thead><tbody>';
+    foreach ($tomas as $s) {
+        $h .= '<tr><td class="num">' . $n($s['Peso']) . '</td><td class="num">' . $n($s['Talla']) . '</td><td class="num">' . $n($s['MasaCorp']) . '</td>'
+            . '<td class="num">' . (int) $s['Pulso'] . '</td><td class="num">' . (int) $s['Respirac'] . '</td><td class="num">' . $n($s['Temperat']) . '</td>'
+            . '<td class="num sin-salto">' . (int) $s['PANume'] . '/' . (int) $s['PADeno'] . '</td><td class="num">' . (int) $s['TM'] . '</td>'
+            . '<td class="num">' . (int) $s['FetoCard'] . '</td><td class="num">' . $n($s['Saturaci']) . '</td>'
+            . '<td class="num">' . ($s['Oximetria'] === null ? '' : (int) $s['Oximetria']) . '</td><td class="num">' . (int) $s['GlucMetr'] . '</td></tr>';
+    }
+    return $h . '</tbody></table></div>';
 }

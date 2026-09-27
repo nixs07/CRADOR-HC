@@ -509,26 +509,7 @@ pestanas_historia($a, $mod, $tab, $conteos ?? []);
         <?php if (!$signoTriage): ?>
             <div class="alerta vacio"><?= icono('info') ?><div>No se encontró la toma de signos del triage.</div></div>
         <?php else: $st1 = $signoTriage; ?>
-        <div class="tabla-contenedor tabla-triage">
-        <table class="tabla">
-            <thead><tr><th>Peso</th><th>Talla</th><th>IMC</th><th>FC</th><th>FR</th><th>T °C</th><th>PA</th><th>TM</th><th>Feto</th><th>SatO₂</th><th>Oxim.</th><th>Gluco</th><th>Dolor</th></tr></thead>
-            <tbody><tr>
-                <td class="num"><?= (float) $st1['Peso'] > 0 ? e((float) $st1['Peso']) . ' kg' : '—' ?></td>
-                <td class="num"><?= (float) $st1['Talla'] > 0 ? e((float) $st1['Talla']) . ' cm' : '—' ?></td>
-                <td class="num"><?= (float) $st1['MasaCorp'] > 0 ? e((float) $st1['MasaCorp']) : '—' ?></td>
-                <td class="num"><?= (int) $st1['Pulso'] ?></td>
-                <td class="num"><?= (int) $st1['Respirac'] ?></td>
-                <td class="num"><?= e((float) $st1['Temperat']) ?></td>
-                <td class="num sin-salto"><?= (int) $st1['PANume'] ?>/<?= (int) $st1['PADeno'] ?></td>
-                <td class="num"><?= (int) $st1['TM'] ?></td>
-                <td class="num"><?= (int) ($st1['FetoCard'] ?? 0) > 0 ? (int) $st1['FetoCard'] : '—' ?></td>
-                <td class="num"><?= (float) $st1['Saturaci'] > 0 ? e((float) $st1['Saturaci']) . '%' : '—' ?></td>
-                <td class="num"><?= (float) ($st1['Oximetria'] ?? 0) > 0 ? e((float) $st1['Oximetria']) . '%' : '—' ?></td>
-                <td class="num"><?= (int) $st1['GlucMetr'] > 0 ? (int) $st1['GlucMetr'] : '—' ?></td>
-                <td class="num"><?= e((float) $st1['Dolor']) ?></td>
-            </tr></tbody>
-        </table>
-        </div>
+        <?= tabla_signos([$st1], false) ?>
         <?php endif; ?>
     <?php elseif (!$editable): ?>
         <div class="alerta vacio"><?= icono('info') ?><div>El paciente aún no tiene triage.</div></div>
@@ -563,8 +544,7 @@ pestanas_historia($a, $mod, $tab, $conteos ?? []);
                 <div><label for="CondTria">Conducta</label>
                     <select id="CondTria" name="CondTria" class="<?= ce($eT, 'CondTria') ?>" required><?= opciones('CondTria', $t['CondTria'] ?? '') ?></select><?= me($eT, 'CondTria') ?></div>
             </div>
-            <label for="Conducta">Observaciones de la conducta</label>
-            <textarea id="Conducta" name="Conducta" rows="2" maxlength="5000"><?= v($t, 'Conducta') ?></textarea>
+            <textarea id="Conducta" name="Conducta" rows="2" maxlength="5000" aria-label="Texto de la conducta"><?= v($t, 'Conducta') ?></textarea>
             <div class="rejilla">
                 <?= campo_lista('CodiCons', 'Continuar en el consultorio', 'Cons', $t, $eT, false) ?>
             </div>
@@ -612,35 +592,7 @@ pestanas_historia($a, $mod, $tab, $conteos ?? []);
     <?php if (!$signos): ?>
         <div class="alerta vacio"><?= icono('info') ?><div>No hay tomas de signos vitales.</div></div>
     <?php else: ?>
-    <div class="tabla-contenedor">
-    <table class="tabla tabla-signos">
-        <thead><tr><th>Toma</th><th>Fecha y hora</th><th class="num">Peso</th><th class="num">Talla</th><th class="num">IMC</th><th class="num">FC</th><th class="num">FR</th><th class="num">T °C</th>
-            <th>PA</th><th class="num">TM</th><th class="num">Feto</th><th class="num">SatO₂</th><th class="num">Oxim.</th><th class="num">Gluco</th><th class="num">Dolor</th><th>Registró</th></tr></thead>
-        <tbody>
-        <?php foreach ($signos as $s): ?>
-            <tr id="reg-signos-<?= (int) $s['ConsSign'] ?>">
-                <td><span class="contador"><?= (int) $s['ConsSign'] ?></span>
-                    <?php if ((int) ($s['ConsCons'] ?? 0)): ?><small class="bloque">Consulta <?= (int) $s['ConsCons'] ?></small><?php elseif ((int) ($s['ConsEvol'] ?? 0)): ?><small class="bloque">Evolución <?= (int) $s['ConsEvol'] ?></small><?php endif; ?></td>
-                <td class="sin-salto"><?= e(fecha_hora($s['FechToma'] . ' ' . $s['HoraToma'])) ?></td>
-                <td class="num"><?= (float) $s['Peso'] > 0 ? e((float) $s['Peso']) : '—' ?></td>
-                <td class="num"><?= (float) $s['Talla'] > 0 ? e((float) $s['Talla']) : '—' ?></td>
-                <td class="num"><?= (float) $s['MasaCorp'] > 0 ? e((float) $s['MasaCorp']) : '—' ?></td>
-                <td class="num"><?= (int) $s['Pulso'] ?></td>
-                <td class="num"><?= (int) $s['Respirac'] ?></td>
-                <td class="num"><?= e((float) $s['Temperat']) ?></td>
-                <td class="sin-salto"><strong><?= (int) $s['PANume'] ?>/<?= (int) $s['PADeno'] ?></strong></td>
-                <td class="num"><?= (int) $s['TM'] ?></td>
-                <td class="num"><?= (int) ($s['FetoCard'] ?? 0) > 0 ? (int) $s['FetoCard'] : '—' ?></td>
-                <td class="num"><?= (float) $s['Saturaci'] > 0 ? e((float) $s['Saturaci']) . '%' : '—' ?></td>
-                <td class="num"><?= (float) ($s['Oximetria'] ?? 0) > 0 ? e((float) $s['Oximetria']) . '%' : '—' ?></td>
-                <td class="num"><?= (int) $s['GlucMetr'] > 0 ? (int) $s['GlucMetr'] : '—' ?></td>
-                <td class="num"><?= e((float) $s['Dolor']) ?></td>
-                <td><?= e($s['UsuaDigi']) ?></td>
-            </tr>
-        <?php endforeach; ?>
-        </tbody>
-    </table>
-    </div>
+    <?= tabla_signos($signos, true) ?>
     <?php endif; ?>
 </section>
 <?php

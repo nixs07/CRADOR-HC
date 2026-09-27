@@ -105,7 +105,7 @@ async function buscarDocumento(p, modulo, tipo, doc) {
   await p.selectOption('#ClasTria', '3');
   await p.fill('#triage #MotiCons', 'ME DUELE EL ESTOMAGO DESDE AYER');
   await p.fill('#HallClin', 'Paciente consciente, abdomen blando, dolor en epigastrio. Datos inventados.');
-  await signos('', { PANume: '120', PADeno: '80', Pulso: '88', Respirac: '18', Temperat: '37.2', Saturaci: '97', Peso: '72', Talla: '170', Dolor: '6', FetoCard: '', Oximetria: '96' });
+  await signos('', { PANume: '120', PADeno: '80', Pulso: '88', Respirac: '18', Temperat: '37.2', Saturaci: '97', Peso: '72', Talla: '170', FetoCard: '', Oximetria: '96' });
   await p.selectOption('#CodiCons', 'U01');
   await foto(p, '12_triage');
   await guardar('#triage button[type=submit]', 'triage guardado');
@@ -113,9 +113,13 @@ async function buscarDocumento(p, modulo, tipo, doc) {
   // Continuar (pie) pasa a la pestaña 2 sin recargar; 18. Signos Vitales
   await p.click('[data-continuar]'); console.log('-- continuar lleva a', await p.$eval('a.actual', a => a.dataset.tab));
   await pestana('signos');
-  await signos('toma-', { PANume: '118', PADeno: '76', Pulso: '82', Respirac: '17', Temperat: '36.8', Saturaci: '98', Dolor: '3', GlucMetr: '105' });
+  await signos('toma-', { PANume: '118', PADeno: '76', Pulso: '82', Respirac: '17', Temperat: '36.8', Saturaci: '98', GlucMetr: '105' });
   await foto(p, '13_signos');
   await guardar('#signos button[type=submit]', 'signos guardados');
+  // Sin límites ni obligatorios (como SIHOS): una toma solo con PA 1/1
+  await pestana('signos');
+  await signos('toma-', { PANume: '1', PADeno: '1' });
+  await guardar('#signos button[type=submit]', 'signos PA 1/1 guardados (sin limites)');
   await foto(p, '14_ficha_urg_con_triage_y_signos');
 
   // 2. Consultas: acordeones de SIHOS

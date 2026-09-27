@@ -39,6 +39,14 @@ Cada admisión entra completa o no entra (transacción por admisión). La base d
 
 - `MasaCorp` (IMC) = peso / (talla en metros)²; `TM` (presión arterial media) = (sistólica + 2 × diastólica) / 3.
 - `CodiModu`: 6 Urgencias, 8 Observación, 5 Consulta Externa. `ValoEdad`/`UnidEdad` se copian de la admisión.
+- **Como SIHOS (recorrido 26/09/2026, `docs/RECORRIDO_SIHOS.md` §0.2): sin mínimos, máximos ni obligatorios**
+  (SIHOS guarda PA 1/1 y TM 0). Solo se valida que sea un número ≥ 0 y que quepa en la columna (p. ej. `Peso`
+  decimal(5,2) ≤ 999.99, `Temperat` decimal(4,2) ≤ 99.99). Campos y orden en Triage, Consultas, Evolución y
+  Signos Vitales: Peso (Kg) · Talla (cm) · IMC (calculado) · FC (Min) · FR (Min) · Temp (°C) · PA (sist / diast) ·
+  TM (calculada) · Fetocardia (Lat/min) · Saturación (%) · Oximetría · Glucometría.
+- **"Dolor" no existe en SIHOS**: no se muestra y `SignVita.Dolor` se guarda en 0.
+- Tabla histórica de Signos Vitales: Cons · Evolución (`ConsEvol`) · Sede (`CodiInst`; no hay columna de sede) ·
+  Fecha · Hora · Peso · Talla · IMC · FC · FR · Temp · PA · Fetocardia · Saturación · Glucometría · Profesional.
 
 ## Valores fijos de la admisión (lo que SIHOS guarda en la práctica, ago-sep 2026)
 
@@ -160,7 +168,7 @@ carga (fase 3)** comparando con una admisión real de cada módulo.
 | Consulta en Consulta Externa | Las pestañas 1. Anamnesis, 2. Rev.Sistemas y Ex.Físico, 3. Antecedentes, 4. Laboratorios y Diagnósticos y 7. Plan de Manejo son **un solo formulario** (una fila de `RipsCons`). Si hay un error se abre la pestaña donde está. |
 | Barra de cada pestaña | Nuevo (formulario en blanco), No. (registros anteriores: lleva al registro), Fecha, Hora y campos propios (Tipo de prescripción, Tipo de incapacidad, Autorización, Profesional). Imprimir y Cargos están deshabilitados: no aplican en contingencia. |
 | Notas (HojaEnfe) | Sin selector de tipo (lo da la pestaña, ver "Verificado contra SIHOS"). La casilla Revisada de Notas Médicas llena `Reviza = 1`, `UsuaRevi`, `FechRevi`, `HoraRevi`. |
-| Signos en consulta y evolución | La fila de signos de Consultas (Revisión por sistema) y de Evolución es opcional: si se escribe alguno se guarda una toma de `SignVita` con `ConsCons` o `ConsEvol` (y se piden los obligatorios). `Oximetria` queda `NULL` si no se escribe. |
+| Signos en consulta y evolución | La fila de signos de Consultas (Revisión por sistema) y de Evolución es opcional: si se escribe alguno se guarda una toma de `SignVita` con `ConsCons` o `ConsEvol` (sin obligatorios). `Oximetria` queda `NULL` si no se escribe. |
 | Triage | "Continuar en el consultorio" = `Triage.CodiCons` del catálogo `CodiCons` (activos), opcional. |
 | Consulta (campos de SIHOS) | Sintomáticos (`SintResp`, `SintPiel`, `SintNerv`, `TubeMult`: 1 sí / 2 no), `PeriAbdo` (0-200) y `PeriTorx` (0-150), `LaboImag`, diagnósticos Principal y Rela 1-4 con tipo (`TipoDiag`, `TipoDia1-4`, 0 si no hay), Destino en Urgencias y Observación (`DestSali`, catálogo `DestSali`, se guarda como número; 4 si no se escoge). Prescripción: Tipo de prescripción (`TipoPres` 1 regular / 2 control), DXP, DXR 1 y DXR 2. Evolución: Rela 1-4 con tipo (`TipoDiag1-4`). Egreso: Rela 1-3 y Complicación (`DiagComp`, su tipo en `TipoDia4`). |
 | Plan de Manejo (Urgencias 20, Observación 25) | Es el mismo `RipsCons.ObseReco` del acordeón de Consultas: la pestaña muestra y edita el plan de la consulta escogida en "No." (por defecto la última; `UPDATE` con `FechModi/HoraModi/UsuaModi`). Sin consulta: "Registre primero la consulta". |

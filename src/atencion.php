@@ -491,22 +491,23 @@ function triage_guardar(array $a, array $t, array $s, string $login): void
 // ---------------------------------------------------------------------
 
 /**
- * Rangos aceptados para cada signo: campo => [etiqueta, minimo, maximo, obligatorio].
- * Son limites para detectar errores de digitacion, no rangos clinicos normales.
+ * Signos vitales en el orden de SIHOS: campo => [etiqueta, minimo, maximo, obligatorio].
+ * Como SIHOS: SIN minimos clinicos, maximos ni obligatorios (SIHOS guarda PA 1/1 y TM 0). El unico tope es el
+ * tamano de la columna de SignVita (p. ej. Peso decimal(5,2) = 999.99), para que el INSERT no falle.
+ * "Dolor" no existe en la pantalla de SIHOS: SignVita.Dolor se guarda en 0.
  */
 const SIGNOS_RANGOS = [
-    'PANume'   => ['Presión sistólica (mmHg)', 40, 300, true],
-    'PADeno'   => ['Presión diastólica (mmHg)', 20, 200, true],
-    'Pulso'    => ['Frecuencia cardiaca (lpm)', 20, 250, true],
-    'Respirac' => ['Frecuencia respiratoria (rpm)', 5, 80, true],
-    'Temperat' => ['Temperatura (°C)', 30, 45, true],
-    'Saturaci' => ['Saturación O₂ (%)', 40, 100, false],
-    'Peso'     => ['Peso (kg)', 0.3, 350, false],
-    'Talla'    => ['Talla (cm)', 20, 250, false],
-    'FetoCard' => ['Fetocardia (lat/min)', 60, 220, false],
-    'Oximetria' => ['Oximetría (%)', 40, 100, false],
-    'Dolor'    => ['Dolor (0 a 10)', 0, 10, false],
-    'GlucMetr' => ['Glucometría (mg/dL)', 10, 999, false],
+    'Peso'      => ['Peso (Kg)', 0, 999.99, false],
+    'Talla'     => ['Talla (cm)', 0, 99999, false],
+    'Pulso'     => ['FC (Min)', 0, 99999, false],
+    'Respirac'  => ['FR (Min)', 0, 99999, false],
+    'Temperat'  => ['Temp (°C)', 0, 99.99, false],
+    'PANume'    => ['PA sistólica', 0, 999, false],
+    'PADeno'    => ['PA diastólica', 0, 999, false],
+    'FetoCard'  => ['Fetocardia (Lat/min)', 0, 999, false],
+    'Saturaci'  => ['Saturación (%)', 0, 999.99, false],
+    'Oximetria' => ['Oximetría', 0, 9999, false],
+    'GlucMetr'  => ['Glucometría', 0, 999, false],
 ];
 
 /** Valida los signos del POST. Devuelve [datos, errores]. $conFecha: pide FechToma/HoraToma. */
@@ -520,14 +521,11 @@ function signos_validar(bool $conFecha): array
             if ($oblig) $e[$c] = "Escriba $etiqueta.";
             $d[$c] = 0;
         } elseif ($v < $min || $v > $max) {
-            $e[$c] = "$etiqueta fuera de rango ($min a $max).";
+            $e[$c] = "$etiqueta: el valor no cabe en la columna ($min a $max).";
             $d[$c] = $v;
         } else {
             $d[$c] = $v;
         }
-    }
-    if (!isset($e['PANume'], $e['PADeno']) && $d['PADeno'] >= $d['PANume'] && $d['PANume'] > 0) {
-        $e['PADeno'] = 'La diastólica debe ser menor que la sistólica.';
     }
     if ($conFecha) {
         $d['FechToma'] = campo('FechToma', 10);
@@ -565,7 +563,7 @@ function signos_insertar(PDO $pdo, array $a, array $s, string $login, int $sinto
     $st->execute([CODI_INST, $a['ConsAdmi'], $cons, $consEvol, $mod['CodiModu'] ?? 0, $s['FechToma'], $consCons, $s['HoraToma'],
         $s['Peso'], $s['Talla'], $imc, (int) $s['Pulso'], (int) $s['Respirac'], $s['Temperat'], (int) $s['PANume'],
         (int) $s['PADeno'], (int) ($s['FetoCard'] ?? 0), $s['Saturaci'], $sintomas, $sintomas, $a['UnidEdad'], $a['ValoEdad'],
-        $s['Dolor'], $tm, (int) ($s['Oximetria'] ?? 0) > 0 ? (int) $s['Oximetria'] : null, (int) $s['GlucMetr'], $login, $login]);
+        0, $tm, (int) ($s['Oximetria'] ?? 0) > 0 ? (int) $s['Oximetria'] : null, (int) $s['GlucMetr'], $login, $login]);
     return $cons;
 }
 
