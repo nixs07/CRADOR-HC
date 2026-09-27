@@ -1,4 +1,4 @@
-<title>Demo CRADOR-HC</title>
+<title>Demo HSCJ</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap">
 <style>
 /*CSS*/
@@ -104,7 +104,7 @@ function ir(href) {
 
 function pintar(clave, tab) {
   var p = DATOS.paginas[clave];
-  document.title = p.title.replace('CRADOR-HC', 'Demo CRADOR-HC');
+  document.title = "Demo · " + p.title;
   document.body.className = p.cls;
   try { if (localStorage.getItem('menuColapsado') === '1') document.body.classList.add('menu-colapsado'); } catch (e) {}
   var raiz = document.getElementById('demo-raiz');
