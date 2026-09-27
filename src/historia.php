@@ -114,56 +114,28 @@ function hc_de_lista(string $lista, string $campo, bool $obligatorio, array &$e,
     return $v;
 }
 
-/** Nombre de un procedimiento activo (CodiProc) o null si no existe. */
+/** Nombre de un procedimiento activo (CodiProc) o null si no existe (misma regla que el buscador). */
 function procedimiento_nombre(?string $codigo): ?string
 {
-    if ($codigo === null || trim($codigo) === '') {
-        return null;
-    }
-    $st = db()->prepare('SELECT NombProc FROM CodiProc WHERE CodiProc = ? AND Activo = 1');
-    $st->execute([trim($codigo)]);
-    $n = $st->fetchColumn();
-    return $n === false ? null : (string) $n;
+    return buscador_nombre('procedimientos', $codigo);
 }
 
 /** Busca procedimientos activos por código o nombre (máximo 30). */
 function procedimientos_buscar(string $texto): array
 {
-    $texto = trim($texto);
-    if (mb_strlen($texto) < 2) {
-        return [];
-    }
-    $st = db()->prepare("SELECT CodiProc AS c, NombProc AS n FROM CodiProc
-                          WHERE Activo = 1 AND (CodiProc LIKE ? OR NombProc LIKE ?)
-                          ORDER BY (CodiProc LIKE ?) DESC, NombProc LIMIT 30");
-    $st->execute([$texto . '%', '%' . $texto . '%', $texto . '%']);
-    return $st->fetchAll();
+    return buscador_buscar('procedimientos', $texto);
 }
 
-/** Nombre de un suministro activo (CodiSumi) o null si no existe. */
+/** Nombre de un suministro activo (CodiSumi) o null si no existe (misma regla que el buscador). */
 function suministro_nombre(?string $codigo): ?string
 {
-    if ($codigo === null || trim($codigo) === '') {
-        return null;
-    }
-    $st = db()->prepare('SELECT NombSumi FROM CodiSumi WHERE CodiSumi = ? AND SumiActi = 1');
-    $st->execute([trim($codigo)]);
-    $n = $st->fetchColumn();
-    return $n === false ? null : (string) $n;
+    return buscador_nombre('suministros', $codigo);
 }
 
 /** Busca suministros activos por código o nombre (máximo 30). */
 function suministros_buscar(string $texto): array
 {
-    $texto = trim($texto);
-    if (mb_strlen($texto) < 2) {
-        return [];
-    }
-    $st = db()->prepare("SELECT CodiSumi AS c, NombSumi AS n FROM CodiSumi
-                          WHERE SumiActi = 1 AND (CodiSumi LIKE ? OR NombSumi LIKE ?)
-                          ORDER BY (CodiSumi LIKE ?) DESC, NombSumi LIMIT 30");
-    $st->execute([$texto . '%', '%' . $texto . '%', $texto . '%']);
-    return $st->fetchAll();
+    return buscador_buscar('suministros', $texto);
 }
 
 /** Procedimiento del POST: vacío o un código activo de CodiProc. */
@@ -1236,6 +1208,17 @@ function estado_salida_muerto($codigo): bool
     return $codigo !== '' && stripos(lista_nombre('EstaSali', $codigo), 'MUERT') !== false;
 }
 
+/**
+ * Días de incapacidad de la admisión para el egreso: SUMA de IncaPaci.DiasInca (una incapacidad y sus prórrogas
+ * suman los días otorgados durante la atención). 0 si no hay incapacidad.
+ */
+function dias_incapacidad(string $consAdmi): int
+{
+    $st = db()->prepare('SELECT IFNULL(SUM(DiasInca), 0) FROM IncaPaci WHERE CodiInst = ? AND ConsAdmi = ?');
+    $st->execute([CODI_INST, $consAdmi]);
+    return (int) $st->fetchColumn();
+}
+
 function egreso_validar(array $a): array
 {
     $d = [];
@@ -1248,9 +1231,9 @@ function egreso_validar(array $a): array
     hc_diagnosticos(['DiagEgre' => 'EgreTipoDiag', 'EgreRel1' => 'EgreTipoRel1', 'EgreRel2' => 'EgreTipoRel2',
                      'EgreRel3' => 'EgreTipoRel3', 'EgreComp' => 'EgreTipoComp'], $d, $e);
     $d['TipoDiag'] = $d['EgreTipoDiag'];
-    $inca = campo('DiasInca', 3);
-    $d['DiasInca'] = $inca === '' ? null : (int) $inca;
-    if ($inca !== '' && (!ctype_digit($inca) || (int) $inca > 99)) $e['DiasInca'] = 'Los días de incapacidad deben estar entre 0 y 99.';
+    // Incapacidad (días): NO se escribe; sale de la pestaña Incapacidad (suma de IncaPaci.DiasInca de la admisión).
+    // Lo que venga en el POST se ignora.
+    $d['DiasInca'] = dias_incapacidad($a['ConsAdmi']);
     $d['ObseSali'] = campo('ObseSali', 5000);
     $d['DiagMuer'] = '';
     $d['FechMuer'] = '0000-00-00';

@@ -169,28 +169,64 @@ function camas(string $codiServ): array
     return $r;
 }
 
+/**
+ * Catálogos de los buscadores (autocompletar): tabla, columna del código, columna del nombre y filtro de activos.
+ * La MISMA definición sirve para buscar (lo que ofrece la lista) y para validar en el servidor (lo que se acepta):
+ * así lo que el buscador ofrece es exactamente lo que se guarda.
+ * El código se compara limpio (sin espacios, tabuladores ni saltos de línea): en catálogos copiados de SIHOS
+ * algunos códigos pueden traer caracteres de sobra (p. ej. "Z002\r") que la lista mostraba pero la validación
+ * exacta rechazaba.
+ */
+const BUSCADORES = [
+    'diagnosticos'   => ['CausMorb', 'CodiDiag', 'NombCaus', '(Activo = 1 OR Activo IS NULL)'],
+    'procedimientos' => ['CodiProc', 'CodiProc', 'NombProc', 'Activo = 1'],
+    'suministros'    => ['CodiSumi', 'CodiSumi', 'NombSumi', 'SumiActi = 1'],
+];
+
+/** Expresión SQL del código limpio (sin espacios, tabuladores ni saltos de línea). */
+function buscador_codigo_sql(string $col): string
+{
+    return "UPPER(TRIM(REPLACE(REPLACE(REPLACE(`$col`, CHAR(13), ''), CHAR(10), ''), CHAR(9), '')))";
+}
+
+/** Busca en el catálogo por código o nombre (máximo 30): [['c' => código limpio, 'n' => nombre], ...]. */
+function buscador_buscar(string $que, string $texto): array
+{
+    $texto = trim($texto);
+    if (!isset(BUSCADORES[$que]) || mb_strlen($texto) < 2) {
+        return [];
+    }
+    [$tabla, $cod, $nom, $activo] = BUSCADORES[$que];
+    $c = buscador_codigo_sql($cod);
+    $st = db()->prepare("SELECT DISTINCT $c AS c, `$nom` AS n FROM `$tabla`
+                          WHERE $activo AND ($c LIKE ? OR `$nom` LIKE ?)
+                          ORDER BY ($c LIKE ?) DESC, c LIMIT 30");
+    $st->execute([mb_strtoupper($texto) . '%', '%' . $texto . '%', mb_strtoupper($texto) . '%']);
+    return array_map(fn ($f) => ['c' => (string) $f['c'], 'n' => (string) $f['n']], $st->fetchAll());
+}
+
+/** Nombre de un código activo del catálogo, o null si no existe o no está activo (misma regla que buscador_buscar). */
+function buscador_nombre(string $que, ?string $codigo): ?string
+{
+    $codigo = strtoupper(trim(str_replace(["\r", "\n", "\t"], '', (string) $codigo)));
+    if ($codigo === '' || !isset(BUSCADORES[$que])) {
+        return null;
+    }
+    [$tabla, $cod, $nom, $activo] = BUSCADORES[$que];
+    $st = db()->prepare("SELECT `$nom` FROM `$tabla` WHERE $activo AND " . buscador_codigo_sql($cod) . " = ? LIMIT 1");
+    $st->execute([$codigo]);
+    $n = $st->fetchColumn();
+    return $n === false ? null : (string) $n;
+}
+
 /** Busca diagnosticos CIE-10 activos por codigo o nombre (maximo 30). */
 function diagnosticos_buscar(string $texto): array
 {
-    $texto = trim($texto);
-    if (mb_strlen($texto) < 2) {
-        return [];
-    }
-    $st = db()->prepare("SELECT CodiDiag, NombCaus FROM CausMorb
-                          WHERE (Activo = 1 OR Activo IS NULL) AND (CodiDiag LIKE ? OR NombCaus LIKE ?)
-                          ORDER BY (CodiDiag LIKE ?) DESC, CodiDiag LIMIT 30");
-    $st->execute([$texto . '%', '%' . $texto . '%', $texto . '%']);
-    return $st->fetchAll();
+    return array_map(fn ($f) => ['CodiDiag' => $f['c'], 'NombCaus' => $f['n']], buscador_buscar('diagnosticos', $texto));
 }
 
 /** Nombre de un diagnostico, o null si el codigo no existe o esta inactivo. */
 function diagnostico_nombre(?string $codigo): ?string
 {
-    if ($codigo === null || trim($codigo) === '') {
-        return null;
-    }
-    $st = db()->prepare('SELECT NombCaus FROM CausMorb WHERE CodiDiag = ? AND (Activo = 1 OR Activo IS NULL)');
-    $st->execute([strtoupper(trim($codigo))]);
-    $n = $st->fetchColumn();
-    return $n === false ? null : (string) $n;
+    return buscador_nombre('diagnosticos', $codigo);
 }

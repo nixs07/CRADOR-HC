@@ -154,6 +154,11 @@ REPLACE INTO MotiRemi (CodiMoti, NombMoti) VALUES (1, 'NO DISPONIBILIDAD DEL SER
 REPLACE INTO ModaSoli (CodiModa, NombModa) VALUES (1, 'URGENCIAS'), (2, 'PRIORITARIA'), (3, 'AMBULATORIA');
 REPLACE INTO TipoInca (CodiTipo, NombTipo) VALUES (1, 'ENFERMEDAD GENERAL'), (2, 'ACCIDENTE DE TRABAJO'), (3, 'LICENCIA DE MATERNIDAD');
 REPLACE INTO CausMorb (CodiDiag, NombCaus, Activo) VALUES ('K297', 'GASTRITIS, NO ESPECIFICADA', 1), ('E86X', 'DEPLECION DEL VOLUMEN', 1);
+-- Z001 normal y Z002 con un salto de linea al final del codigo, como puede venir de un catalogo copiado de SIHOS:
+-- el buscador lo mostraba pero la validacion exacta lo rechazaba (ver BUSCADORES en src/listas.php)
+DELETE FROM CausMorb WHERE CodiDiag LIKE 'Z001%' OR CodiDiag LIKE 'Z002%';
+INSERT INTO CausMorb (CodiDiag, NombCaus, Activo, SexoCaus) VALUES ('Z001', 'CONTROL DE SALUD DE RUTINA DEL NINO', 1, 'A'),
+ (CONCAT('Z002', CHAR(13)), 'EXAMEN DURANTE EL PERIODO DE CRECIMIENTO RAPIDO EN LA INFANCIA', 1, 'A');
 
 -- --- Pacientes (inventados) ---------------------------------------------
 REPLACE INTO Paciente (TipoDocu, NumeUsua, NombUsua, NombUsu1, Ape1Usua, Ape2Usua, CodiAdmi, TipoUsua, TipoAfil,
