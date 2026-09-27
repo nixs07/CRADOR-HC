@@ -55,7 +55,9 @@ function campo_lectura(string $etiqueta, $valor, string $clase = ''): string
 const NO_DISPONIBLE = 'No disponible en contingencia';
 
 /**
- * Pestañas de la historia de cada módulo, con los nombres, el orden y la numeración de SIHOS
+ * Lista FIJA de pestañas por módulo (respaldo de pestanas_usuario() cuando no están los catálogos de permisos):
+ * Urgencias según docs/REVISION_SIHOS.md; Observación y Consulta Externa según docs/RECORRIDO_SIHOS.md §4 y §5
+ * (barra del usuario NIXON07). Nombres, orden y numeración de SIHOS
  * (docs/SIHOS_PANTALLAS.md): [número => [id, nombre, nota]]. El id es el del panel (data-panel) y el de
  * ?tab=; si la nota no está vacía la pestaña se muestra deshabilitada. Los números que no se ven en las
  * capturas de SIHOS no se pintan (la numeración salta, como en SIHOS). Supuestos en docs/REGLAS.md.
@@ -101,8 +103,8 @@ function pestanas_lista(array $mod): array
             2 => ['evolucion', 'Evolución', ''],
             3 => ['prescripcion', 'Prescripción', ''],
             4 => ['ordenes_medicas', 'ORDENES MEDICAS', ''],
-            5 => ['ordenacion', 'Ordenación', ''],
-            6 => ['nopos', 'No POS', $n],
+            5 => ['nopos', 'No POS', $n],
+            6 => ['ordenacion', 'Ordenación', ''],
             7 => ['notas_enfermeria', 'Notas Enfermería', ''],
             8 => ['notas_medicas', 'Notas Médicas', ''],
             9 => ['procedimientos', 'Procedimientos', ''],
@@ -145,8 +147,8 @@ function pestanas_lista(array $mod): array
         9 => ['tamizaje', 'Tamizaje Riesgo Cardiovascular', $n],
         10 => ['consentimiento', 'Consentimiento', $n],
         11 => ['procedimientos', 'Procedimientos', ''],
-        12 => ['incapacidad', 'Incapacidad', ''],
-        13 => ['menor', 'Atención del Menor', $n],
+        12 => ['menor', 'Atención del Menor', $n],
+        13 => ['incapacidad', 'Incapacidad', ''],
         14 => ['notas_medicas', 'Notas Médicas', ''],
         15 => ['imagenes', 'Imágenes', $n],
         // En SIHOS siguen despues de Imagenes; aqui se numeran a continuacion
@@ -159,10 +161,70 @@ function pestanas_lista(array $mod): array
     ];
 }
 
+/** Texto sin tildes y en mayúsculas, para comparar nombres de objetos de SIHOS con los de la lista. */
+function nombre_objeto(string $t): string
+{
+    $t = strtr(mb_strtoupper(trim($t)), ['Á' => 'A', 'É' => 'E', 'Í' => 'I', 'Ó' => 'O', 'Ú' => 'U', 'Ü' => 'U', 'Ñ' => 'N']);
+    return preg_replace('/\s+/', ' ', $t);
+}
+
+/**
+ * Barra de pestañas del usuario en el módulo, como SIHOS (docs/RECORRIDO_SIHOS.md §0.1): los objetos que el
+ * usuario tiene permitidos en el módulo, ordenados por el MÍNIMO de ModuObje.Orden de cada objeto y, en empate,
+ * por CodiObje, numerados 1..N. Los objetos que CRADOR-HC no implementa quedan deshabilitados con su número.
+ *
+ * Usa los catálogos UsuaGrup, Permisos, ModuObje y Objetos. **Sus columnas aún NO están confirmadas**: la consulta
+ * usa las de sql/04_permisos_PROVISIONAL.sql. Si las tablas no existen, no tienen filas para el usuario o la
+ * consulta falla (columnas distintas), se usa la lista fija pestanas_lista(). Al llegar los SHOW CREATE TABLE de
+ * SIHOS (docs/consultas_sihos.sql) solo hay que ajustar esta consulta.
+ */
+function pestanas_usuario(string $login, array $mod): array
+{
+    $fija = pestanas_lista($mod);
+    try {
+        $st = db()->prepare('SELECT o.CodiObje, o.NombObje, MIN(m.Orden) AS Orden
+                               FROM UsuaGrup ug
+                               JOIN Permisos pe ON pe.CodiGrup = ug.CodiGrup
+                               JOIN ModuObje m ON m.CodiObje = pe.CodiObje AND m.CodiModu = ?
+                               JOIN Objetos o ON o.CodiObje = m.CodiObje
+                              WHERE ug.Login = ?
+                              GROUP BY o.CodiObje, o.NombObje
+                              ORDER BY MIN(m.Orden), o.CodiObje');
+        $st->execute([(int) $mod['CodiModu'], $login]);
+        $objetos = $st->fetchAll();
+    } catch (Throwable $e) {
+        return $fija;
+    }
+    if (!$objetos) {
+        return $fija;
+    }
+    // Id del panel de CRADOR-HC por nombre de objeto (de la lista fija del módulo)
+    $porNombre = [];
+    foreach ($fija as [$id, $nombre, $nota]) {
+        $porNombre[nombre_objeto($nombre)] = [$id, $nota];
+    }
+    $barra = [];
+    $n = 0;
+    foreach ($objetos as $o) {
+        $n++;
+        [$id, $nota] = $porNombre[nombre_objeto((string) $o['NombObje'])] ?? ['obj' . (int) $o['CodiObje'], NO_DISPONIBLE];
+        $barra[$n] = [$id, (string) $o['NombObje'], $nota];
+    }
+    return $barra;
+}
+
+/** Barra del usuario conectado en el módulo (se calcula una vez por página). */
+function pestanas_barra(array $mod): array
+{
+    static $cache = [];
+    $login = (string) (usuario_actual()['Login'] ?? '');
+    return $cache[$mod['clave'] . '|' . $login] ??= pestanas_usuario($login, $mod);
+}
+
 /** Número de SIHOS de una pestaña en el módulo ("7." para Ordenación en Urgencias), o '' si no está. */
 function pestana_numero(array $mod, string $id): string
 {
-    foreach (pestanas_lista($mod) as $n => [$pid]) {
+    foreach (pestanas_barra($mod) as $n => [$pid]) {
         if ($pid === $id) {
             return $n . '. ';
         }
@@ -173,7 +235,7 @@ function pestana_numero(array $mod, string $id): string
 /** Título del panel con el número y el nombre de SIHOS ("7. Ordenación"). */
 function pestana_titulo(array $mod, string $id): string
 {
-    foreach (pestanas_lista($mod) as $n => [$pid, $nombre]) {
+    foreach (pestanas_barra($mod) as $n => [$pid, $nombre]) {
         if ($pid === $id) {
             return $n . '. ' . $nombre;
         }
@@ -185,7 +247,7 @@ function pestana_titulo(array $mod, string $id): string
 function pestanas_disponibles(array $mod): array
 {
     $r = [];
-    foreach (pestanas_lista($mod) as [$id, , $nota]) {
+    foreach (pestanas_barra($mod) as [$id, , $nota]) {
         if ($nota === '') {
             $r[] = $id;
         }
@@ -203,7 +265,7 @@ function pestanas_historia(?array $a, array $mod, string $activa, array $conteos
     $base = $a ? 'atencion.php?id=' . urlencode($a['ConsAdmi']) . '&tab=' : '';
     ?>
     <nav class="pestanas" aria-label="Pestañas de la historia" data-pestanas>
-        <?php foreach (pestanas_lista($mod) as $n => [$id, $nombre, $nota]):
+        <?php foreach (pestanas_barra($mod) as $n => [$id, $nombre, $nota]):
             if ($nota === '' && $a): ?>
                 <a href="<?= e($base . $id) ?>" data-tab="<?= e($id) ?>"<?= $id === $activa ? ' class="actual" aria-selected="true"' : ' aria-selected="false"' ?>>
                     <span class="pestana-numero"><?= $n ?></span><?= e($nombre) ?>

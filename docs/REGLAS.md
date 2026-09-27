@@ -219,3 +219,20 @@ revisión del 26/09/2026 en [`REVISION_SIHOS.md`](REVISION_SIHOS.md), que manda 
   historia**. Sin "Tipo de egreso" (`SaliInte.TipoEgre` queda con su valor por defecto 0) y sin casilla de
   confirmación. Debajo, las listas de pendientes: insumos por descargar (no aplica), ayudas diagnósticas por
   interpretar (ítems de `DetaOrde` con `CantReal < CantSumi`) y consultas por cerrar (`RipsCons.FechCier` vacía).
+
+## Barra de pestañas por usuario (permisos de SIHOS, `docs/RECORRIDO_SIHOS.md` §0.1)
+
+- En SIHOS la numeración depende del usuario: objetos permitidos del módulo, orden por el **mínimo de
+  `ModuObje.Orden`** de cada objeto, empate por **`CodiObje`**, numerados 1..N. Las pestañas que CRADOR-HC no
+  implementa se muestran deshabilitadas con su número.
+- `pestanas_usuario($login, $modulo)` (src/formulario.php) arma la barra desde los catálogos `UsuaGrup`,
+  `Permisos`, `ModuObje` y `Objetos`. **Sus estructuras no están en sql/ y sus columnas no están confirmadas**:
+  `sql/04_permisos_PROVISIONAL.sql` las crea con lo mínimo (confirmados: `ModuObje.Orden` y `CodiObje`; el resto
+  son marcadores). El objeto se liga a su panel por el nombre (sin tildes) de la lista fija.
+- Si las tablas no existen, están vacías para el usuario o la consulta falla, se usa la **lista fija**
+  `pestanas_lista()`: Urgencias según `docs/REVISION_SIHOS.md`; Observación y Consulta Externa según
+  `docs/RECORRIDO_SIHOS.md` §4 y §5 (Observación: 5 No POS, 6 Ordenación; Consulta Externa: 12 Atención del Menor,
+  13 Incapacidad). Las pestañas después de las visibles se numeran a continuación.
+- Pendiente del usuario: correr `docs/consultas_sihos.sql` en SIHOS (sección 1), reemplazar las definiciones
+  provisionales, ajustar la consulta de `pestanas_usuario()` y copiar los catálogos con
+  `bin/actualizar_catalogos.php --tablas=UsuaGrup,Permisos,ModuObje,Objetos` (ya los incluye).
