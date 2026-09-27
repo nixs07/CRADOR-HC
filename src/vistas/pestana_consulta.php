@@ -17,7 +17,8 @@ $esCE = $mod['clave'] === 'ce';
 $tabCons = $esCE ? 'anamnesis' : 'consulta';
 $nueva = ['FechCons' => date('Y-m-d'), 'HoraCons' => date('H:i'), 'FinaCons' => '10', 'TipoDiag' => '1',
           'TipoCons' => ['urg' => '890701', 'obs' => '89060102', 'ce' => '890201'][$mod['clave']],
-          'CodiDiag' => $a['DiagIngr'], 'MotiCons' => $triage['MotiCons'] ?? ''];
+          // El motivo del triage solo se copia en la PRIMERA consulta de la admisión
+          'CodiDiag' => $a['DiagIngr'], 'MotiCons' => $consultas ? '' : ($triage['MotiCons'] ?? '')];
 // Consulta que se edita
 $editando = null;
 if (isset($F['consulta'])) {
