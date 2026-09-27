@@ -53,7 +53,7 @@ OUT=docs/capturas NODE_PATH=$(npm root -g) node docs/capturas/recorrido.js
 | `26_movil_nueva_admision.png` | Celular · encabezado en modo nueva admisión |
 | `24_movil_menu.png` | Celular · menú lateral |
 
-## Pestañas de la historia (como SIHOS)
+## Pestañas de la historia (como SIHOS, `docs/RECORRIDO_SIHOS.md`)
 
 El recorrido llena y guarda cada pestaña de Urgencias, hace la remisión, la incapacidad y el egreso en
 Observación, y en Consulta Externa guarda la consulta repartida en las pestañas 1 a 4 y 7 (primero sin enfermedad
@@ -62,29 +62,31 @@ actual: el error abre la pestaña 1), una Prescripción A (fórmula de salida), 
 | Archivo | Pantalla |
 | --- | --- |
 | `12_triage.png` | Urgencias 1. Triage (con Continuar en el consultorio) |
-| `27_consulta_formulario.png` | Urgencias 2. Consultas: acordeones Anamnesis, Antecedentes, Revisión por Sistema y Exámen, Laboratorios y Diagnósticos, Plan de Manejo |
+| `27_consulta_formulario.png` | Urgencias 2. Consultas: cinco acordeones con su Guardar, Cerrar Consulta y Duración |
 | `27_consulta.png` | 2. Consultas guardada |
 | `49_plan_manejo.png` | Urgencias 20. Plan de Manejo (ObseReco de la consulta) |
-| `28_prescripcion_formulario.png` | 4. Prescripción: Tipo de prescripción, DXP/DXR y dos suministros |
+| `28_prescripcion_formulario.png` | 4. Prescripción en rejilla (Cantidad por dosis, Cada, A partir de, Número de dosis, Cantidad solicitada, Medi. Prin.) |
 | `28_prescripcion.png` | 4. Prescripción guardada (dosis y cantidad total calculadas) |
 | `38_ordenes_medicas.png` | 5. ORDENES MEDICAS (texto libre) |
-| `29_ordenacion.png` | 7. Ordenación: autorización EPS, finalidad, ambulatoria, DXP/DXR1-4 e ítems |
+| `29_ordenacion.png` | 7. Ordenación en rejilla (Autorización EPS y Salida deshabilitados, DXP/DXR1-4 en listas) |
 | `30_procedimientos.png` | 6. Procedimientos: uno suelto y otro que atiende el ítem de la orden |
 | `32_evolucion.png` | 8. Evolución con signos y diagnósticos Principal y Rela 1-4 |
 | `31_notas_enfermeria.png` | 9. Notas Enfermería |
 | `39_notas_medicas.png` | 10. Notas Médicas con "Revisada" |
-| `40_medicamentos.png` | 11. Medicamentos (administración de lo prescrito) |
-| `41_materiales.png` | 16. Materiales |
-| `42_remisiones.png` | 15. Remisiones (con fecha y hora de aceptación) |
-| `43_incapacidad.png` | 17. Incapacidad (fecha final calculada) |
-| `36_traslado.png` | Observación: traslado de cama desde el encabezado (HOSP09 → HOSP10) con el historial |
+| `40_medicamentos.png` | 11. Medicamentos: rejilla de la prescripción escogida |
+| `41_materiales.png` | 16. Materiales en rejilla de 5 filas |
+| `42_remisiones.png` | 15. Remisiones con Especialidad e Institución de lista |
+| `43_incapacidad.png` | 17. Incapacidad con Alcance, Clasificación y Maternidad |
+| `36_cambio_atencion.png` | Observación 23. Cambio de Atención (traslado de cama HOSP09 → HOSP10, TrasCama) |
 | `44_obs_consultas.png` | Observación 1. Consultas guardada |
 | `37_obs_remisiones.png` | Observación 24. Remisiones |
-| `33_egreso.png` | 22. Egreso con la confirmación marcada |
+| `33_egreso.png` | 22. Egreso: Guardar/Modificar separados de Cerrar Historia y listas de pendientes |
 | `34_egreso_cerrado.png` | Admisión cerrada: egreso en modo consulta |
 | `45_ce_anamnesis.png` | Consulta Externa 1. Anamnesis |
 | `46_ce_revision.png` | Consulta Externa 2. Rev.Sistemas y Ex.Físico (sistemas en Normal por defecto) |
 | `50_ce_plan.png` | Consulta Externa 7. Plan de Manejo (parte del formulario de la consulta) |
 | `47_ce_cerrar_historia.png` | Consulta Externa: ventana "Cerrar Historia" del encabezado |
+| `51_cerrar_historia.png` | Observación: confirmación de Cerrar Historia en la página (sin casilla) |
+| `52_ventana_antecedentes.png` | Ventana automática al abrir la historia: antecedentes tóxicos, alérgicos y reconciliación |
 | `35_ce_cerrada.png` | Consulta Externa cerrada |
 | `48_movil_consulta.png` | Celular · 2. Consultas |

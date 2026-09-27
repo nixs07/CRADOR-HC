@@ -63,3 +63,11 @@ SELECT COUNT(*) AS n, MAX(FechSali) AS ultima FROM Remision;
 -- Actividad de las notas (HojaEnfe.Procedim) y Revisada en notas de enfermería
 SELECT TipoNota, SUM(Procedim <> '') AS con_actividad, SUM(Reviza = 1) AS revisadas, COUNT(*) AS n
   FROM HojaEnfe WHERE FechNota >= '2026-08-01' GROUP BY TipoNota;
+-- Valores reales de las opciones de Antecedentes (Si | No | No Sabe | No Corresponde): ¿3 y 4?
+SELECT Patologi, COUNT(*) AS n FROM Antecede WHERE FechDigi >= '2026-08-01' GROUP BY Patologi;
+SELECT AlerSiNo, COUNT(*) AS n FROM Antecede WHERE FechDigi >= '2026-08-01' GROUP BY AlerSiNo;
+-- Examen físico "No se Explora": ¿NULL, 0 o 3?
+SELECT Cabeza, COUNT(*) AS n FROM EstaGene WHERE FechDigi >= '2026-08-01' GROUP BY Cabeza;
+-- Código Dorado (lista tipo 47) y Conducta (lista tipo 33) usados
+SELECT EstaCodo, COUNT(*) AS n FROM RipsCons WHERE FechCons >= '2026-08-01' GROUP BY EstaCodo;
+SELECT Conducta, COUNT(*) AS n FROM RipsCons WHERE FechCons >= '2026-08-01' GROUP BY Conducta;

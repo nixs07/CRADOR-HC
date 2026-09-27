@@ -1,5 +1,9 @@
 # Pantallas de SIHOS por módulo (referencia para CRADOR-HC)
 
+> **Manda `docs/RECORRIDO_SIHOS.md`** (recorrido contra SIHOS producción del 26/09/2026): si algo de este archivo
+> no coincide con el recorrido, vale el recorrido. La barra de pestañas real depende de los permisos del usuario
+> (§0.1 del recorrido); las listas de abajo son las del usuario NIXON07 y el respaldo fijo de CRADOR-HC.
+
 Levantado el 26/09/2026 a partir de 40 capturas de SIHOS (Urgencias, Consulta Externa, Procedimientos y
 Observación e Internación). **Solo estructura**: aquí no hay nombres, documentos, diagnósticos ni textos de
 pacientes. Las capturas no se guardan en el repositorio.
@@ -52,7 +56,7 @@ Lista confirmada por el usuario contra SIHOS real (septiembre 2026).
 
 ### Observación e Internación (CodiModu 8)
 
-1.Consultas · 2.Evolución · 3.Prescripción · 4.ORDENES MEDICAS · 5.Ordenación · 6.No POS · 7.Notas Enfermería ·
+1.Consultas · 2.Evolución · 3.Prescripción · 4.ORDENES MEDICAS · 5.No POS · 6.Ordenación · 7.Notas Enfermería ·
 8.Notas Médicas · 9.Procedimientos · 10.Medicamentos · 11.Consentimiento · 12.Cirugía · 13.Anestesia ·
 14.Signos Vitales · 15.Neurológico · 16.Oxígeno · 17.Líquidos · 18.Materiales · 19.Devoluciones ·
 20.Recién Nacidos · 21.Incapacidad · 22.Egreso · 23.Cambio de Atención · 24.Remisiones · 25.Plan de Manejo ·
@@ -63,7 +67,7 @@ Atención del Menor (CRADOR-HC las numera 27 a 31).
 
 1.Anamnesis · 2.Rev.Sistemas y Ex.Físico · 3.Antecedentes · 4.Laboratorios y Diagnósticos · 5.Prescripción A ·
 6.Ordenación · 7.Plan de Manejo · 8.Control · 9.Tamizaje Riesgo Cardiovascular · 10.Consentimiento ·
-11.Procedimientos · 12.Incapacidad · 13.Atención del Menor · 14.Notas Médicas · 15.Imágenes · y después:
+11.Procedimientos · 12.Atención del Menor · 13.Incapacidad · 14.Notas Médicas · 15.Imágenes · y después:
 Medicamentos · No POS · Remisiones · Notas Enfermería · SALUD PUBLICA · Cambio de Atención (CRADOR-HC las
 numera 16 a 21).
 
@@ -178,14 +182,14 @@ Barra: Nuevo, No. (prescripciones anteriores), **Tipo de Prescripción** (Regula
 | Tipo de prescripción | EncaPres.TipoPres (1 regular, 2 control) |
 | DXP / DXR 1 / DXR 2 | EncaPres.CodiDiag / CodiRel1 / CodiRel2 |
 | CE: Órdenes posfechadas (Cantidad, Periodicidad), Responsable de la entrega | sin columna identificada / EncaPres.PersEntr |
-| Fórmula de salida (casilla; en CE fija) | EncaPres.PresSali: 1 hospitalaria, 2 fórmula de salida (CE siempre 2) |
+| (sin casilla en SIHOS) | EncaPres.PresSali: 1 hospitalaria (Urgencias/Observación), 2 fórmula de salida (CE) |
 
 ### ORDENES MEDICAS (Urgencias 5, Observación 4)
 
 Orden médica en texto libre: EncaData / DetaData con TipoObje 7 (CodiItem 131 Urgencias, 130 Observación).
 No existe en Consulta Externa.
 
-### Ordenación (Urgencias 7, Observación 5, CE 6)
+### Ordenación (Urgencias 7, Observación 6, CE 6)
 
 Barra: Nuevo, órdenes anteriores, Fecha, Hora.
 
