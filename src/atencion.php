@@ -319,7 +319,7 @@ function admision_validar(array $mod, array $pac): array
         $e['Parentes'] = 'Parentesco no válido.';
     }
     if (admision_abierta_de_paciente($pac['TipoDocu'], $pac['NumeUsua'])) {
-        $e['general'] = 'El paciente ya tiene una admisión abierta en la contingencia.';
+        $e['general'] = 'El paciente ya tiene una admisión abierta.';
     }
     return [$d, $e];
 }

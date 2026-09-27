@@ -50,7 +50,7 @@ function vista_inicio(string $titulo): void
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="theme-color" content="#ffffff">
-    <title><?= e($titulo) ?> · CRADOR-HC</title>
+    <title><?= e($titulo) ?> · HSCJ</title>
     <link rel="icon" type="image/png" href="img/logo.png">
     <link rel="preload" href="fonts/plus-jakarta-sans-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin>
     <link rel="stylesheet" href="css/estilo.css">
@@ -64,8 +64,8 @@ function vista_inicio(string $titulo): void
     <div class="lateral-marca">
         <img src="img/logo.png" alt="" width="40" height="42">
         <div>
-            <strong>CRADOR-HC</strong>
-            <span>Contingencia SIHOS</span>
+            <strong>HSCJ</strong>
+            <span>Excelencia y servicio a la comunidad</span>
         </div>
         <button type="button" class="boton-icono lateral-cerrar" data-menu-cerrar aria-label="Cerrar menú"><?= icono('x') ?></button>
     </div>
@@ -117,11 +117,10 @@ function vista_inicio(string $titulo): void
                     <a href="modulo.php">Cambiar módulo</a>
                 </div>
             <?php else: ?>
-                <div><strong>CRADOR-HC</strong><a href="modulo.php">Elegir módulo</a></div>
+                <div><strong>HSCJ</strong><a href="modulo.php">Elegir módulo</a></div>
             <?php endif; ?>
         </div>
         <div class="superior-contexto">
-            <span class="chip chip-contingencia"><?= icono('wifi-off') ?>Registro de contingencia</span>
             <span class="superior-fecha"><?= icono('calendar') ?><?= e(date('d/m/Y')) ?></span>
         </div>
         <div class="superior-usuario">
@@ -148,7 +147,7 @@ function vista_fin(): void
 {
     ?>
     </main>
-    <footer class="pie">CRADOR-HC · Registro clínico de contingencia. Los datos se cargan a SIHOS cuando el sistema vuelva.</footer>
+    <footer class="pie">HSCJ · Excelencia y servicio a la comunidad</footer>
 </div>
 <script src="js/interfaz.js"></script>
 </body>

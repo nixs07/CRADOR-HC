@@ -218,7 +218,8 @@ h3 { font-size: 15px; font-weight: 600; margin: 0 0 8px; }
     font-size: 12.5px; color: var(--texto-suave);
     padding: 16px 32px 20px; border-top: 1px solid var(--borde);
 }
-.sin-menu .pie { text-align: center; border-top: 0; }
+.sin-menu, .sin-menu .principal { background: #fff; }
+.sin-menu .pie { display: none; }   /* el ingreso ya muestra HSCJ y el lema */
 
 /* Encabezado de cada pagina: titulo + acciones */
 .cabecera-pagina {
@@ -597,40 +598,17 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--a
 /* ---------------------------------------------------------------------
  * 10. Ingreso (login)
  * ------------------------------------------------------------------- */
-.ingreso { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); min-height: calc(100vh - 56px); }
-.ingreso-marca {
-    position: relative; overflow: hidden;
-    display: flex; flex-direction: column; justify-content: center;
-    padding: 56px 64px;
-    background: linear-gradient(160deg, #f1f9fe 0%, #eef9f0 100%);
-    border-right: 1px solid var(--borde);
-}
-.ingreso-marca::after {
-    content: ""; position: absolute; width: 520px; height: 520px; right: -200px; bottom: -220px;
-    border-radius: 50%; border: 60px solid rgba(0, 150, 214, 0.06);
-}
-.ingreso-logo { display: flex; align-items: center; gap: 16px; margin-bottom: 40px; }
-.ingreso-logo img { width: 72px; height: auto; }
-.ingreso-logo strong { display: block; font-size: 26px; letter-spacing: -0.02em; line-height: 1.15; }
-.ingreso-logo span { display: block; font-size: 14px; color: var(--texto-2); font-weight: 500; }
-.ingreso-marca h2 { font-size: 34px; line-height: 1.2; letter-spacing: -0.025em; font-weight: 700; margin: 0 0 14px; max-width: 18ch; }
-.ingreso-marca h2 em { font-style: normal; color: var(--azul-texto); }
-.ingreso-marca > p { font-size: 16px; color: var(--texto-2); margin: 0 0 28px; max-width: 46ch; }
-.ingreso-puntos { list-style: none; margin: 0; padding: 0; display: grid; gap: 14px; max-width: 460px; position: relative; z-index: 1; }
-.ingreso-puntos li { display: flex; gap: 12px; align-items: flex-start; font-size: 14.5px; color: var(--texto-2); }
-.ingreso-puntos li strong { display: block; color: var(--texto); }
-.ingreso-puntos .tarjeta-icono { width: 36px; height: 36px; border-radius: 10px; background: #fff; box-shadow: var(--sombra); }
-.ingreso-puntos .tarjeta-icono .icono { width: 18px; height: 18px; }
-.ingreso-form { display: flex; align-items: center; justify-content: center; padding: 48px 24px; }
-.caja-login { width: 100%; max-width: 400px; }
-.caja-login h1 { font-size: 28px; }
-.caja-login .ayuda { margin-bottom: 22px; }
+/* Ingreso vertical y centrado, fondo blanco: logo · HSCJ · lema · Usuario · Clave · Ingresar */
+.ingreso { display: flex; align-items: center; justify-content: center; min-height: calc(100vh - 56px); padding: 40px 16px; background: #fff; }
+.caja-login { width: 100%; max-width: 360px; }
+.ingreso-logo { display: flex; flex-direction: column; align-items: center; text-align: center; margin-bottom: 32px; }
+.ingreso-logo img { width: 96px; height: auto; margin-bottom: 14px; }
+.ingreso-logo h1 { font-size: 34px; letter-spacing: 0.04em; line-height: 1.1; margin: 0; }
+.ingreso-logo p { margin: 6px 0 0; font-size: 15px; color: var(--texto-2); font-weight: 500; }
 .caja-login .alerta { margin-top: 4px; }
 .campo-icono { position: relative; }
 .campo-icono .icono { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: var(--texto-suave); pointer-events: none; }
 .campo-icono input { padding-left: 42px; min-height: 46px; }
-.ingreso-nota { margin-top: 26px; font-size: 13px; color: var(--texto-suave); display: flex; gap: 8px; align-items: flex-start; }
-.ingreso-nota .icono { width: 16px; height: 16px; margin-top: 2px; }
 
 /* ---------------------------------------------------------------------
  * 11. Celular y tableta
@@ -658,10 +636,6 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--a
     .superior-contexto { justify-content: flex-end; }
     .contenido { padding: 24px 20px 40px; }
     .pie { padding: 16px 20px; }
-    .ingreso { grid-template-columns: 1fr; }
-    .ingreso-marca { padding: 32px 24px; border-right: 0; border-bottom: 1px solid var(--borde); }
-    .ingreso-marca h2, .ingreso-marca > p, .ingreso-puntos { display: none; }
-    .ingreso-logo { margin-bottom: 0; }
 }
 
 @media (max-width: 767px) {
@@ -701,7 +675,7 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--a
     .panel-cabeza { padding: 14px 16px; }
     .buscador { padding: 10px; }
     .buscador .boton { flex: 1; }
-    .ingreso-form { padding: 28px 16px 36px; align-items: flex-start; }
+    .ingreso { align-items: flex-start; padding: 36px 16px; }
 
     /* Tablas marcadas con .tabla-tarjetas: cada fila es una tarjeta */
     .tabla-tarjetas { background: none; border: 0; box-shadow: none; overflow: visible; }

@@ -24,7 +24,7 @@ vista_inicio('Tablero');
 ?>
 <div class="cabecera-pagina">
     <div>
-        <div class="antetitulo"><?= icono('layout-dashboard') ?>Contingencia SIHOS</div>
+        <div class="antetitulo"><?= icono('layout-dashboard') ?>Administración</div>
         <h1>Tablero</h1>
         <p>Admisiones abiertas y estado de la carga a SIHOS · <?= e(date('d/m/Y')) ?></p>
     </div>

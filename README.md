@@ -1,7 +1,12 @@
-# CRADOR-HC — Contingencia SIHOS
+# HSCJ — Excelencia y servicio a la comunidad
 
 App web local para registrar la atención clínica mientras SIHOS está caído, y cargarla a SIHOS cuando vuelva.
 E.S.E. Hospital Sagrado Corazón de Jesús.
+
+> **Nombre visible: HSCJ** (lema "Excelencia y servicio a la comunidad"). El nombre anterior, CRADOR-HC, se
+> conserva **solo en los identificadores técnicos**, que NO se renombran porque romperían las instalaciones
+> existentes: nombre del repositorio, contenedores `crador_db` / `crador_app`, base `crador_hc`, usuario de BD,
+> variables del `.env`, tablas propias `cont_*`, nombre de la cookie de sesión y candados de MySQL.
 
 ## Qué hace
 
@@ -38,6 +43,8 @@ Las tablas tienen **exactamente los mismos nombres y columnas que SIHOS** (ver `
 | `sql/01_tablas_clinicas.sql` | 23 tablas clínicas de la admisión (Admision, Triage, SignVita, RipsCons...) |
 | `sql/02_catalogos.sql` | 24 catálogos principales que se copian de SIHOS (Paciente, Contrato, CodiAdmi, CausMorb, CodiProc...) |
 | `sql/03_catalogos_listas.sql` | 37 catálogos de listas desplegables (TipoDocu, ViaIngre, ViaAdmi, UnidMedi, CausSali, DestSali...) |
+| `sql/04_listas_permisos.sql` | Catálogos reales de SIHOS: permisos (UsuaGrup, Permisos, ModuObje, Objetos), listas genéricas (priv_listas_tipos / priv_listas_elementos), EstaIngr e InstRemi |
+| `sql/05_tablas_clinicas_nuevas.sql` | Tablas clínicas agregadas: RecoMedi (Reconciliación Medicamentosa) y comu_antecedentes_multiples |
 | `sql/99_datos_prueba.sql` | Datos inventados para pruebas. **No** se cargan solos; nunca en producción. |
 | `public/` | Páginas web (lo único que publica Apache): login, tablero, pacientes, admisiones, triage, signos, CSS/JS |
 | `src/` | Código PHP común: configuración, conexión PDO, sesión/CSRF, catálogos, listas, atención clínica |

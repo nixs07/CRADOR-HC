@@ -332,7 +332,7 @@ vista_inicio($a ? 'Admisión ' . $a['ConsAdmi'] : $mod['nombre']);
             <?= campo_lectura('Discapacidad', $a['NombDisc'] ?? 'Sin discapacidad', 'c-2') ?>
             <?= campo_lectura('Diagnóstico', $a['DiagIngr'] ? $a['DiagIngr'] . ' · ' . (diagnostico_nombre($a['DiagIngr']) ?? '') : '', 'c-4') ?>
         </div>
-        <!-- EPS, Contrato, Tipo de usuario, Afiliación y Categoría: ocultos en SIHOS, visibles en CRADOR (decisión del usuario) -->
+        <!-- EPS, Contrato, Tipo de usuario, Afiliación y Categoría: ocultos en SIHOS, visibles en HSCJ (decisión del usuario) -->
         <div class="et-fila">
             <?= campo_lectura('EPS', $a['NombAdmi'] ?? $a['CodiAdmi'], 'c-4') ?>
             <?= campo_lectura('Contrato', $a['NumeCont'], 'c-2') ?>

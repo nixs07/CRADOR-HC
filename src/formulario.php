@@ -502,7 +502,7 @@ function botonera(array $lista, array $enviar = ['Guardar'], array $limpiar = ['
  */
 function campo_sin_columna(string $etiqueta, string $tipo = 'select', string $clase = '', string $valor = ''): string
 {
-    $t = 'title="Sin columna o sin catálogo en CRADOR-HC: no disponible en contingencia"';
+    $t = 'title="Sin columna o sin catálogo local: no disponible en contingencia"';
     if ($tipo === 'checkbox') {
         return '<div class="' . e($clase) . ' sin-columna"><label class="opcion"><input type="checkbox" disabled ' . $t . '> ' . e($etiqueta) . '</label></div>';
     }
