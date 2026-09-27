@@ -97,15 +97,15 @@ const ACCIONES_HISTORIA = [
     'nota'          => [['notas_enfermeria', 'notas_medicas'], 'nota_validar', 'nota_guardar', 'Nota No. %d registrada.'],
     'medicamento'   => [['medicamentos'], 'medicamento_validar', 'medicamento_guardar', 'Aplicación de medicamento No. %d registrada.'],
     'evolucion'     => [['evolucion'], 'evolucion_validar', 'evolucion_guardar', 'Evolución No. %d registrada.'],
-    'egreso'        => [['egreso'], 'egreso_validar', 'egreso_guardar', 'Admisión cerrada: egreso registrado.'],
+    'egreso'        => [['egreso'], 'egreso_validar', 'egreso_guardar', 'Egreso guardado. Para terminar pulse Cerrar Historia.'],
     'material'      => [['materiales'], 'material_validar', 'material_guardar', 'Material No. %d registrado.'],
     'plan'          => [['plan'], 'plan_validar', 'plan_guardar', 'Plan de manejo de la consulta No. %d guardado.'],
     'remision'      => [['remisiones'], 'remision_validar', 'remision_guardar', 'Remisión No. %d registrada.'],
     'incapacidad'   => [['incapacidad'], 'incapacidad_validar', 'incapacidad_guardar', 'Incapacidad No. %d registrada.'],
     // Desde el encabezado; vuelven a la pestana en la que se estaba:
-    // traslado de cama (Observacion) y "Cerrar Historia" de Consulta Externa
+    // traslado de cama (Observacion) y "Cerrar Historia" (los 3 modulos)
     'traslado'      => [[], 'traslado_validar', 'traslado_guardar', 'Traslado de cama No. %d registrado.'],
-    'cierre'        => [[], 'egreso_validar', 'egreso_guardar', 'Historia cerrada.'],
+    'cierre'        => [[], 'cierre_validar', 'cierre_guardar', 'Historia cerrada.'],
 ];
 
 /** Pestana de Consulta Externa (1 a 4 o 7) donde esta el primer campo con error de la consulta. */
@@ -163,10 +163,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 flash('error', 'El traslado de cama solo aplica en Observación e Internación.');
                 redirigir($aqui);
             }
-            if ($accion === 'cierre' && $clave !== 'ce') {
-                flash('error', 'En este módulo la historia se cierra con el egreso.');
-                redirigir($aqui);
-            }
         }
         if (!$editable) {
             flash('error', 'La admisión no se puede modificar.');
@@ -182,6 +178,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $n = $guardar($a, $F[$accion], $accion === 'consulta' ? $u : $u['Login']);
             flash('ok', sprintf($mensaje, $n));
             redirigir($aqui . '&tab=' . $pest);
+        }
+        if ($accion === 'cierre' && isset($E['cierre']['egreso'])) {
+            // Urgencias y Observacion: sin egreso no se cierra; se lleva a la pestana Egreso a llenarlo
+            flash('aviso', $E['cierre']['egreso']);
+            redirigir($aqui . '&tab=egreso');
         }
         if ($accion === 'consulta' && $clave === 'ce') {
             $tab = consulta_ce_pestana($E[$accion]);
@@ -257,27 +258,30 @@ $servicios = array_intersect_key(lista('Serv'), array_flip($mod['servicios']));
 vista_inicio($a ? 'Admisión ' . $a['ConsAdmi'] : $mod['nombre']);
 ?>
 <section class="encabezado-trabajo" aria-label="Encabezado de la admisión">
-    <!-- Barra: numero de admision, estado y botones del encabezado -->
+    <!-- Barra como SIHOS: Admisión · Fecha · Hora · Autorización (Observación: Cama) · SOAT · estado -->
     <div class="et-barra">
         <div class="et-admision">
             <span class="et-etiqueta">Admisión</span>
             <strong><?= $a ? e($a['ConsAdmi']) : ($pac ? 'Nueva' : '—') ?></strong>
             <?php if ($a): [$estado, $claseEstado] = admision_estado($a); ?>
-                <span class="etiqueta etiqueta-<?= e($claseEstado) ?>"><?= e($estado) ?></span>
                 <span class="etiqueta" title="Número temporal: al cargar a SIHOS se asigna el definitivo">Temporal</span>
-                <?php if ($a['ClasTria']): ?><span class="etiqueta triage-<?= (int) $a['ClasTria'] ?>">Triage <?= e(triage_romano($a['ClasTria'])) ?></span><?php endif; ?>
             <?php elseif ($pac): ?>
                 <span class="etiqueta etiqueta-curso">Nueva admisión</span>
             <?php endif; ?>
         </div>
-        <div class="et-botones">
-            <a href="<?= e($base) ?>&amp;historias=1" class="boton boton-claro" data-abrir-ventana="historias"><?= icono('clipboard-list') ?>Historias abiertas <span class="contador"><?= count($todas) ?></span></a>
-            <a href="<?= e($base) ?>&amp;nueva=1" class="boton boton-claro"><?= icono('user-plus') ?>Nueva admisión</a>
-            <a href="<?= e($base) ?>&amp;nueva=1" class="boton boton-claro" title="Vaciar el encabezado"><?= icono('x') ?>Limpiar</a>
-            <?php if ($a && $clave === 'ce' && $editable): ?>
-                <a href="<?= e($aqui) ?>&amp;tab=<?= e($tab) ?>&amp;cerrar=1" class="boton boton-peligro" data-abrir-ventana="cerrar-historia"><?= icono('log-out') ?>Cerrar Historia</a>
+        <?php if ($a): ?>
+        <div class="et-barra-campos">
+            <?= campo_lectura('Fecha', date('d/m/Y', strtotime($a['FechIngr'])), 'c-fecha') ?>
+            <?= campo_lectura('Hora', substr($a['HoraIngr'], 0, 5), 'c-hora') ?>
+            <?php if ($clave === 'obs'): ?>
+                <?= campo_lectura('Cama', $a['CamaActu'], 'c-hora') ?>
+            <?php else: ?>
+                <?= campo_lectura('Autorización', $a['NumeAuto'], 'c-auto') ?>
             <?php endif; ?>
+            <?= campo_lectura('SOAT', '', 'c-auto deshabilitado') ?>
+            <span class="etiqueta etiqueta-<?= e($claseEstado) ?> et-estado"><?= e($estado) ?></span>
         </div>
+        <?php endif; ?>
     </div>
 
     <!-- Documento: buscar paciente -->
@@ -295,8 +299,10 @@ vista_inicio($a ? 'Admisión ' . $a['ConsAdmi'] : $mod['nombre']);
             </div>
         </div>
         <?= campo_lectura('Usuario', $p ? paciente_nombre($p) : '', 'c-3 et-nombre') ?>
-        <?= campo_lectura('F. nacimiento', $p && $p['FechNaci'] && $p['FechNaci'] !== '0000-00-00' ? date('d/m/Y', strtotime($p['FechNaci'])) : '', 'c-2') ?>
-        <?= campo_lectura('Edad · género', $p ? $edad . ' · ' . lista_nombre('Sexo', $p['SexoUsua']) : '', 'c-2') ?>
+        <?= campo_lectura('F. Nacimiento', $p && $p['FechNaci'] && $p['FechNaci'] !== '0000-00-00' ? date('d/m/Y', strtotime($p['FechNaci'])) : '', 'c-1') ?>
+        <?= campo_lectura('Edad', $p ? $edad : '', 'c-1') ?>
+        <?= campo_lectura('Género', $p ? lista_nombre('Sexo', $p['SexoUsua']) : '', 'c-1') ?>
+        <?php if ($a): ?><?= campo_lectura('Grupo', lista_nombre('GrupAten', $a['GrupoAte']), 'c-1') ?><?php endif; ?>
     </form>
 
     <?php if ($buscado && !$pac): ?>
@@ -307,22 +313,23 @@ vista_inicio($a ? 'Admisión ' . $a['ConsAdmi'] : $mod['nombre']);
     <?php endif; ?>
 
     <?php if ($a): ?>
-        <!-- Admision cargada: datos en modo lectura, como en SIHOS -->
+        <!-- Admision cargada: filas del encabezado de SIHOS en modo lectura -->
         <div class="et-fila">
-            <?= campo_lectura('Fecha', date('d/m/Y', strtotime($a['FechIngr'])), 'c-2') ?>
-            <?= campo_lectura('Hora', substr($a['HoraIngr'], 0, 5), 'c-1') ?>
-            <?= campo_lectura('Autorización', $a['NumeAuto'], 'c-2') ?>
-            <?= campo_lectura('Servicio', $a['NombServ'] ?? $a['ServEgre'], 'c-3') ?>
-            <?php if ($mod['cama']): ?><?= campo_lectura('Cama', $a['CamaActu'], 'c-1') ?><?php endif; ?>
-            <?= campo_lectura('Vía de ingreso', lista_nombre('ViaIngre', $a['ViaIngre']), 'c-2') ?>
-            <?= campo_lectura('Entorno de atención', $a['EntoAten'], $mod['cama'] ? 'c-1' : 'c-2') ?>
+            <?= campo_lectura('Servicio Origen (C.Costos)', trim(($a['NombServOrig'] ?? $a['CodiServ']) . ($a['CentCost'] !== '' ? ' (' . $a['CentCost'] . ')' : '')), 'c-3') ?>
+            <?= campo_lectura('Cama Origen', $a['CodiCama'], 'c-1') ?>
+            <?= campo_lectura('Vía Ingreso', lista_nombre('ViaIngre', $a['ViaIngre']), 'c-2') ?>
+            <?= campo_lectura('Servicio Actual', $a['NombServ'] ?? $a['ServEgre'], 'c-3') ?>
+            <?= campo_lectura('Cama Actual', $a['CamaActu'], 'c-1') ?>
+            <?= campo_lectura('Entorno de Atención', $a['EntoAten'], 'c-2') ?>
         </div>
         <div class="et-fila">
-            <?= campo_lectura('Causa externa', lista_nombre('CausExte', $a['CausExte']), 'c-3') ?>
+            <?= campo_lectura('Causa Externa', lista_nombre('CausExte', $a['CausExte']), 'c-3') ?>
+            <?= campo_lectura('Estado Ingreso', $a['EstaIngr'], 'c-1') ?>
             <?= campo_lectura('Condición', lista_nombre('CondUsua', $a['CondUsua']), 'c-2') ?>
-            <?= campo_lectura('Grupo poblacional', lista_nombre('GrupAten', $a['GrupoAte']), 'c-2') ?>
-            <?= campo_lectura('Diagnóstico de ingreso', $a['DiagIngr'] ? $a['DiagIngr'] . ' · ' . (diagnostico_nombre($a['DiagIngr']) ?? '') : '', 'c-5') ?>
+            <?= campo_lectura('Discapacidad', $a['NombDisc'] ?? 'Sin discapacidad', 'c-2') ?>
+            <?= campo_lectura('Diagnóstico', $a['DiagIngr'] ? $a['DiagIngr'] . ' · ' . (diagnostico_nombre($a['DiagIngr']) ?? '') : '', 'c-4') ?>
         </div>
+        <!-- EPS, Contrato, Tipo de usuario, Afiliación y Categoría: ocultos en SIHOS, visibles en CRADOR (decisión del usuario) -->
         <div class="et-fila">
             <?= campo_lectura('EPS', $a['NombAdmi'] ?? $a['CodiAdmi'], 'c-4') ?>
             <?= campo_lectura('Contrato', $a['NumeCont'], 'c-2') ?>
@@ -331,15 +338,23 @@ vista_inicio($a ? 'Admisión ' . $a['ConsAdmi'] : $mod['nombre']);
             <?= campo_lectura('Categoría', $a['CodiEstr'], 'c-2') ?>
         </div>
         <?php if ($mod['cama']) { require __DIR__ . '/../src/vistas/traslado_cama.php'; } ?>
-        <details class="ea-mas">
-            <summary><?= icono('file-text') ?>Motivo, acompañante y registro</summary>
-            <div class="et-fila">
-                <?= campo_lectura('Motivo de ingreso', $a['MotiCons'], 'c-6') ?>
-                <?= campo_lectura('Acompañante', lista_nombre('TipoAcom', $a['TipoAcom']) . ($a['NombAcom'] ? ' · ' . $a['NombAcom'] . ' (' . lista_nombre('Parentes', $a['Parentes']) . ') ' . $a['TeleAcom'] : ''), 'c-6') ?>
-                <?= campo_lectura('Registró', $a['UsuaDigi'] . ' · ' . fecha_hora($a['FechDigi'] . ' ' . $a['HoraDigi']), 'c-4') ?>
-                <?= campo_lectura('Carga a SIHOS', $a['estado_carga'] ?? 'pendiente', 'c-2') ?>
-            </div>
-        </details>
+        <!-- Botones del encabezado de SIHOS (los que no aplican en contingencia, deshabilitados) -->
+        <div class="et-acciones-sihos">
+            <button type="button" class="boton boton-claro" disabled title="No aplica en contingencia"><?= icono('pencil') ?>Modificar</button>
+            <button type="button" class="boton boton-claro" disabled title="No aplica en contingencia"><?= icono('trash-2') ?>Eliminar</button>
+            <button type="submit" form="form-buscar" class="boton boton-claro"><?= icono('search') ?>Buscar</button>
+            <button type="button" class="boton boton-claro" disabled title="No aplica en contingencia"><?= icono('printer') ?>Imprimir</button>
+            <a href="<?= e($base) ?>&amp;nueva=1" class="boton boton-claro" title="Vaciar el encabezado"><?= icono('x') ?>Limpiar</a>
+            <button type="button" class="boton boton-claro" disabled title="No aplica en contingencia"><?= icono('ban') ?>Anular</button>
+            <?php if ($editable): ?>
+                <a href="<?= e($aqui) ?>&amp;tab=<?= e($tab) ?>&amp;cerrar=1" class="boton boton-peligro" data-abrir-ventana="cerrar-historia"><?= icono('log-out') ?>Cerrar Historia</a>
+            <?php else: ?>
+                <button type="button" class="boton boton-peligro" disabled title="La historia ya está cerrada"><?= icono('log-out') ?>Cerrar Historia</button>
+            <?php endif; ?>
+            <span class="et-sep"></span>
+            <a href="<?= e($base) ?>&amp;historias=1" class="boton boton-claro" data-abrir-ventana="historias"><?= icono('clipboard-list') ?>Historias abiertas <span class="contador"><?= count($todas) ?></span></a>
+            <a href="<?= e($base) ?>&amp;nueva=1" class="boton boton-claro"><?= icono('user-plus') ?>Nueva admisión</a>
+        </div>
 
     <?php elseif ($pac): ?>
         <!-- Paciente sin admision abierta: el encabezado queda editable para crearla aqui mismo -->
@@ -415,17 +430,23 @@ vista_inicio($a ? 'Admisión ' . $a['ConsAdmi'] : $mod['nombre']);
             <div class="acciones et-acciones">
                 <button type="submit" class="boton boton-primario"><?= icono('save') ?>Crear admisión</button>
                 <a href="<?= e($base) ?>&amp;nueva=1" class="boton boton-claro"><?= icono('x') ?>Cancelar</a>
+                <a href="<?= e($base) ?>&amp;historias=1" class="boton boton-claro" data-abrir-ventana="historias"><?= icono('clipboard-list') ?>Historias abiertas</a>
             </div>
         </form>
 
     <?php else: ?>
         <!-- Sin admision: campos vacios en modo lectura hasta buscar el documento -->
         <div class="et-fila et-vacia">
-            <?= campo_lectura('Fecha', '', 'c-2') ?><?= campo_lectura('Hora', '', 'c-1') ?><?= campo_lectura('Autorización', '', 'c-2') ?>
-            <?= campo_lectura('Servicio', '', 'c-3') ?><?= campo_lectura('Vía de ingreso', '', 'c-2') ?><?= campo_lectura('Causa externa', '', 'c-2') ?>
-            <?= campo_lectura('EPS', '', 'c-4') ?><?= campo_lectura('Contrato', '', 'c-2') ?><?= campo_lectura('Diagnóstico de ingreso', '', 'c-6') ?>
+            <?= campo_lectura('Servicio Origen (C.Costos)', '', 'c-3') ?><?= campo_lectura('Cama Origen', '', 'c-1') ?><?= campo_lectura('Vía Ingreso', '', 'c-2') ?>
+            <?= campo_lectura('Servicio Actual', '', 'c-3') ?><?= campo_lectura('Cama Actual', '', 'c-1') ?><?= campo_lectura('Entorno de Atención', '', 'c-2') ?>
+            <?= campo_lectura('Causa Externa', '', 'c-3') ?><?= campo_lectura('Estado Ingreso', '', 'c-1') ?><?= campo_lectura('Condición', '', 'c-2') ?>
+            <?= campo_lectura('Discapacidad', '', 'c-2') ?><?= campo_lectura('Diagnóstico', '', 'c-4') ?>
         </div>
         <p class="et-ayuda"><?= icono('info') ?><span>Escriba el documento y pulse <strong>Buscar</strong> para cargar al paciente, o abra <strong>Historias abiertas</strong>.</span></p>
+        <div class="et-acciones-sihos">
+            <a href="<?= e($base) ?>&amp;historias=1" class="boton boton-claro" data-abrir-ventana="historias"><?= icono('clipboard-list') ?>Historias abiertas <span class="contador"><?= count($todas) ?></span></a>
+            <a href="<?= e($base) ?>&amp;nueva=1" class="boton boton-claro"><?= icono('user-plus') ?>Nueva admisión</a>
+        </div>
     <?php endif; ?>
 </section>
 
@@ -625,9 +646,9 @@ foreach ($disponibles as $vista) {
     <?php endif; ?>
 </div>
 
-<?php if ($a && $clave === 'ce' && $editable): $eC = $E['cierre'] ?? []; $dC = $F['cierre'] ?? ['FechSali' => date('Y-m-d'), 'HoraSali' => date('H:i')]; ?>
-<!-- Ventana "Cerrar Historia" de Consulta Externa (boton del encabezado, como en SIHOS) -->
-<div class="ventana" id="cerrar-historia" role="dialog" aria-modal="true" aria-labelledby="cerrar-titulo"<?= ($eC || isset($_GET['cerrar'])) ? '' : ' hidden' ?>>
+<?php if ($a && $editable): $egresoCierre = $clave === 'ce' ? null : egreso_de_admision($a['ConsAdmi']); ?>
+<!-- Ventana "Cerrar Historia" (botón del encabezado en los 3 módulos): confirmación en la página -->
+<div class="ventana" id="cerrar-historia" role="dialog" aria-modal="true" aria-labelledby="cerrar-titulo"<?= isset($_GET['cerrar']) ? '' : ' hidden' ?>>
     <div class="ventana-caja ventana-chica">
         <div class="ventana-cabeza">
             <h2 id="cerrar-titulo"><?= icono('log-out') ?>Cerrar Historia</h2>
@@ -636,15 +657,13 @@ foreach ($disponibles as $vista) {
         <form method="post" action="<?= e($aqui) ?>&amp;tab=<?= e($tab) ?>" class="formulario ventana-cuerpo" data-una-vez>
             <?= csrf_campo() ?>
             <input type="hidden" name="accion" value="cierre">
-            <?= errores_resumen($eC) ?>
-            <div class="rejilla rejilla-fecha"><?= campos_fecha_hora('FechSali', 'HoraSali', $dC, $eC) ?></div>
-            <div class="confirmar <?= ce($eC, 'ConfEgre') ?>">
-                <label class="opcion"><input type="checkbox" name="ConfEgre" value="1" required>
-                    <strong>Confirmo el cierre de la historia:</strong> la admisión <?= e($a['ConsAdmi']) ?> quedará cerrada y ya no se podrá modificar.</label>
-                <?= me($eC, 'ConfEgre') ?>
-            </div>
+            <?php if ($clave !== 'ce' && !$egresoCierre): ?>
+                <div class="alerta alerta-aviso"><?= icono('triangle-alert') ?><div>Esta historia aún no tiene egreso. Al continuar se abre la pestaña Egreso para registrarlo.</div></div>
+            <?php else: ?>
+                <p>¿Cerrar la historia de la admisión <strong><?= e($a['ConsAdmi']) ?></strong>? Quedará cerrada y ya no se podrá modificar<?= $mod['cama'] ? '; la cama ' . e($a['CamaActu']) . ' queda libre' : '' ?>.</p>
+            <?php endif; ?>
             <div class="acciones">
-                <button type="submit" class="boton boton-peligro"><?= icono('log-out') ?>Cerrar Historia</button>
+                <button type="submit" class="boton boton-peligro"><?= icono('log-out') ?><?= ($clave !== 'ce' && !$egresoCierre) ? 'Ir a Egreso' : 'Cerrar Historia' ?></button>
                 <a href="<?= e($aqui) ?>&amp;tab=<?= e($tab) ?>" class="boton boton-claro" data-cerrar-ventana>Cancelar</a>
             </div>
         </form>

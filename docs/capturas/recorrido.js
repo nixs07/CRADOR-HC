@@ -281,16 +281,21 @@ async function buscarDocumento(p, modulo, tipo, doc) {
   await p.fill('#DiasIncaPaci', '3'); await p.fill('#ObseInca', 'REPOSO EN CASA (inventado)');
   await guardar('#incapacidad button[type=submit]', 'incapacidad guardada (obs)');
 
-  // Egreso en Observación (cierra la admisión y libera la cama)
+  // Cerrar Historia sin egreso: lleva a la pestaña Egreso (como SIHOS)
+  await p.goto(B + 'atencion.php?id=' + adm.obs + '&tab=signos');
+  await p.click('.et-acciones-sihos a[data-abrir-ventana=cerrar-historia]');
+  await p.click('#cerrar-historia button[type=submit]'); await p.waitForLoadState(); await estado(p, 'cerrar historia sin egreso');
+  // Egreso en Observación: Guardar, Modificar y luego Cerrar Historia
   await p.goto(B + 'atencion.php?id=' + adm.obs + '&tab=egreso');
   await p.fill('#ObseSali', 'SALE EN BUENAS CONDICIONES (datos inventados)');
   await p.fill('#egre-EgreRel1', 'E86X'); await p.selectOption('#egre-EgreTipoRel1', '2');
-  // Sin marcar la confirmacion: el servidor tambien la exige (se quita el "required" del navegador para probarlo)
-  await p.$eval('#egreso input[name=ConfEgre]', c => c.removeAttribute('required'));
-  await p.click('#egreso form:has(input[name=accion][value=egreso]) button[type=submit]'); await p.waitForLoadState(); await estado(p, 'egreso sin confirmar');
-  await p.check('#egreso input[name=ConfEgre]');
   await foto(p, '33_egreso');
-  await p.click('#egreso form:has(input[name=accion][value=egreso]) button[type=submit]'); await p.waitForLoadState(); await estado(p, 'egreso guardado');
+  await guardar('#egreso form:has(input[name=accion][value=egreso]) button[type=submit]', 'egreso guardado (sin cerrar)');
+  await p.fill('#DiasInca', '2');
+  await guardar('#egreso form:has(input[name=accion][value=egreso]) button[type=submit]', 'egreso modificado');
+  await p.click('#egreso a[data-abrir-ventana=cerrar-historia]');
+  await foto(p, '51_cerrar_historia');
+  await p.click('#cerrar-historia button[type=submit]'); await p.waitForLoadState(); await estado(p, 'historia obs cerrada');
   await foto(p, '34_egreso_cerrado');
 
   // --- Consulta Externa: la consulta repartida en las pestañas 1 a 4 (un solo formulario) ---
@@ -325,8 +330,7 @@ async function buscarDocumento(p, modulo, tipo, doc) {
   await p.fill('#NotaEnfeMed', 'SE ENTREGAN RECOMENDACIONES. (datos inventados)');
   await guardar('#notas_medicas button[type=submit]', 'nota medica CE guardada');
   // "Cerrar Historia" del encabezado (no hay pestaña de egreso en Consulta Externa)
-  await p.click('a[data-abrir-ventana=cerrar-historia]');
-  await p.check('#cerrar-historia input[name=ConfEgre]');
+  await p.click('.et-acciones-sihos a[data-abrir-ventana=cerrar-historia]');
   await foto(p, '47_ce_cerrar_historia');
   await p.click('#cerrar-historia button[type=submit]'); await p.waitForLoadState(); await estado(p, 'historia CE cerrada');
   await foto(p, '35_ce_cerrada');

@@ -198,3 +198,24 @@ revisión del 26/09/2026 en [`REVISION_SIHOS.md`](REVISION_SIHOS.md), que manda 
 | Consulta Externa sin `SaliInte` | Solo "Cerrar Historia" (marca la admisión cerrada). |
 | `Triage.ConsTria` | Consecutivo por paciente (no por admisión). |
 | Remisión | **Sin verificar**: no hay remisiones recientes en SIHOS; se deja como está (ver la fila de supuestos). |
+
+## Encabezado y cierre (recorrido SIHOS 26/09/2026, `docs/RECORRIDO_SIHOS.md` §1)
+
+- Barra: Admisión · Fecha · Hora · Autorización (en Observación: **Cama**) · SOAT · estado Abierta/Cerrada.
+  Fila 1: Documento · Usuario · F. Nacimiento · Edad · Género · Grupo (`GrupoAte`). Fila 2: Servicio Origen
+  (C.Costos) (`CodiServ` + `CentCost`) · Cama Origen (`CodiCama`) · Vía Ingreso · Servicio Actual (`ServEgre`) ·
+  Cama Actual (`CamaActu`) · Entorno de Atención. Fila 3: Causa Externa · Estado Ingreso (`EstaIngr`) · Condición ·
+  Discapacidad · Diagnóstico. EPS, Contrato, Tipo de usuario, Afiliación y Categoría **se quedan** (decisión del usuario).
+- **SOAT**: no hay columna identificada en `Admision` (¿`NumePoli`? **pendiente confirmar**): se muestra deshabilitado.
+- **Estado Ingreso**: se muestra el código de `EstaIngr` (no hay catálogo local; CRADOR guarda 1). **Pendiente**: nombre de la lista.
+- **Discapacidad**: `Admision` no tiene columna; se muestra `Paciente.TipoDisc` con el catálogo `TipoDisc`, o
+  "Sin discapacidad" si es 0.
+- Botones Modificar · Eliminar · Imprimir · Anular: visibles y **deshabilitados** (no aplican en contingencia).
+  Buscar, Limpiar y **Cerrar Historia** funcionan en los 3 módulos.
+- **Cerrar Historia**: confirmación en la página (ventana propia, sin casilla). Urgencias y Observación exigen el
+  egreso (`SaliInte`); si no existe, lleva a la pestaña Egreso. Cierra: `Cerrado = 1`, `FechCier/HoraCier/UsuaCier`,
+  `FechEgre/HoraEgre` = salida del egreso (Consulta Externa: el momento del cierre).
+- **Egreso**: Guardar crea `SaliInte` y Modificar lo actualiza (`FechModi/HoraModi/UsuaModi`); **ninguno cierra la
+  historia**. Sin "Tipo de egreso" (`SaliInte.TipoEgre` queda con su valor por defecto 0) y sin casilla de
+  confirmación. Debajo, las listas de pendientes: insumos por descargar (no aplica), ayudas diagnósticas por
+  interpretar (ítems de `DetaOrde` con `CantReal < CantSumi`) y consultas por cerrar (`RipsCons.FechCier` vacía).

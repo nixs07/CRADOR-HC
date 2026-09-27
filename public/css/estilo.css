@@ -1292,3 +1292,19 @@ tr[data-href] { cursor: pointer; }
 /* Las no disponibles quedan compactas dentro de la barra (el aviso sale al pasar el mouse) */
 .pestanas .pestana-proxima { padding: 12px 12px; font-size: 14.5px; }
 .pestanas .pestana-proxima small { display: none; }
+
+/* Encabezado como SIHOS: campos en la barra, botones del encabezado (RECORRIDO_SIHOS §1) */
+.et-barra-campos { display: flex; align-items: flex-end; flex-wrap: wrap; gap: 8px 12px; }
+.et-barra-campos .campo-lectura { min-width: 0; }
+.et-barra-campos .c-fecha { width: 118px; } .et-barra-campos .c-hora { width: 86px; } .et-barra-campos .c-auto { width: 150px; }
+.et-barra-campos .cl-valor { min-height: 34px; padding: 6px 10px; }
+.et-estado { align-self: center; }
+.campo-lectura.deshabilitado .cl-valor { background: var(--superficie-3); color: var(--texto-suave); cursor: not-allowed; }
+.et-acciones-sihos { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 4px 18px 14px; }
+.et-acciones-sihos .boton { min-height: 36px; padding: 6px 12px; font-size: 13.5px; margin: 0; }
+.et-acciones-sihos .boton[disabled] { opacity: .55; cursor: not-allowed; }
+.et-sep { flex: 1; }
+@media (max-width: 767px) {
+    .et-barra-campos .c-fecha, .et-barra-campos .c-hora, .et-barra-campos .c-auto { width: calc(50% - 6px); }
+    .et-sep { display: none; }
+}

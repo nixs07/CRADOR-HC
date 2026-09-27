@@ -363,11 +363,13 @@ function admision_crear(array $mod, array $pac, array $d, string $login): string
 function admision_obtener(string $cons): ?array
 {
     $st = db()->prepare('SELECT a.*, p.NombUsua, p.NombUsu1, p.Ape1Usua, p.Ape2Usua, p.FechNaci, p.SexoUsua,
-                                c.NombAdmi, s.NombServ, cc.estado AS estado_carga
+                                c.NombAdmi, s.NombServ, so.NombServ AS NombServOrig, td.NombDisc, cc.estado AS estado_carga
                            FROM Admision a
                            LEFT JOIN Paciente p ON p.TipoDocu = a.TipoDocu AND p.NumeUsua = a.NumeUsua
                            LEFT JOIN CodiAdmi c ON c.CodiAdmi = a.CodiAdmi
                            LEFT JOIN CodiServ s ON s.CodiServ = a.ServEgre
+                           LEFT JOIN CodiServ so ON so.CodiServ = a.CodiServ
+                           LEFT JOIN TipoDisc td ON td.CodiTipo = p.TipoDisc AND p.TipoDisc <> 0
                            LEFT JOIN cont_carga_sihos cc ON cc.CodiInst = a.CodiInst AND cc.ConsAdmiTemp = a.ConsAdmi
                           WHERE a.CodiInst = ? AND a.ConsAdmi = ?');
     $st->execute([CODI_INST, $cons]);

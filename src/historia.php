@@ -975,18 +975,10 @@ function egreso_validar(array $a): array
     $d = [];
     $e = [];
     hc_fecha_hora($a, $d, $e, 'FechSali', 'HoraSali', 'salida');
-    $ce = modulo_de_servicio($a['ServEgre']) === 'ce';
-    if (campo('ConfEgre', 1) !== '1') {
-        $e['ConfEgre'] = 'Marque la confirmación: al guardar, la admisión queda cerrada y ya no se puede modificar.';
-    }
-    if ($ce) {
-        // En Consulta Externa solo se cierra la atención (ver supuestos en docs/REGLAS.md)
-        return [$d + ['solo_cierre' => true], $e];
-    }
+    // Como SIHOS: Estado, Causa, Destino (sin "Tipo de egreso": SaliInte.TipoEgre queda con su valor por defecto 0)
+    $d['EstaSali'] = hc_de_lista('EstaSali', 'EstaSali', true, $e, 'Seleccione el estado a la salida.', 1);
     $d['CausSali'] = hc_de_lista('CausSali', 'CausSali', true, $e, 'Seleccione la causa de salida.', 1);
     $d['DestSali'] = hc_de_lista('DestSali', 'DestSali', true, $e, 'Seleccione el destino de salida.', 2);
-    $d['EstaSali'] = hc_de_lista('EstaSali', 'EstaSali', true, $e, 'Seleccione el estado a la salida.', 1);
-    $d['TipoEgre'] = hc_de_lista('TipoEgre', 'TipoEgre', true, $e, 'Seleccione el tipo de egreso.', 1);
     hc_diagnosticos(['DiagEgre' => 'EgreTipoDiag', 'EgreRel1' => 'EgreTipoRel1', 'EgreRel2' => 'EgreTipoRel2',
                      'EgreRel3' => 'EgreTipoRel3', 'EgreComp' => 'EgreTipoComp'], $d, $e);
     $d['TipoDiag'] = $d['EgreTipoDiag'];
@@ -1006,38 +998,74 @@ function egreso_validar(array $a): array
     return [$d, $e];
 }
 
-/** Guarda el egreso (SaliInte) y cierra la admisión (Admision.Cerrado = 1). La cama queda libre al cerrar. */
-function egreso_guardar(array $a, array $d, string $login): void
+/**
+ * Guarda (o modifica, si ya existe) el egreso SaliInte. Como en SIHOS, Guardar/Modificar NO cierran la historia:
+ * se cierra aparte con "Cerrar Historia" (cierre_guardar). Devuelve 1.
+ */
+function egreso_guardar(array $a, array $d, string $login): int
 {
-    hc_transaccion(function (PDO $pdo) use ($a, $d, $login) {
+    return hc_transaccion(function (PDO $pdo) use ($a, $d, $login) {
+        $seg = max(0, strtotime($d['FechSali'] . ' ' . $d['HoraSali']) - strtotime($a['FechIngr'] . ' ' . $a['HoraIngr']));
+        $fila = [
+            'CodiModu' => hc_modulo($a), 'FechSali' => $d['FechSali'], 'HoraSali' => $d['HoraSali'],
+            'DiasEsta' => min(999, intdiv($seg, 86400)), 'HoraEsta' => intdiv($seg % 86400, 3600),
+            'CausSali' => (int) $d['CausSali'], 'DestSali' => $d['DestSali'], 'DiasInca' => $d['DiasInca'],
+            'DiagEgre' => $d['DiagEgre'], 'DiagRel1' => $d['EgreRel1'], 'DiagRel2' => $d['EgreRel2'], 'DiagRel3' => $d['EgreRel3'],
+            'DiagRel4' => '', 'DiagComp' => $d['EgreComp'],
+            // TipoDia4 = tipo del diagnostico de complicacion (comentario de SaliInte)
+            'TipoDiag' => (int) $d['EgreTipoDiag'], 'TipoDia1' => (int) $d['EgreTipoRel1'], 'TipoDia2' => (int) $d['EgreTipoRel2'],
+            'TipoDia3' => (int) $d['EgreTipoRel3'], 'TipoDia4' => (int) $d['EgreTipoComp'],
+            'EstaSali' => (int) $d['EstaSali'], 'DiagMuer' => $d['DiagMuer'] !== '' ? $d['DiagMuer'] : null,
+            'FechMuer' => $d['FechMuer'], 'HoraMuer' => $d['HoraMuer'], 'ObseSali' => $d['ObseSali'],
+            'CodiProf' => $login, 'UnidEdad' => $a['UnidEdad'], 'ValoEdad' => (int) $a['ValoEdad'],
+            'ServEgre' => $a['ServEgre'], 'CodiCama' => $a['CamaActu'] !== '' ? $a['CamaActu'] : null,
+        ];
+        $st = $pdo->prepare('SELECT COUNT(*) FROM SaliInte WHERE CodiInst = ? AND ConsAdmi = ? FOR UPDATE');
+        $st->execute([CODI_INST, $a['ConsAdmi']]);
+        if ((int) $st->fetchColumn() === 0) {
+            hc_insertar($pdo, 'SaliInte', ['CodiInst' => CODI_INST, 'ConsAdmi' => $a['ConsAdmi']] + $fila + hc_digitacion($login));
+        } else {
+            // Modificar: las columnas vienen del código, nunca del usuario
+            $fila += ['FechModi' => date('Y-m-d'), 'HoraModi' => date('H:i:s'), 'UsuaModi' => $login];
+            $sql = 'UPDATE SaliInte SET ' . implode(', ', array_map(fn ($c) => "`$c` = ?", array_keys($fila)))
+                 . ' WHERE CodiInst = ? AND ConsAdmi = ?';
+            $pdo->prepare($sql)->execute(array_merge(array_values($fila), [CODI_INST, $a['ConsAdmi']]));
+        }
+        return 1;
+    });
+}
+
+/**
+ * "Cerrar Historia" del encabezado (los 3 módulos). En Urgencias y Observación exige el egreso (SaliInte) como
+ * SIHOS; en Consulta Externa no hay egreso y solo se cierra la admisión.
+ */
+function cierre_validar(array $a): array
+{
+    $e = [];
+    $ce = modulo_de_servicio($a['ServEgre']) === 'ce';
+    $eg = $ce ? null : egreso_de_admision($a['ConsAdmi']);
+    if (!$ce && !$eg) {
+        $e['egreso'] = 'Antes de cerrar la historia registre el egreso.';
+    }
+    return [['egreso' => $eg], $e];
+}
+
+/** Cierra la admisión (Cerrado = 1). La cama queda libre. FechEgre/HoraEgre = salida del egreso o el momento del cierre. */
+function cierre_guardar(array $a, array $d, string $login): int
+{
+    return hc_transaccion(function (PDO $pdo) use ($a, $d, $login) {
         $st = $pdo->prepare('SELECT Cerrado FROM Admision WHERE CodiInst = ? AND ConsAdmi = ? FOR UPDATE');
         $st->execute([CODI_INST, $a['ConsAdmi']]);
         if ((int) $st->fetchColumn() === 1) {
             throw new RuntimeException('La admisión ya estaba cerrada.');
         }
-        if (empty($d['solo_cierre'])) {
-            $seg = max(0, strtotime($d['FechSali'] . ' ' . $d['HoraSali']) - strtotime($a['FechIngr'] . ' ' . $a['HoraIngr']));
-            hc_insertar($pdo, 'SaliInte', [
-                'CodiInst' => CODI_INST, 'ConsAdmi' => $a['ConsAdmi'], 'CodiModu' => hc_modulo($a),
-                'FechSali' => $d['FechSali'], 'HoraSali' => $d['HoraSali'],
-                'DiasEsta' => min(999, intdiv($seg, 86400)), 'HoraEsta' => intdiv($seg % 86400, 3600),
-                'CausSali' => (int) $d['CausSali'], 'DestSali' => $d['DestSali'], 'DiasInca' => $d['DiasInca'],
-                'DiagEgre' => $d['DiagEgre'], 'DiagRel1' => $d['EgreRel1'], 'DiagRel2' => $d['EgreRel2'], 'DiagRel3' => $d['EgreRel3'],
-                'DiagRel4' => '', 'DiagComp' => $d['EgreComp'],
-                // TipoDia4 = tipo del diagnostico de complicacion (comentario de SaliInte)
-                'TipoDiag' => (int) $d['EgreTipoDiag'], 'TipoDia1' => (int) $d['EgreTipoRel1'], 'TipoDia2' => (int) $d['EgreTipoRel2'],
-                'TipoDia3' => (int) $d['EgreTipoRel3'], 'TipoDia4' => (int) $d['EgreTipoComp'],
-                'EstaSali' => (int) $d['EstaSali'], 'DiagMuer' => $d['DiagMuer'] !== '' ? $d['DiagMuer'] : null,
-                'FechMuer' => $d['FechMuer'], 'HoraMuer' => $d['HoraMuer'], 'ObseSali' => $d['ObseSali'],
-                'CodiProf' => $login, 'UnidEdad' => $a['UnidEdad'], 'ValoEdad' => (int) $a['ValoEdad'],
-                'ServEgre' => $a['ServEgre'], 'CodiCama' => $a['CamaActu'] !== '' ? $a['CamaActu'] : null,
-                'TipoEgre' => (int) $d['TipoEgre'],
-            ] + hc_digitacion($login));
-        }
+        $fs = $d['egreso']['FechSali'] ?? date('Y-m-d');
+        $hs = $d['egreso']['HoraSali'] ?? date('H:i:s');
         $pdo->prepare('UPDATE Admision SET Cerrado = 1, FechCier = CURDATE(), HoraCier = CURTIME(), UsuaCier = ?,
                               FechEgre = ?, HoraEgre = ?, FechModi = CURDATE(), HoraModi = CURTIME(), UsuaModi = ?
                         WHERE CodiInst = ? AND ConsAdmi = ?')
-            ->execute([$login, $d['FechSali'], $d['HoraSali'], $login, CODI_INST, $a['ConsAdmi']]);
+            ->execute([$login, $fs, $hs, $login, CODI_INST, $a['ConsAdmi']]);
+        return 1;
     });
 }
 
