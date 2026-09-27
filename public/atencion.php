@@ -235,12 +235,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 // --- Historias abiertas del modulo (ventana) -----------------------------
 $todas = admisiones_abiertas($mod);
 $serv = is_string($_GET['serv'] ?? null) && in_array($_GET['serv'], $mod['servicios'], true) ? $_GET['serv'] : '';
-// Filtros de SIHOS: Seleccione Servicio · Seleccione consultorio · Mostrar N registros
-$consul = is_string($_GET['cons_f'] ?? null) && lista_valida('Cons', $_GET['cons_f']) ? $_GET['cons_f'] : '';
+// Filtros de SIHOS: Seleccione Servicio · Mostrar N registros (el consultorio no se muestra al profesional:
+// decision del usuario, ver docs/REGLAS.md)
 $mostrar = in_array((int) ($_GET['mostrar'] ?? 25), [10, 25, 50, 100], true) ? (int) ($_GET['mostrar'] ?? 25) : 25;
-$filas = array_values(array_filter($todas, function ($f) use ($serv, $consul) {
-    return ($serv === '' || $f['ServEgre'] === $serv) && ($consul === '' || (string) $f['CodiCons'] === $consul);
-}));
+$filas = array_values(array_filter($todas, fn ($f) => $serv === '' || $f['ServEgre'] === $serv));
 $totalFiltradas = count($filas);
 $filas = array_slice($filas, 0, $mostrar);
 $historiasAbiertas = isset($_GET['historias']) || (!$a && !$buscado && !isset($_GET['nueva']));
@@ -511,9 +509,6 @@ pestanas_historia($a, $mod, $tab, $conteos ?? []);
             <?php if (trim((string) $triage['Conducta']) !== ''): ?>
                 <dt>Observaciones de conducta</dt><dd class="texto-largo"><?= e($triage['Conducta']) ?></dd>
             <?php endif; ?>
-            <?php if (trim((string) ($triage['CodiCons'] ?? '')) !== ''): ?>
-                <dt>Continuar en el consultorio</dt><dd><?= e(lista_nombre('Cons', $triage['CodiCons'])) ?></dd>
-            <?php endif; ?>
         </dl>
         <?php
         // Signos tomados en el triage: la toma con la misma fecha y hora (en SIHOS, toma No. 1)
@@ -561,9 +556,6 @@ pestanas_historia($a, $mod, $tab, $conteos ?? []);
                     <select id="CondTria" name="CondTria" class="<?= ce($eT, 'CondTria') ?>" required><?= opciones('CondTria', $t['CondTria'] ?? '') ?></select><?= me($eT, 'CondTria') ?></div>
             </div>
             <textarea id="Conducta" name="Conducta" rows="2" maxlength="5000" aria-label="Texto de la conducta"><?= v($t, 'Conducta') ?></textarea>
-            <div class="rejilla">
-                <?= campo_lista('CodiCons', 'Continuar en el consultorio', 'Cons', $t, $eT, false) ?>
-            </div>
             <?= botonera(['Guardar', 'Modificar', 'Imprimir', 'Consultar']) ?>
         </form>
         </div>
@@ -704,12 +696,6 @@ foreach ($disponibles as $vista) {
                     <option value="<?= e($c) ?>"<?= $serv === (string) $c ? ' selected' : '' ?>><?= e($n) ?></option>
                 <?php endforeach; ?>
             </select>
-            <select name="cons_f" aria-label="Consultorio" class="filtro-servicio">
-                <option value="">Seleccione consultorio</option>
-                <?php foreach (lista('Cons') as $c => $n): ?>
-                    <option value="<?= e($c) ?>"<?= $consul === (string) $c ? ' selected' : '' ?>><?= e($n) ?></option>
-                <?php endforeach; ?>
-            </select>
             <label class="mostrar">Mostrar <select name="mostrar" aria-label="Registros por página">
                 <?php foreach ([10, 25, 50, 100] as $m): ?><option value="<?= $m ?>"<?= $m === $mostrar ? ' selected' : '' ?>><?= $m ?></option><?php endforeach; ?>
             </select> registros</label>
@@ -721,12 +707,12 @@ foreach ($disponibles as $vista) {
         <?php else: ?>
         <div class="tabla-contenedor tabla-tarjetas">
         <!-- Columnas de SIHOS: Servicio · Cama · Admisión · Fecha · Duración · T · Autoriza. · Triage · Med · Ord ·
-             Paciente · Edad · Estado · Consultorio · Profesional; filas coloreadas por triage -->
+             Paciente · Edad · Estado · Profesional; filas coloreadas por triage. Sin Consultorio: decisión del usuario -->
         <table class="tabla tabla-historias">
             <thead><tr>
                 <th>Servicio</th><th>Cama</th><th>Admisión</th><th>Fecha</th><th>Duración</th><th title="Color del triage">T</th>
                 <th>Autoriza.</th><th>Triage</th><th class="num" title="Medicamentos pendientes por aplicar">Med</th>
-                <th class="num" title="Ítems de órdenes pendientes">Ord</th><th>Paciente</th><th>Edad</th><th>Estado</th><th>Consultorio</th><th>Profesional</th>
+                <th class="num" title="Ítems de órdenes pendientes">Ord</th><th>Paciente</th><th>Edad</th><th>Estado</th><th>Profesional</th>
             </tr></thead>
             <tbody>
             <?php foreach ($filas as $f): $url = 'atencion.php?id=' . urlencode($f['ConsAdmi']); $ct = (int) $f['ClasTria']; ?>
@@ -746,7 +732,6 @@ foreach ($disponibles as $vista) {
                         <small class="bloque"><?= e($f['TipoDocu'] . ' ' . $f['NumeUsua']) ?></small></td>
                     <td data-etiqueta="Edad" class="sin-salto"><?= e(edad_texto($f['ValoEdad'], $f['UnidEdad'])) ?></td>
                     <td data-etiqueta="Estado">Abierta</td>
-                    <td data-etiqueta="Consultorio"><?= $f['CodiCons'] ? e(lista_nombre('Cons', $f['CodiCons'])) : '' ?></td>
                     <td data-etiqueta="Profesional"><?= e($f['UsuaDigi']) ?></td>
                 </tr>
             <?php endforeach; ?>

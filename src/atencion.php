@@ -406,9 +406,8 @@ function admisiones_abiertas(array $mod): array
                                 (SELECT COUNT(*) FROM DetaPres dp WHERE dp.CodiInst = a.CodiInst AND dp.ConsAdmi = a.ConsAdmi
                                     AND dp.FechSusp = '0000-00-00' AND dp.CantApli < dp.CantTota) AS med_pend,
                                 (SELECT COUNT(*) FROM DetaOrde dor WHERE dor.CodiInst = a.CodiInst AND dor.ConsAdmi = a.ConsAdmi
-                                    AND dor.CantReal < dor.CantSumi) AS ord_pend,
-                                (SELECT t.CodiCons FROM Triage t WHERE t.CodiInst = a.CodiInst AND t.ConsAdmi = a.ConsAdmi
-                                  ORDER BY t.ConsTria DESC LIMIT 1) AS CodiCons
+                                    AND dor.CantReal < dor.CantSumi) AS ord_pend
+
                            FROM Admision a
                            LEFT JOIN Paciente p ON p.TipoDocu = a.TipoDocu AND p.NumeUsua = a.NumeUsua
                            LEFT JOIN CodiAdmi c ON c.CodiAdmi = a.CodiAdmi
@@ -441,7 +440,6 @@ function triage_validar(): array
         'CodiDiag' => strtoupper(campo('CodiDiag', 8)),
         'ClasTria' => campo('ClasTria', 1),
         'CondTria' => campo('CondTria', 2),
-        'CodiCons' => campo('CodiCons', 5),
         'Conducta' => campo('Conducta', 5000),
     ];
     $e = [];
@@ -455,8 +453,6 @@ function triage_validar(): array
     }
     if (!lista_valida('ClasTria', $d['ClasTria'])) $e['ClasTria'] = 'Seleccione la clasificación del triage.';
     if (!lista_valida('CondTria', $d['CondTria'])) $e['CondTria'] = 'Seleccione la conducta.';
-    // "Continuar en el consultorio" (opcional), del catalogo de consultorios
-    if ($d['CodiCons'] !== '' && !lista_valida('Cons', $d['CodiCons'])) $e['CodiCons'] = 'Seleccione un consultorio válido.';
     return [$d, $e];
 }
 
@@ -482,7 +478,7 @@ function triage_guardar(array $a, array $t, array $s, string $login): void
                              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?, ?, CURDATE(), CURTIME(), ?, CURDATE(), CURTIME(), ?, ?)');
         $st->execute([CODI_INST, $a['ConsAdmi'], $consTria, $a['TipoDocu'], $a['NumeUsua'], $t['FechTria'], $t['HoraTria'],
             $t['MotiCons'], $t['HallClin'], $t['CodiDiag'], (int) $t['ClasTria'], $t['CondTria'], $t['Conducta'],
-            $a['CodiAdmi'], $a['NumeCont'], $a['TipoUsua'], $login, $login, $t['CodiCons'] ?? '']);
+            $a['CodiAdmi'], $a['NumeCont'], $a['TipoUsua'], $login, $login, '']);   // CodiCons: el consultorio no se pide al profesional (decision del usuario)
 
         signos_insertar($pdo, $a, $s + ['FechToma' => $t['FechTria'], 'HoraToma' => $t['HoraTria']], $login, 2);
 

@@ -173,7 +173,7 @@ carga (fase 3)** comparando con una admisión real de cada módulo.
 | Barra de cada pestaña | Nuevo (formulario en blanco), No. (registros anteriores: lleva al registro), Fecha, Hora y campos propios (Tipo de prescripción, Tipo de incapacidad, Autorización, Profesional). Imprimir y Cargos están deshabilitados: no aplican en contingencia. |
 | Notas (HojaEnfe) | Sin selector de tipo (lo da la pestaña, ver "Verificado contra SIHOS"). La casilla Revisada de Notas Médicas llena `Reviza = 1`, `UsuaRevi`, `FechRevi`, `HoraRevi`. |
 | Signos en consulta y evolución | La fila de signos de Consultas (Revisión por sistema) y de Evolución es opcional: si se escribe alguno se guarda una toma de `SignVita` con `ConsCons` o `ConsEvol` (sin obligatorios). `Oximetria` queda `NULL` si no se escribe. |
-| Triage | "Continuar en el consultorio" = `Triage.CodiCons` del catálogo `CodiCons` (activos), opcional. |
+| Triage | "Continuar en el consultorio" no se muestra (decisión del usuario): `Triage.CodiCons` se guarda vacío. |
 | Consulta (campos de SIHOS) | Sintomáticos (`SintResp`, `SintPiel`, `SintNerv`, `TubeMult`: 1 sí / 2 no), `PeriAbdo` (0-200) y `PeriTorx` (0-150), `LaboImag`, diagnósticos Principal y Rela 1-4 con tipo (`TipoDiag`, `TipoDia1-4`, 0 si no hay), Destino en Urgencias y Observación (`DestSali`, catálogo `DestSali`, se guarda como número; 4 si no se escoge). Prescripción: Tipo de prescripción (`TipoPres` 1 regular / 2 control), DXP, DXR 1 y DXR 2. Evolución: Rela 1-4 con tipo (`TipoDiag1-4`). Egreso: Rela 1-3 y Complicación (`DiagComp`, su tipo en `TipoDia4`). |
 | Plan de Manejo (Urgencias 20, Observación 25) | Es el mismo `RipsCons.ObseReco` del acordeón de Consultas. Sin selector de consulta (como SIHOS): edita el plan, el destino y el Código Dorado (`Especif`, `ObserCd`) de la consulta más reciente. Sin consulta: "Registre primero la consulta". |
 | Campos de SIHOS sin guardar | No se piden porque no tienen columna o catálogo local: Lepra (`TipoLepr`), Tipo de discapacidad, Conducta de la consulta (lista 33), método de planificación (`MetoDesc`), Sivigila/Protocolo, Id Estudio, Revisado del procedimiento y de la evolución, índice cintura-cadera, órdenes posfechadas, Alcance, Incapacidad retroactiva, Grupo de servicios y Modalidad de la incapacidad, Institución receptora de la remisión (va como texto en `MotiRemi`). |
@@ -309,13 +309,20 @@ revisión del 26/09/2026 en [`REVISION_SIHOS.md`](REVISION_SIHOS.md), que manda 
 
 ## Historias Abiertas y ventana automática (`docs/RECORRIDO_SIHOS.md` §2 y §4)
 
-- Filtros de SIHOS: Seleccione Servicio · Seleccione consultorio (`Triage.CodiCons`) · Mostrar N registros (10, 25, 50,
-  100). Se quitó el buscador libre (SIHOS no lo tiene).
+- Filtros de SIHOS: Seleccione Servicio · Mostrar N registros (10, 25, 50, 100). Se quitó el buscador libre (SIHOS no
+  lo tiene).
 - Columnas: Servicio · Cama · Admisión · Fecha · Duración · T · Autoriza. (`NumeAuto`) · Triage · Med · Ord · Paciente ·
-  Edad · Estado · Consultorio · Profesional; filas coloreadas por triage. **Supuestos**: "T" = color del triage;
+  Edad · Estado · Profesional; filas coloreadas por triage. **Supuestos**: "T" = color del triage;
   "Med" = medicamentos prescritos pendientes por aplicar (`DetaPres.CantApli < CantTota`, sin suspender); "Ord" =
   ítems de órdenes pendientes (`DetaOrde.CantReal < CantSumi`); Estado = "Abierta".
 - Al abrir una historia de Urgencias u Observación (sin pestaña en la dirección) sale una ventana propia con los
   Antecedentes Tóxicos y Alérgicos del paciente (`Antecede.ToxiAler/ToxiDesc`, `AlerSiNo/AlerDesc`, de todas sus
   admisiones) y la Reconciliación Medicamentosa ("no disponible": falta la tabla `RecoMedi`). Se cierra con Esc,
   la X o Aceptar.
+
+## Decisiones del usuario que se apartan de "igual que SIHOS"
+
+- **Consultorios fuera de la vista del profesional, en todas las pantallas** (septiembre 2026): el Triage no pide
+  "Continuar en el consultorio" (`Triage.CodiCons` se guarda `''`) y Historias Abiertas no tiene el filtro
+  "Seleccione consultorio" ni la columna "Consultorio".
+- EPS, Contrato, Tipo de usuario, Afiliación y Categoría se ven en el encabezado (en SIHOS están ocultos).

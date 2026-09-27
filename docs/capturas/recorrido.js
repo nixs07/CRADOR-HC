@@ -111,13 +111,12 @@ async function buscarDocumento(p, modulo, tipo, doc) {
   await cerrarAlertas(p);
   console.log('-- pestañas urg', JSON.stringify(await p.$$eval('[data-pestanas] > *', l => l.map(x => x.innerText.replace(/\s+/g, ' ').trim()))));
 
-  // 1. Triage (con "Continuar en el consultorio")
+  // 1. Triage (sin consultorio: decision del usuario)
   await pestana('triage');
   await p.selectOption('#ClasTria', '3');
   await p.fill('#triage #MotiCons', 'ME DUELE EL ESTOMAGO DESDE AYER');
   await p.fill('#HallClin', 'Paciente consciente, abdomen blando, dolor en epigastrio. Datos inventados.');
   await signos('', { PANume: '120', PADeno: '80', Pulso: '88', Respirac: '18', Temperat: '37.2', Saturaci: '97', Peso: '72', Talla: '170', FetoCard: '', Oximetria: '96' });
-  await p.selectOption('#CodiCons', 'U01');
   await foto(p, '12_triage');
   await guardar('#triage button[type=submit]', 'triage guardado');
 
