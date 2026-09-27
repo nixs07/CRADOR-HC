@@ -178,7 +178,7 @@ async function buscarDocumento(p, modulo, tipo, doc) {
   await signos('cons-', { PANume: '116', PADeno: '74', Pulso: '80', Respirac: '16', Temperat: '36.7', Saturaci: '98', Oximetria: '97' });
   await p.fill('#EstaGene', 'ALERTA, HIDRATADO, AFEBRIL'); await p.fill('#PeriAbdo', '88'); await p.fill('#PeriTorx', '92');
   await p.selectOption('#ex-Abdomen', '2'); await p.fill('#consulta input[name=AbdoDesc]', 'DOLOR A LA PALPACION EN EPIGASTRIO');
-  await p.selectOption('#ex-Ano', '');
+  await p.selectOption('#ex-Ano', '3');   // No se Explora = 3 (confirmado)
   await p.fill('#LaboImag', 'SIN PARACLINICOS PREVIOS (inventado)');
   await autocompletar(p, '#cons-CodiDiag', 'gastritis', 'K297'); await p.selectOption('#cons-TipoDiag', '1');
   await p.fill('#cons-CodiRel1', 'E86X'); await p.selectOption('#cons-TipoDia1', '2');

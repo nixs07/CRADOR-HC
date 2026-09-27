@@ -316,9 +316,9 @@ function examen_sistemas(bool $ce): array
 
 /**
  * Opciones de cada sistema como SIHOS: Normal | Anormal | No se Explora (por defecto Normal).
- * 1 = normal, 2 = anormal; **No se Explora = NULL es un supuesto pendiente de confirmar**.
+ * 1 = Normal, 2 = Anormal, 3 = No se Explora (confirmado en RESULTADO_CONSULTAS_SIHOS.md §4).
  */
-const EXAMEN_OPCIONES = ['1' => 'Normal', '2' => 'Anormal', '' => 'No se Explora'];
+const EXAMEN_OPCIONES = ['1' => 'Normal', '2' => 'Anormal', '3' => 'No se Explora'];
 
 /**
  * Secciones de la consulta. En Urgencias/Observación son acordeones con su propio Guardar; en Consulta Externa,
@@ -422,11 +422,11 @@ function consulta_validar(array $a): array
     if (($d['PeriCint'] || $d['PeriCade']) && !$d['signos']) {
         $d['signos'] = array_fill_keys(array_keys(SIGNOS_RANGOS), 0);
     }
-    // Examen físico: Normal (1, por defecto) | Anormal (2, con descripción) | No se Explora (NULL)
+    // Examen físico: Normal (1, por defecto) | Anormal (2, con descripción) | No se Explora (3, confirmado)
     $d['EstaGene'] = campo('EstaGene', 5000);
     foreach (EXAMEN_SISTEMAS as $c => [$etq, $desc]) {
         $v = $_POST[$c] ?? '1';
-        $d[$c] = $v === '2' ? 2 : ($v === '' ? null : 1);
+        $d[$c] = in_array($v, ['2', '3'], true) ? (int) $v : 1;
         $d[$desc] = campo($desc, 2000);
         if ($d[$c] === 2 && $d[$desc] === '') $e[$desc] = "Describa el hallazgo anormal en $etq.";
     }

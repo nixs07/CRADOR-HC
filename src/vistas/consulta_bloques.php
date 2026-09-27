@@ -159,7 +159,7 @@ function consulta_bloque_revision(array $d, array $er, string $prefijo, bool $es
     <?php endif; ?>
     <div class="rejilla-examen">
         <?php foreach (examen_sistemas($esCE) as $c => [$etq, $desc]):
-            $val = array_key_exists($c, $d) ? ($d[$c] === null ? '' : (string) $d[$c]) : '1'; ?>
+            $val = array_key_exists($c, $d) ? ($d[$c] === null ? '1' : (string) $d[$c]) : '1'; ?>
             <div class="examen">
                 <label for="ex-<?= e($c) ?>"><?= e($etq) ?></label>
                 <select id="ex-<?= e($c) ?>" name="<?= e($c) ?>">

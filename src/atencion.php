@@ -410,13 +410,18 @@ function admisiones_abiertas(array $mod): array
                                 -- Med / Ord (columnas de la ventana de SIHOS; supuesto: medicamentos y ordenes pendientes)
                                 (SELECT COUNT(*) FROM DetaPres dp WHERE dp.CodiInst = a.CodiInst AND dp.ConsAdmi = a.ConsAdmi
                                     AND dp.FechSusp = '0000-00-00' AND dp.CantApli < dp.CantTota) AS med_pend,
+                                (SELECT COUNT(*) FROM DetaPres dp WHERE dp.CodiInst = a.CodiInst AND dp.ConsAdmi = a.ConsAdmi
+                                    AND dp.FechSusp = '0000-00-00') AS med_total,
                                 (SELECT COUNT(*) FROM DetaOrde dor WHERE dor.CodiInst = a.CodiInst AND dor.ConsAdmi = a.ConsAdmi
-                                    AND dor.CantReal < dor.CantSumi) AS ord_pend
+                                    AND dor.CantReal < dor.CantSumi) AS ord_pend,
+                                -- Columna T de SIHOS: tipo de contrato, E = Evento (TipoCont 1), C = Capita (TipoCont 2)
+                                ct.TipoCont
 
                            FROM Admision a
                            LEFT JOIN Paciente p ON p.TipoDocu = a.TipoDocu AND p.NumeUsua = a.NumeUsua
                            LEFT JOIN CodiAdmi c ON c.CodiAdmi = a.CodiAdmi
                            LEFT JOIN CodiServ s ON s.CodiServ = a.ServEgre
+                           LEFT JOIN Contrato ct ON ct.CodiInst = a.CodiInst AND ct.CodiAdmi = a.CodiAdmi AND ct.NumeCont = a.NumeCont
                           WHERE a.CodiInst = ? AND a.ServEgre IN ($marcas) AND a.Cerrado = 2 AND a.Anulado = 2
                           ORDER BY IFNULL(a.ClasTria, 9), a.FechIngr, a.HoraIngr");
     $st->execute(array_merge([CODI_INST], $mod['servicios']));

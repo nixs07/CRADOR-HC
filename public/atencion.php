@@ -726,9 +726,9 @@ foreach ($disponibles as $vista) {
              Paciente · Edad · Estado · Profesional; filas coloreadas por triage. Sin Consultorio: decisión del usuario -->
         <table class="tabla tabla-historias">
             <thead><tr>
-                <th>Servicio</th><th>Cama</th><th>Admisión</th><th>Fecha</th><th>Duración</th><th title="Color del triage">T</th>
-                <th>Autoriza.</th><th>Triage</th><th class="num" title="Medicamentos pendientes por aplicar">Med</th>
-                <th class="num" title="Ítems de órdenes pendientes">Ord</th><th>Paciente</th><th>Edad</th><th>Estado</th><th>Profesional</th>
+                <th>Servicio</th><th>Cama</th><th>Admisión</th><th>Fecha</th><th>Duración</th><th title="Tipo de contrato: E = Evento, C = Cápita">T</th>
+                <th>Autoriza.</th><th>Triage</th><th title="Medicamentos: pendientes por aplicar (jeringa) o aplicados (visto)">Med</th>
+                <th title="Órdenes pendientes">Ord</th><th>Paciente</th><th>Edad</th><th>Estado</th><th>Profesional</th>
             </tr></thead>
             <tbody>
             <?php foreach ($filas as $f): $url = 'atencion.php?id=' . urlencode($f['ConsAdmi']); $ct = (int) $f['ClasTria']; ?>
@@ -738,12 +738,14 @@ foreach ($disponibles as $vista) {
                     <td data-etiqueta="Admisión" class="celda-codigo"><a href="<?= e($url) ?>"><?= e($f['ConsAdmi']) ?></a></td>
                     <td data-etiqueta="Fecha" class="sin-salto"><?= e(fecha_hora($f['FechIngr'] . ' ' . $f['HoraIngr'])) ?></td>
                     <td data-etiqueta="Duración" class="sin-salto"><?= e(duracion_desde($f['FechIngr'], $f['HoraIngr'])) ?></td>
-                    <td data-etiqueta="T"><?php if ($ct): ?><span class="punto-triage triage-<?= $ct ?>" title="<?= e(lista_nombre('ClasTria', $ct)) ?>"></span><?php endif; ?></td>
+                    <td data-etiqueta="T"><?php $tc = ['1' => 'E', '2' => 'C'][(string) $f['TipoCont']] ?? ''; ?><?php if ($tc): ?><span class="etiqueta" title="<?= $tc === 'E' ? 'Evento' : 'Cápita' ?>"><?= $tc ?></span><?php endif; ?></td>
                     <td data-etiqueta="Autoriza."><?= e($f['NumeAuto']) ?></td>
                     <td data-etiqueta="Triage"><?php if ($ct): ?><span class="etiqueta triage-<?= $ct ?>"><?= e(triage_romano($ct)) ?></span>
                         <?php elseif ($tieneTriage): ?><a href="<?= e($url) ?>&amp;tab=triage" class="sin-triage"><?= icono('circle-alert') ?>Sin triage</a><?php endif; ?></td>
-                    <td data-etiqueta="Med" class="num"><?= (int) $f['med_pend'] ?></td>
-                    <td data-etiqueta="Ord" class="num"><?= (int) $f['ord_pend'] ?></td>
+                    <!-- Med / Ord: indicadores con ícono como SIHOS (no son datos) -->
+                    <td data-etiqueta="Med"><?php if ((int) $f['med_pend']): ?><span class="indicador indicador-pendiente" title="<?= (int) $f['med_pend'] ?> medicamento(s) pendiente(s) por aplicar"><?= icono('syringe') ?></span>
+                        <?php elseif ((int) $f['med_total']): ?><span class="indicador indicador-ok" title="Medicamentos aplicados"><?= icono('circle-check') ?></span><?php endif; ?></td>
+                    <td data-etiqueta="Ord"><?php if ((int) $f['ord_pend']): ?><span class="indicador indicador-pendiente" title="<?= (int) $f['ord_pend'] ?> ítem(s) de órdenes pendiente(s)"><?= icono('flask-conical') ?></span><?php endif; ?></td>
                     <td class="celda-principal celda-paciente" data-etiqueta="Paciente"><a href="<?= e($url) ?>"><?= e(paciente_nombre($f)) ?></a>
                         <small class="bloque"><?= e($f['TipoDocu'] . ' ' . $f['NumeUsua']) ?></small></td>
                     <td data-etiqueta="Edad" class="sin-salto"><?= e(edad_texto($f['ValoEdad'], $f['UnidEdad'])) ?></td>
