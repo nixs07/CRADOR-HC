@@ -6,6 +6,32 @@ Lo más reciente va arriba.
 
 ---
 
+## 28/09/2026 (4) — Procedimientos y medicamentos según el manual tarifario del contrato (verificado)
+
+En SIHOS cada **contrato** tiene manual de procedimientos y de suministros:
+`Contrato.CodiManu` (procedimientos), `Contrato.CodiMaSu` (suministros) y `Contrato.CodiPlan`.
+- **`TariProc`** (59.023 filas): `CodiProc varchar(15), CodiManu char(5), CodiPlan char(2), SalaMini decimal(20,2),
+  IndiUVT decimal(20,2), IndiUVB decimal(20,2), GrupQuir char(2), TipoTari int(1), UVR decimal(20,2), UVRMax decimal(20,2),
+  ValoUnit int(20)` + FechDigi/HoraDigi/UsuaDigi/FechModi/HoraModi/UsuaModi.
+- **`TariSumi`** (7.629): `CodiSumi varchar(20), CodiManu varchar(5), CodiPlan char(2), ValoSumi int(20), MargRent decimal(20,2)` + auditoría.
+- **`CodiManu`** (29): `CodiManu char(5), NombManu varchar(30), TipoManu int(2), TariSumi int(1), IncrTari int(1),
+  IntaCron int(11), Visible int(11)` + auditoría. (`TipoManu`: 7 filas.)
+Copiarlas como catálogos (tipos exactos).
+
+Datos reales (admisiones desde el 20/09): porcentaje de registros cuyo código está en el manual del contrato de la admisión
+(`TariProc.CodiManu = Contrato.CodiManu AND TariProc.CodiPlan = Contrato.CodiPlan`, o `TariSumi` con `CodiMaSu`):
+| Pestaña / campo | n | En el manual | Regla para CRADOR |
+| --- | --- | --- | --- |
+| Procedimientos (`HojaProc.CodiProc`) | 9.402 | 99,4 % | **Buscador filtrado** por el manual del contrato |
+| Tipo / Actividad de la consulta (`RipsCons.TipoCons`) | 3.750 | 99,5 % | **Buscador filtrado** por el manual |
+| Prescripción (`DetaPres.CodiSumi`) | 7.675 | 87,7 % | Mostrar primero los del manual (`TariSumi` con `CodiMaSu`); permitir los demás con aviso |
+| Ordenación (`DetaOrde.CodiProc`) | 10.625 | 67,6 % | **Sin filtro** (se ordena de todo); marcar los que no están en el manual |
+En el buscador de procedimientos, `api.php?que=procedimientos` debe recibir la admisión (o CodiManu+CodiPlan) y hacer
+`JOIN TariProc t ON t.CodiProc = CodiProc.CodiProc AND t.CodiManu = ? AND t.CodiPlan = ?`. Validar también al guardar
+(Procedimientos y Tipo de consulta): "El procedimiento no está parametrizado en el manual tarifario del contrato".
+
+---
+
 ## 28/09/2026 (3) — Rama `diseno-encabezado` del Claude local: UNIRLA a `fase-2`
 
 El Claude local hizo estos cambios en la rama **`diseno-encabezado`** (sale de `fase-2` en 2b673b0). Haz
