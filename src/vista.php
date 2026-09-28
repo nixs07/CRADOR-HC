@@ -34,7 +34,11 @@ function iniciales(string $nombre): string
     return mb_strtoupper($ini);
 }
 
-function vista_inicio(string $titulo): void
+/**
+ * Abre la página. $avisos = false: los mensajes (flash) no se pintan arriba; la página los muestra donde quiera
+ * (la pantalla de trabajo los pone abajo, junto a Continuar: avisos_flash()).
+ */
+function vista_inicio(string $titulo, bool $avisos = true): void
 {
     $u = usuario_actual();
     $pagina = basename($_SERVER['SCRIPT_NAME'] ?? '');
@@ -137,10 +141,20 @@ function vista_inicio(string $titulo): void
     </header>
     <?php endif; ?>
     <main class="contenido" id="contenido" tabindex="-1">
-        <?php foreach (flash_obtener() as $f): ?>
-            <div class="alerta alerta-<?= e($f['tipo']) ?>" role="status"><?= icono(['ok' => 'circle-check', 'error' => 'circle-alert'][$f['tipo']] ?? 'triangle-alert') ?><div><?= e($f['mensaje']) ?></div></div>
-        <?php endforeach; ?>
+        <?= $avisos ? avisos_flash() : '' ?>
 <?php
+}
+
+/** Mensajes pendientes (flash) como alertas. */
+function avisos_flash(): string
+{
+    $h = '';
+    foreach (flash_obtener() as $f) {
+        $h .= '<div class="alerta alerta-' . e($f['tipo']) . '" role="status">'
+            . icono(['ok' => 'circle-check', 'error' => 'circle-alert'][$f['tipo']] ?? 'triangle-alert')
+            . '<div>' . e($f['mensaje']) . '</div></div>';
+    }
+    return $h;
 }
 
 function vista_fin(): void

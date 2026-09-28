@@ -59,15 +59,19 @@ if (!$esCE): ?>
         <input type="hidden" name="ConsConsEdit" value="<?= $consEdit ?>">
         <?= barra_registro('Nuevo', $anteriores, 'FechCons', 'HoraCons', $d, $er, '', '', ['Cargos', 'Consultar', 'Imprimir'], $urlNueva) ?>
         <?php
-        $abrir = function (string $titulo, string $icono, bool $abierto) use ($er) {
-            return '<details class="acordeon"' . ($abierto || $er ? ' open' : '') . '><summary>' . icono($icono) . e($titulo) . '</summary><div class="acordeon-cuerpo">';
+        // Al guardar una sección se vuelve a ella (?sec=antecedentes...): su acordeón queda abierto y la página en el
+        // mismo sitio (js/interfaz.js, "quedarse en la sección")
+        $sec = is_string($_GET['sec'] ?? null) ? $_GET['sec'] : (string) ($F['consulta']['boton'] ?? '');
+        $abrir = function (string $seccion, string $titulo, string $icono, bool $abierto) use ($er, $sec) {
+            return '<details class="acordeon" id="sec-' . e($seccion) . '" data-seccion="' . e($seccion) . '"'
+                 . ($abierto || $er || $sec === $seccion ? ' open' : '') . '><summary>' . icono($icono) . e($titulo) . '</summary><div class="acordeon-cuerpo">';
         };
         ?>
-        <?= $abrir('Anamnesis', 'file-text', true) ?><?php consulta_bloque_anamnesis($d, $er, false, $profesional); ?><?= $guardarSeccion('anamnesis') ?></div></details>
-        <?= $abrir('Antecedentes', 'history', false) ?><?php consulta_bloque_antecedentes($d, $er, false, $reco); ?><?= $guardarSeccion('antecedentes') ?></div></details>
-        <?= $abrir('Revisión por Sistema y Exámen', 'activity', false) ?><?php consulta_bloque_revision($d, $er, 'cons-', false); ?><?= $guardarSeccion('revision') ?></div></details>
-        <?= $abrir('Laboratorios y Diagnósticos', 'clipboard-list', true) ?><?php consulta_bloque_laboratorios($d, $er); ?><?= $guardarSeccion('laboratorios') ?></div></details>
-        <?= $abrir('Plan de Manejo y Recomendaciones', 'clipboard-plus', true) ?><?php consulta_bloque_plan($d, $er, false); ?><?= $guardarSeccion('plan') ?></div></details>
+        <?= $abrir('anamnesis', 'Anamnesis', 'file-text', true) ?><?php consulta_bloque_anamnesis($d, $er, false, $profesional); ?><?= $guardarSeccion('anamnesis') ?></div></details>
+        <?= $abrir('antecedentes', 'Antecedentes', 'history', false) ?><?php consulta_bloque_antecedentes($d, $er, false, $reco); ?><?= $guardarSeccion('antecedentes') ?></div></details>
+        <?= $abrir('revision', 'Revisión por Sistema y Exámen', 'activity', false) ?><?php consulta_bloque_revision($d, $er, 'cons-', false); ?><?= $guardarSeccion('revision') ?></div></details>
+        <?= $abrir('laboratorios', 'Laboratorios y Diagnósticos', 'clipboard-list', true) ?><?php consulta_bloque_laboratorios($d, $er); ?><?= $guardarSeccion('laboratorios') ?></div></details>
+        <?= $abrir('plan', 'Plan de Manejo y Recomendaciones', 'clipboard-plus', true) ?><?php consulta_bloque_plan($d, $er, false); ?><?= $guardarSeccion('plan') ?></div></details>
         <div class="cerrar-consulta">
             <button type="submit" name="boton" value="cerrar" class="boton boton-peligro"><?= icono('lock') ?>Cerrar Consulta</button>
             <span class="duracion"><?= icono('clock') ?>Duración: <strong><?= e(consulta_duracion($editando)) ?></strong></span>

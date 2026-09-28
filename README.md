@@ -45,6 +45,7 @@ Las tablas tienen **exactamente los mismos nombres y columnas que SIHOS** (ver `
 | `sql/03_catalogos_listas.sql` | 37 catálogos de listas desplegables (TipoDocu, ViaIngre, ViaAdmi, UnidMedi, CausSali, DestSali...) |
 | `sql/04_listas_permisos.sql` | Catálogos reales de SIHOS: permisos (UsuaGrup, Permisos, ModuObje, Objetos), listas genéricas (priv_listas_tipos / priv_listas_elementos), EstaIngr e InstRemi |
 | `sql/05_tablas_clinicas_nuevas.sql` | Tablas clínicas agregadas: RecoMedi (Reconciliación Medicamentosa) y comu_antecedentes_multiples |
+| `sql/06_hora_apli.sql` | Catálogo HoraApli ("Cada" de la prescripción hospitalaria: 0 = AHORA, 1..24 horas; estructura provisional) |
 | `sql/99_datos_prueba.sql` | Datos inventados para pruebas. **No** se cargan solos; nunca en producción. |
 | `public/` | Páginas web (lo único que publica Apache): login, tablero, pacientes, admisiones, triage, signos, CSS/JS |
 | `src/` | Código PHP común: configuración, conexión PDO, sesión/CSRF, catálogos, listas, atención clínica |
@@ -80,6 +81,17 @@ Abrir <http://localhost:8080>. Guía completa: [`docs/INSTALACION.md`](docs/INST
   "No disponible en contingencia". En Consulta Externa la consulta ocupa las pestañas 1 a 4 y 7 (Plan de Manejo) y la historia se
   cierra con "Cerrar Historia" en el encabezado.
 - **Fase 3:** carga a SIHOS por el administrador (`cont_carga_sihos`).
+
+## ¿Dónde se guardan las historias?
+
+- **Solo en la base de datos MySQL `crador_hc`** del equipo servidor, que vive en el volumen de Docker `db_datos`
+  (no en la carpeta del proyecto). **No hay archivos aparte**: cada historia son filas en las tablas de SIHOS
+  (`Admision`, `RipsCons`, `EncaPres`...) con número de admisión temporal `C…`.
+- Se abren desde el encabezado: número de admisión + Enter, o documento + Buscar (abiertas y cerradas; las cerradas
+  en solo lectura). "Historias abiertas" lista solo las abiertas.
+- **Respaldos**: `docker compose exec db sh /crador/respaldar.sh` deja un `.sql.gz` en la carpeta `respaldos/` (no se
+  sube a GitHub). Restaurar: `docker compose exec db sh /crador/restaurar.sh ARCHIVO.sql.gz SI`.
+- Se **cargan a SIHOS en la fase 3** (carga por el administrador), donde reciben el número de admisión definitivo.
 
 ## Stack
 

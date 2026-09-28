@@ -22,10 +22,23 @@ require __DIR__ . '/../src/formulario.php';
 
 $u = requiere_login();
 
+// --- Buscar por número de admisión (encabezado: se escribe y Enter), como SIHOS: abre cualquier historia de la
+// contingencia, abierta o cerrada (la cerrada en solo lectura) ------------------------------------------------
+if (is_string($_GET['adm'] ?? null)) {
+    $numAdm = mb_substr(admision_numero_limpio($_GET['adm']), 0, 12);
+    if ($numAdm !== '' && admision_obtener($numAdm)) {
+        redirigir('atencion.php?id=' . urlencode($numAdm));
+    }
+    flash('error', $numAdm === '' ? 'Escriba el número de admisión.' : "No existe la admisión $numAdm.");
+    redirigir('atencion.php?modulo=' . urlencode(is_string($_GET['modulo'] ?? null) ? $_GET['modulo'] : (string) modulo_actual()) . '&nueva=1');
+}
+
 // --- Admision cargada y modulo -------------------------------------------
 $a = null;
 if (isset($_GET['id'])) {
     $a = admision_o_404($_GET['id']);
+    // Diagnóstico de ingreso efectivo (no se digita): el de la admisión o el de la primera consulta/procedimiento
+    $a['DiagIngr'] = diag_ingreso($a);
     $clave = modulo_de_servicio($a['ServEgre']) ?? modulo_actual();
 } else {
     $clave = is_string($_GET['modulo'] ?? null) ? $_GET['modulo'] : modulo_actual();
@@ -117,24 +130,31 @@ const ACCIONES_HISTORIA = [
     'cierre'        => [[], 'cierre_validar', 'cierre_guardar', 'Historia cerrada.'],
 ];
 
-/** Pestana de Consulta Externa (1 a 4 o 7) donde esta el primer campo con error de la consulta. */
-function consulta_ce_pestana(array $errores): string
+/**
+ * Pestaña de Consulta Externa (1 a 4 o 7) de cada campo con error de la consulta. Se queda en la pestaña del Guardar
+ * pulsado ($preferida) si alguno de los errores está ahí; si no, va a la del primer error.
+ */
+function consulta_ce_pestana(array $errores, string $preferida = ''): string
 {
-    $antecedentes = ['FechRegl', 'FechPart'];
+    $antecedentes = ['FechRegl', 'FechPart', 'MetoDesc', 'FamiPare', 'FamiDiag', 'AlerTipo', 'AlerMedi', 'FarmMedi', 'FactTipo', 'RecoNomb'];
     foreach (ANTECEDENTES as $c => [, $desc]) {
         $antecedentes[] = $c;
         if ($desc !== null) $antecedentes[] = $desc;
     }
     $revision = array_merge(['ReviSist', 'EstaGene', 'PeriAbdo', 'PeriTorx', 'PeriCint', 'PeriCade'], array_keys(SINTOMATICOS), array_keys(SIGNOS_RANGOS),
                             array_keys(EXAMEN_SISTEMAS), array_column(EXAMEN_SISTEMAS, 1));
+    $pestanas = [];
     foreach (array_keys($errores) as $campo) {
-        if (in_array($campo, ['FechCons', 'HoraCons', 'TipoCons', 'FinaCons', 'MotiCons', 'EnfeActu'], true)) return 'anamnesis';
-        if (in_array($campo, ['ObseReco', 'Especif', 'ObserCd'], true)) return 'plan';
-        if (in_array($campo, $revision, true)) return 'revision';
-        if (in_array($campo, $antecedentes, true)) return 'antecedentes';
-        return 'laboratorios';
+        if (in_array($campo, ['FechCons', 'HoraCons', 'TipoCons', 'FinaCons', 'MotiCons', 'EnfeActu'], true)) $pestanas[] = 'anamnesis';
+        elseif (in_array($campo, ['ObseReco', 'Especif', 'ObserCd', 'Conducta', 'EstaCodo'], true)) $pestanas[] = 'plan';
+        elseif (in_array($campo, $revision, true)) $pestanas[] = 'revision';
+        elseif (in_array($campo, $antecedentes, true) || strncmp($campo, 'reco', 4) === 0) $pestanas[] = 'antecedentes';
+        else $pestanas[] = 'laboratorios';
     }
-    return 'anamnesis';
+    if ($preferida !== '' && in_array($preferida, $pestanas, true)) {
+        return $preferida;
+    }
+    return $pestanas[0] ?? ($preferida !== '' ? $preferida : 'anamnesis');
 }
 $F = [];   // datos enviados por formulario (para volver a mostrarlos si hay errores)
 $E = [];   // errores por formulario
@@ -182,10 +202,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if (!$E[$accion]) {
             $n = $guardar($a, $F[$accion], $accion === 'consulta' ? $u : $u['Login']);
             if ($accion === 'consulta') {
-                // La consulta sigue abierta en el formulario (cada sección tiene su Guardar) hasta "Cerrar Consulta"
-                $cerrada = ($F[$accion]['boton'] ?? '') === 'cerrar';
-                flash('ok', $cerrada ? "Consulta No. $n cerrada." : "Consulta No. $n guardada.");
-                redirigir($aqui . '&tab=' . $pest . ($cerrada ? '' : '&cons=' . $n));
+                // La consulta sigue abierta en el formulario (cada sección tiene su Guardar) hasta "Cerrar Consulta".
+                // Se queda en la MISMA sección: en Consulta Externa, la pestaña del Guardar pulsado (1, 2, 3, 4 o 7);
+                // en Urgencias/Observación, el acordeón (sec=) de la pestaña Consultas
+                $boton = $F[$accion]['boton'] ?? '';
+                $cerrada = $boton === 'cerrar';
+                $secciones = ['anamnesis' => 'Anamnesis', 'antecedentes' => 'Antecedentes', 'revision' => 'Revisión por sistema y examen',
+                              'laboratorios' => 'Laboratorios y diagnósticos', 'plan' => 'Plan de manejo'];
+                if ($clave === 'ce' && in_array($boton, $disponibles, true)) {
+                    $pest = $boton;
+                }
+                flash('ok', $cerrada ? "Consulta No. $n cerrada."
+                    : (isset($secciones[$boton]) ? 'Sección ' . $secciones[$boton] . " guardada en la consulta No. $n." : "Consulta No. $n guardada."));
+                redirigir($aqui . '&tab=' . $pest . ($cerrada ? '' : '&cons=' . $n . (isset($secciones[$boton]) ? '&sec=' . $boton : '')));
             }
             flash('ok', sprintf($mensaje, $n));
             redirigir($aqui . '&tab=' . $pest);
@@ -196,7 +225,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             redirigir($aqui . '&tab=egreso');
         }
         if ($accion === 'consulta' && $clave === 'ce') {
-            $tab = consulta_ce_pestana($E[$accion]);
+            $tab = consulta_ce_pestana($E[$accion], (string) ($F[$accion]['boton'] ?? ''));
         }
     } elseif ($a && ($accion === 'triage' || $accion === 'signos')) {
         $ingreso = $a['FechIngr'] . ' ' . $a['HoraIngr'];
@@ -266,14 +295,21 @@ $p = $a ?? $pac;
 $edad = $a ? edad_texto($a['ValoEdad'], $a['UnidEdad']) : ($ev !== '' ? edad_texto($ev, $eu) : '');
 $servicios = array_intersect_key(lista('Serv'), array_flip($mod['servicios']));
 
-vista_inicio($a ? 'Admisión ' . $a['ConsAdmi'] : $mod['nombre']);
+// Los avisos "guardado / no se guardó" van ABAJO, junto a Continuar (pie fijo), no arriba: así no hay que subir la página
+vista_inicio($a ? 'Admisión ' . $a['ConsAdmi'] : $mod['nombre'], false);
 ?>
 <section class="encabezado-trabajo" aria-label="Encabezado de la admisión">
     <!-- Barra como SIHOS: Admisión · Fecha · Hora · Autorización (Observación: Cama) · SOAT · estado -->
     <div class="et-barra">
         <div class="et-admision">
-            <span class="et-etiqueta">Admisión</span>
-            <strong><?= $a ? e($a['ConsAdmi']) : ($pac ? 'Nueva' : '—') ?></strong>
+            <!-- Como SIHOS: se escribe el número de admisión y Enter; abre la historia aunque esté cerrada -->
+            <form method="get" action="atencion.php" class="et-buscar-admision" role="search">
+                <input type="hidden" name="modulo" value="<?= e($clave) ?>">
+                <label class="et-etiqueta" for="adm">Admisión</label>
+                <input type="text" id="adm" name="adm" value="<?= $a ? e($a['ConsAdmi']) : '' ?>" maxlength="14" autocomplete="off"
+                       placeholder="<?= $pac ? 'Nueva' : 'Número + Enter' ?>" title="Escriba el número de admisión y pulse Enter (abiertas y cerradas)"
+                       inputmode="text" spellcheck="false">
+            </form>
             <?php if ($a): [$estado, $claseEstado] = admision_estado($a); ?>
                 <span class="etiqueta" title="Número temporal: al cargar a SIHOS se asigna el definitivo">Temporal</span>
             <?php elseif ($pac): ?>
@@ -339,7 +375,8 @@ vista_inicio($a ? 'Admisión ' . $a['ConsAdmi'] : $mod['nombre']);
             <?= campo_lectura('Estado Ingreso', lista_nombre('EstaIngr', $a['EstaIngr']), 'c-1') ?>
             <?= campo_lectura('Condición', lista_nombre('CondUsua', $a['CondUsua']), 'c-2') ?>
             <?= campo_lectura('Discapacidad', $a['NombDisc'] ?? 'Sin discapacidad', 'c-2') ?>
-            <?= campo_lectura('Diagnóstico', $a['DiagIngr'] ? $a['DiagIngr'] . ' · ' . (diagnostico_nombre($a['DiagIngr']) ?? '') : '', 'c-4') ?>
+            <?php /* Solo lectura: Admision.DiagIngr o, si está vacío, el de la primera consulta o procedimiento */ ?>
+            <?= campo_lectura('Diagnóstico', diag_texto($a['DiagIngr']), 'c-4') ?>
         </div>
         <!-- EPS, Contrato, Tipo de usuario, Afiliación y Categoría: ocultos en SIHOS, visibles en HSCJ (decisión del usuario) -->
         <div class="et-fila">
@@ -368,6 +405,29 @@ vista_inicio($a ? 'Admisión ' . $a['ConsAdmi'] : $mod['nombre']);
         </div>
 
     <?php elseif ($pac): ?>
+        <?php $anterioresPac = admisiones_de_paciente($pac['TipoDocu'], $pac['NumeUsua']); if ($anterioresPac): ?>
+        <!-- Como SIHOS: el documento abre también las historias CERRADAS del paciente (en solo lectura) -->
+        <div class="admisiones-paciente">
+            <h3><?= icono('history') ?>Admisiones del paciente (<?= count($anterioresPac) ?>): clic para abrirla</h3>
+            <div class="tabla-contenedor tabla-tarjetas">
+            <table class="tabla tabla-admisiones">
+                <thead><tr><th>Admisión</th><th>Ingreso</th><th>Servicio</th><th>Diagnóstico</th><th>Estado</th><th>Egreso</th></tr></thead>
+                <tbody>
+                <?php foreach ($anterioresPac as $ap): [$estAp, $claseAp] = admision_estado($ap); $urlAp = 'atencion.php?id=' . urlencode($ap['ConsAdmi']); ?>
+                    <tr data-href="<?= e($urlAp) ?>">
+                        <td data-etiqueta="Admisión" class="celda-codigo"><a href="<?= e($urlAp) ?>"><?= e($ap['ConsAdmi']) ?></a></td>
+                        <td data-etiqueta="Ingreso" class="sin-salto"><?= e(fecha_hora($ap['FechIngr'] . ' ' . $ap['HoraIngr'])) ?></td>
+                        <td data-etiqueta="Servicio"><?= e($ap['NombServ'] ?? $ap['ServEgre']) ?></td>
+                        <td data-etiqueta="Diagnóstico"><?= e(diag_texto(diag_ingreso($ap))) ?></td>
+                        <td data-etiqueta="Estado"><span class="etiqueta etiqueta-<?= e($claseAp) ?>"><?= e($estAp) ?></span></td>
+                        <td data-etiqueta="Egreso" class="sin-salto"><?= ($ap['FechEgre'] ?? '0000-00-00') > '0000-00-00' ? e(fecha_hora($ap['FechEgre'] . ' ' . $ap['HoraEgre'])) : '' ?></td>
+                    </tr>
+                <?php endforeach; ?>
+                </tbody>
+            </table>
+            </div>
+        </div>
+        <?php endif; ?>
         <!-- Paciente sin admision abierta: el encabezado queda editable para crearla aqui mismo -->
         <form method="post" action="<?= e($urlBusqueda) ?>" class="formulario et-form" id="form-admision" data-una-vez>
             <?= csrf_campo() ?>
@@ -406,9 +466,8 @@ vista_inicio($a ? 'Admisión ' . $a['ConsAdmi'] : $mod['nombre']);
                     <select id="CondUsua" name="CondUsua" class="<?= ce($eA, 'CondUsua') ?>" required><?= opciones('CondUsua', $d['CondUsua']) ?></select><?= me($eA, 'CondUsua') ?></div>
                 <div class="<?= $mod['cama'] ? 'c-2' : 'c-3' ?>"><label for="GrupoAte">Grupo poblacional</label>
                     <select id="GrupoAte" name="GrupoAte" class="<?= ce($eA, 'GrupoAte') ?>" required><?= opciones('GrupAten', $d['GrupoAte']) ?></select><?= me($eA, 'GrupoAte') ?></div>
-                <div class="c-3"><label for="DiagIngr">Diagnóstico de ingreso (CIE-10)</label>
-                    <input type="text" id="DiagIngr" name="DiagIngr" value="<?= v($d, 'DiagIngr') ?>" maxlength="8" data-diagnostico autocomplete="off" class="<?= ce($eA, 'DiagIngr') ?>" placeholder="Código o nombre">
-                    <div class="nota-campo" id="DiagIngr-nombre"><?= e(diagnostico_nombre($d['DiagIngr'] ?? '') ?? '') ?></div><?= me($eA, 'DiagIngr') ?></div>
+                <!-- Diagnóstico de ingreso: no se digita; se llena solo con el de la primera consulta o procedimiento -->
+                <?= campo_lectura('Diagnóstico de ingreso', 'Se toma de la primera consulta', 'c-3') ?>
             </div>
             <div class="et-fila">
                 <div class="c-3"><label for="CodiAdmi">EPS</label>
@@ -454,7 +513,7 @@ vista_inicio($a ? 'Admisión ' . $a['ConsAdmi'] : $mod['nombre']);
             <?= campo_lectura('Causa Externa', '', 'c-3') ?><?= campo_lectura('Estado Ingreso', '', 'c-1') ?><?= campo_lectura('Condición', '', 'c-2') ?>
             <?= campo_lectura('Discapacidad', '', 'c-2') ?><?= campo_lectura('Diagnóstico', '', 'c-4') ?>
         </div>
-        <p class="et-ayuda"><?= icono('info') ?><span>Escriba el documento y pulse <strong>Buscar</strong> para cargar al paciente, o abra <strong>Historias abiertas</strong>.</span></p>
+        <p class="et-ayuda"><?= icono('info') ?><span>Escriba el documento y pulse <strong>Buscar</strong> para cargar al paciente, escriba el <strong>número de admisión</strong> y pulse <strong>Enter</strong> (abiertas y cerradas), o abra <strong>Historias abiertas</strong>.</span></p>
         <div class="et-acciones-sihos">
             <a href="<?= e($base) ?>&amp;historias=1" class="boton boton-claro" data-abrir-ventana="historias"><?= icono('clipboard-list') ?>Historias abiertas <span class="contador"><?= count($todas) ?></span></a>
             <a href="<?= e($base) ?>&amp;nueva=1" class="boton boton-claro"><?= icono('user-plus') ?>Nueva admisión</a>
@@ -634,9 +693,21 @@ foreach ($disponibles as $vista) {
 ?>
 <?php endif; ?>
 
-<!-- Pie de la pantalla de trabajo: Volver y Continuar, como en SIHOS -->
-<div class="pie-trabajo">
+<!-- Pie de la pantalla de trabajo (fijo abajo): Volver, el aviso de "guardado / no se guardó" y Continuar, como en SIHOS -->
+<?php
+$erroresPantalla = [];
+foreach ([$eA, $eT, $eS] as $lista) { $erroresPantalla = array_merge($erroresPantalla, array_values($lista)); }
+foreach ($E as $lista) { $erroresPantalla = array_merge($erroresPantalla, array_values($lista)); }
+$avisos = avisos_flash();
+if ($erroresPantalla) {
+    $avisos .= '<div class="alerta alerta-error" role="alert">' . icono('circle-alert') . '<div><strong>No se guardó.</strong> '
+             . e(implode(' · ', array_slice($erroresPantalla, 0, 3))) . (count($erroresPantalla) > 3 ? ' · (' . (count($erroresPantalla) - 3) . ' más)' : '')
+             . '</div></div>';
+}
+?>
+<div class="pie-trabajo"<?= $avisos !== '' ? ' data-con-aviso' : '' ?>>
     <a href="<?= e($base) ?>&amp;historias=1" class="boton boton-claro" data-abrir-ventana="historias"><?= icono('arrow-left') ?>Volver a historias abiertas</a>
+    <div class="pie-avisos" aria-live="polite"><?= $avisos ?></div>
     <?php if ($a): $pos = array_search($tab, $disponibles, true); $siguiente = $disponibles[$pos + 1] ?? null; ?>
         <a href="<?= e($aqui) ?>&amp;tab=<?= e($siguiente ?? '') ?>" class="boton boton-primario" data-continuar data-tab="<?= e($siguiente ?? '') ?>"<?= $siguiente ? '' : ' hidden' ?>>Continuar <?= icono('chevron-right') ?></a>
     <?php endif; ?>

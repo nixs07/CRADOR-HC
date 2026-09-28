@@ -261,7 +261,9 @@ function admision_validar(array $mod, array $pac): array
         'CausExte' => campo('CausExte', 2),
         'GrupoAte' => campo('GrupoAte', 1),
         'CondUsua' => campo('CondUsua', 1),
-        'DiagIngr' => strtoupper(campo('DiagIngr', 8)),
+        // Diagnóstico de ingreso: no se digita en el encabezado; se llena solo con el de la primera consulta o del
+        // primer procedimiento (diag_ingreso_llenar en src/historia.php)
+        'DiagIngr' => '',
         'CodiCama' => campo('CodiCama', 10),
         // Motivo de ingreso: no se pide en el encabezado (SIHOS no lo tiene ahí); Admision.MotiCons se guarda '.'
         'MotiCons' => '.',
@@ -301,9 +303,6 @@ function admision_validar(array $mod, array $pac): array
     if (!lista_valida('CausExte', $d['CausExte'])) $e['CausExte'] = 'Seleccione la causa externa.';
     if (!lista_valida('GrupAten', $d['GrupoAte'])) $e['GrupoAte'] = 'Seleccione el grupo poblacional.';
     if (!lista_valida('CondUsua', $d['CondUsua'])) $e['CondUsua'] = 'Seleccione la condición de la usuaria.';
-    if ($d['DiagIngr'] !== '' && diagnostico_nombre($d['DiagIngr']) === null) {
-        $e['DiagIngr'] = 'El diagnóstico no existe en el CIE-10 activo.';
-    }
     if ($mod['cama']) {
         $camas = camas($d['CodiServ']);
         if (!array_key_exists($d['CodiCama'], $camas)) {
@@ -381,6 +380,27 @@ function admision_obtener(string $cons): ?array
                           WHERE a.CodiInst = ? AND a.ConsAdmi = ?');
     $st->execute([CODI_INST, $cons]);
     return $st->fetch() ?: null;
+}
+
+/**
+ * Todas las admisiones de un paciente en la contingencia (abiertas y cerradas), la más reciente primero, para abrirlas
+ * desde el encabezado como en SIHOS (las cerradas se abren en solo lectura).
+ */
+function admisiones_de_paciente(string $tipo, string $numero): array
+{
+    $st = db()->prepare('SELECT a.ConsAdmi, a.FechIngr, a.HoraIngr, a.ServEgre, a.Cerrado, a.Anulado, a.FechEgre, a.HoraEgre,
+                                a.DiagIngr, s.NombServ
+                           FROM Admision a LEFT JOIN CodiServ s ON s.CodiServ = a.ServEgre
+                          WHERE a.CodiInst = ? AND a.TipoDocu = ? AND a.NumeUsua = ?
+                          ORDER BY a.FechIngr DESC, a.HoraIngr DESC LIMIT 50');
+    $st->execute([CODI_INST, $tipo, $numero]);
+    return $st->fetchAll();
+}
+
+/** Número de admisión escrito en el encabezado: sin espacios y en mayúsculas ("c26092500001" -> "C26092500001"). */
+function admision_numero_limpio(string $t): string
+{
+    return strtoupper(preg_replace('/\s+/', '', $t));
 }
 
 /** Admision o termina con mensaje si no existe. */

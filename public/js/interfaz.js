@@ -239,6 +239,48 @@
         sel.addEventListener('change', function () { sel.form.submit(); });
     });
 
+    // --- 12. Quedarse en el mismo sitio al guardar (como SIHOS: la pantalla no se mueve) ----------------------
+    // Al enviar un formulario POST se recuerda (sessionStorage, solo esta pestana del navegador) que boton se pulso,
+    // a que altura de la pantalla estaba y que acordeones estaban abiertos. Al volver (guardado o con errores) se
+    // deja ese mismo boton a la misma altura: no se sube la pagina. El aviso sale abajo, junto a Continuar.
+    var CLAVE_SITIO = 'hscj-sitio';
+    document.querySelectorAll('main form[method="post"]').forEach(function (form) {
+        form.addEventListener('submit', function (ev) {
+            var b = ev.submitter || form.querySelector('button[type="submit"]');
+            var acc = form.querySelector('input[name="accion"]');
+            var abiertos = Array.prototype.map.call(form.querySelectorAll('details[data-seccion][open]'), function (x) { return x.id; });
+            try {
+                sessionStorage.setItem(CLAVE_SITIO, JSON.stringify({
+                    accion: acc ? acc.value : '', boton: (b && b.name === 'boton') ? b.value : '',
+                    top: b ? b.getBoundingClientRect().top : null, y: window.scrollY, abiertos: abiertos,
+                    t: Date.now(), ruta: window.location.pathname
+                }));
+            } catch (e) {}
+        });
+    });
+    (function () {
+        var s = null;
+        try { s = JSON.parse(sessionStorage.getItem(CLAVE_SITIO) || 'null'); sessionStorage.removeItem(CLAVE_SITIO); } catch (e) { s = null; }
+        if (!s || Date.now() - s.t > 120000 || s.ruta !== window.location.pathname) { return; }
+        var hayErrores = !!document.querySelector('.con-error');
+        if (!hayErrores) {
+            (s.abiertos || []).forEach(function (id) { var d = document.getElementById(id); if (d) { d.open = true; } });
+        }
+        var campo = s.accion ? document.querySelector('main input[name="accion"][value="' + String(s.accion).replace(/"/g, '') + '"]') : null;
+        var form = campo && campo.form;
+        var boton = null;
+        if (form) {
+            boton = s.boton ? form.querySelector('button[type="submit"][name="boton"][value="' + String(s.boton).replace(/"/g, '') + '"]')
+                            : form.querySelector('button[type="submit"]');
+        }
+        if (boton && boton.offsetParent !== null && s.top !== null) {
+            window.scrollTo(0, boton.getBoundingClientRect().top + window.scrollY - s.top);
+        } else {
+            var err = document.querySelector('.con-error');
+            if (err && err.offsetParent !== null) { err.scrollIntoView({ block: 'center' }); } else { window.scrollTo(0, s.y); }
+        }
+    })();
+
     // --- 11. Indice cintura-cadera (Consulta Externa) --------------------------
     document.querySelectorAll('[data-icc]').forEach(function (caja) {
         var ci = caja.querySelector('[name="PeriCint"]'), ca = caja.querySelector('[name="PeriCade"]');

@@ -1361,3 +1361,50 @@ tr[data-href] { cursor: pointer; }
 .rejilla-grilla td.c-cod { min-width: 0; width: 120px; }
 .rejilla-grilla td.c-cod input { width: 110px; }
 .rejilla-grilla td.nota-campo { min-width: 170px; font-size: 12.5px; color: var(--texto); }
+
+/* Ajustes de las pruebas en el hospital (REVISION_CLAUDE_LOCAL.md, 28/09/2026) ------------------------------- */
+/* Punto 5: pie de la pantalla de trabajo FIJO abajo, con el aviso "guardado / no se guardó" junto a Continuar */
+.pie-trabajo {
+    position: sticky; bottom: 0; z-index: 30; background: var(--fondo);
+    padding: 10px 0; box-shadow: 0 -6px 14px -10px rgba(15, 30, 50, .35);
+}
+.pie-avisos { flex: 1 1 320px; min-width: 0; display: flex; flex-direction: column; gap: 6px; }
+.pie-avisos:empty { display: none; }
+.pie-avisos .alerta { margin: 0; padding: 8px 12px; font-size: 14px; }
+.pie-avisos .alerta-error { display: flex; }
+.pie-trabajo[data-con-aviso] .pie-avisos .alerta { animation: aviso-entra .25s ease-out; }
+@keyframes aviso-entra { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .pie-trabajo[data-con-aviso] .pie-avisos .alerta { animation: none; } }
+@media (max-width: 767px) { .pie-avisos { order: -1; flex-basis: 100%; } }
+
+/* Punto 3: DXP (lista de los diagnósticos de las consultas) más ancho; DXR con buscador */
+.barra-dx .br-dxp { flex: 2 1 280px; }
+.barra-dx .br-dxr .nota-campo { font-size: 11.5px; min-height: 0; }
+
+/* Punto 4: antecedentes; sin "Si" la descripción queda de solo lectura (se ve deshabilitada) */
+.ta-fila input[data-ante-desc][readonly] { background: var(--superficie-3); color: var(--texto-suave); cursor: not-allowed; }
+.ta-fila.ta-si input[data-ante-desc] { border-color: var(--azul-borde); }
+.ta-desc select:disabled, .ta-desc input:disabled { background: var(--superficie-3); cursor: not-allowed; }
+.ta-desc .c-metodo { grid-column: span 2; }
+
+/* Punto 7: "Cantidad por dosis" más grande y el total calculado bajo la cantidad solicitada */
+.rejilla-grilla td.c-dosis { min-width: 120px; }
+.rejilla-grilla td.c-dosis input { min-height: 42px; font-size: 16px; font-weight: 700; width: 110px; }
+.rejilla-grilla .pres-total { display: block; font-size: 11px; color: var(--texto-suave); white-space: nowrap; margin-top: 2px; }
+.rejilla-grilla .pres-total.pres-error { color: var(--error); font-weight: 700; white-space: normal; }
+.rejilla-grilla td[data-cada-horas] { min-width: 60px; }
+
+/* Punto 8: admisiones del paciente (abiertas y cerradas) */
+.tabla-admisiones .etiqueta { white-space: nowrap; }
+.et-buscar-admision { display: flex; align-items: center; gap: 8px; margin: 0; }
+.et-buscar-admision input {
+    width: 172px; min-height: 38px; padding: 4px 10px; font-size: 19px; font-weight: 700; font-variant-numeric: tabular-nums;
+    letter-spacing: 0.01em; text-transform: uppercase; border: 1px solid var(--borde-fuerte); border-radius: var(--radio);
+    background: var(--superficie-2);
+}
+.et-buscar-admision input:focus { background: var(--superficie); }
+.et-buscar-admision input::placeholder { font-size: 13px; font-weight: 500; text-transform: none; }
+.admisiones-paciente { margin: 0 18px 14px; }
+.admisiones-paciente h3 { font-size: 14px; margin: 4px 0 8px; display: flex; align-items: center; gap: 6px; }
+.barra-registro.barra-dx { align-items: flex-start; }
+.barra-dx .br-campo { flex: 1 1 150px; }
