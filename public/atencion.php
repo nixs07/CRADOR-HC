@@ -525,8 +525,14 @@ vista_inicio($a ? 'Admisión ' . $a['ConsAdmi'] : $mod['nombre'], false);
          La admisión se crea o se modifica SOLO con "Guardar" (Enter no envía el formulario). -->
     <div class="et-acciones-sihos">
         <a href="<?= e($base) ?>&amp;nueva=1" class="boton boton-nuevo-sihos"><?= icono('user-plus') ?>Nuevo</a>
-        <?php if ($pac || $modificando): ?>
+        <?php $puedeGuardar = ($pac && empty($abiertaPac)) || $modificando; ?>
+        <?php if ($puedeGuardar): ?>
             <button type="submit" form="form-admision" class="boton boton-primario boton-guardar-sihos"><?= icono('save') ?>Guardar</button>
+        <?php else: ?>
+            <button type="button" class="boton boton-primario boton-guardar-sihos" disabled
+                    title="<?= $pac && !empty($abiertaPac) ? 'El paciente ya tiene una admisión abierta' : 'Busque un paciente o pulse Modificar' ?>"><?= icono('save') ?>Guardar</button>
+        <?php endif; ?>
+        <?php if ($pac || $modificando): ?>
             <a href="<?= e($modificando ? $aqui : $base . '&nueva=1') ?>" class="boton boton-claro"><?= icono('x') ?>Cancelar</a>
         <?php endif; ?>
         <?php if ($a && $editable && !$modificando): ?>
