@@ -5,6 +5,33 @@ responde en `docs/REVISION_CLAUDE_LOCAL.md` (rama `recorrido-sihos`), que **mand
 
 ---
 
+## 28/09/2026 (2) — Historias con abiertas y cerradas; pantalla Admisiones
+
+### Qué cambió
+
+| Cambio | Dónde |
+| --- | --- |
+| La ventana "Historias abiertas" pasa a **"Historias · <Módulo>"**: TODAS las admisiones del módulo (abiertas y cerradas, sin anuladas), etiqueta Abierta (verde) / Cerrada (gris) por fila, filtro de estado Todas · Abiertas · Cerradas (por defecto Todas) además de Servicio y Mostrar N, contador del total mostrado. Abiertas primero (como antes), luego cerradas por fecha descendente. Clic en una cerrada la abre en solo lectura. | `public/atencion.php`, `src/atencion.php` (`admisiones_del_modulo`) |
+| Pantalla nueva **"Admisiones"** en el menú lateral (médicos y administrador): todas las admisiones de los 3 módulos, paginada (50), filtros de fechas de ingreso (últimos 7 días por defecto), módulo, estado (Todas/Abierta/Cerrada/Anulada), servicio y buscador por admisión, documento o nombre (autocompletar); columnas con EPS, Dx ingreso, profesional, estado y **Carga a SIHOS** (`cont_carga_sihos`); clic abre la historia; **Exportar CSV**; tarjetas en celular. | `public/admisiones.php`, `src/atencion.php` (`admisiones_listado`), `src/vista.php` |
+| En el autocompletar, Enter sin resultados envía el formulario (para buscar un número de admisión). | `public/js/formularios.js` |
+
+Capturas nuevas: `62_historias_todas`, `63_admisiones_cerradas`, `64_admisiones_buscar`, `65_movil_admisiones`.
+Recorrido (datos inventados): ventana de Consulta Externa con 3 Abiertas + 1 Cerrada; filtro Cerradas → solo la
+cerrada, que abre "Cerrada" en solo lectura; Admisiones con estado Cerrada → 3 filas; búsqueda por número de
+admisión → 1 fila; CSV `text/csv` con 3 filas.
+
+### Qué verificar en el hospital (datos reales)
+
+1. Ventana Historias de cada módulo: que salgan las cerradas de la contingencia con su etiqueta y que el filtro de
+   estado funcione; que las abiertas sigan arriba en el orden de siempre.
+2. Pantalla Admisiones: tiempos de respuesta con la base real (filtro de 7 días; si hay muchas admisiones SIHOS
+   copiadas en `Admision`, avisar para agregar índice o límite).
+3. Que "Carga a SIHOS" diga "Pendiente" en las admisiones creadas aquí (`cont_carga_sihos`) y quede vacío ("—") en
+   las que no son de la contingencia.
+4. Abrir el CSV en Excel (tildes y columnas separadas por `;`).
+
+---
+
 ## 28/09/2026 — Puntos 1 a 8 de la revisión del 28/09/2026
 
 Probado con datos inventados (stack Docker de prueba + `docs/capturas/recorrido.js`, que ahora también consulta la

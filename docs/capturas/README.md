@@ -114,3 +114,13 @@ normativa 2275"), cálculo de la prescripción con los ejemplos de SIHOS (75 mg 
 5 días → 10; c/8 h 3 días → 9; c/6 h 3 días → 12; 12000 / 500 = 24), antecedente que pasa a No sin borrar su texto,
 aviso abajo y quedarse en la sección al guardar, y búsqueda por número de admisión de una historia cerrada. Con
 `PROYECTO=<proyecto de docker compose>` el recorrido consulta la base para verificar (líneas `-- BD`).
+
+## Historias y Admisiones
+
+| Archivo | Pantalla |
+| --- | --- |
+| `62_historias_todas.png` | Ventana "Historias · Consulta Externa": abiertas y cerradas con su etiqueta y filtro de estado |
+| `63_admisiones_cerradas.png` | Pantalla Admisiones filtrada por estado Cerrada |
+| `64_admisiones_buscar.png` | Pantalla Admisiones buscando por número de admisión |
+| `65_movil_admisiones.png` | Celular · pantalla Admisiones (filas como tarjetas) |
+

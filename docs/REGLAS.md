@@ -482,3 +482,23 @@ número definitivo.
   contingencia, abierta o cerrada (la cerrada en solo lectura). El documento + Buscar carga el paciente: si tiene
   admisión abierta la abre; si no, muestra la lista de sus admisiones (cerradas) para abrirlas, y el formulario de
   nueva admisión. "Historias abiertas" sigue listando solo las abiertas.
+
+## Historias y Admisiones (28/09/2026)
+
+- **Solo dos estados** (decisión del usuario): **Abierta** (`Cerrado = 2`, verde) y **Cerrada** (`Cerrado = 1`, gris).
+  Las anuladas (`Anulado = 1`) no salen en la ventana del módulo; solo en la pantalla Admisiones con el filtro "Anuladas".
+- **Ventana "Historias · <Módulo>"** (antes "Historias abiertas"): muestra TODAS las admisiones del módulo, abiertas
+  y cerradas, con la etiqueta de estado junto al número de admisión y en la columna Estado. Filtros: Seleccione
+  Servicio · estado (Todas · Abiertas · Cerradas, por defecto Todas) · Mostrar N; el contador es el total mostrado.
+  Orden: abiertas primero (triage y fecha de ingreso, como SIHOS) y luego cerradas por fecha de ingreso descendente.
+  Clic en una cerrada la abre en solo lectura. El botón del encabezado y del menú se llama "Historias" y su contador
+  son las abiertas.
+- **Pantalla "Admisiones"** (`public/admisiones.php`, en el menú lateral para médicos y administrador): todas las
+  admisiones de los 3 módulos, 50 por página, ordenadas por fecha de ingreso descendente. Filtros: rango de fechas de
+  ingreso (por defecto los últimos 7 días), módulo, estado (Todas · Abierta · Cerrada · Anulada), servicio y un
+  buscador por número de admisión, documento o nombre (con el autocompletar de pacientes). Columnas: Admisión ·
+  Ingreso · Módulo / Servicio · Paciente · Edad · EPS · Dx ingreso · Profesional · Estado · Carga a SIHOS
+  (`cont_carga_sihos.estado`: pendiente / cargada / error). Clic abre la historia en su módulo (cerrada en solo
+  lectura). **Exportar CSV** con el mismo filtro (separador `;`, UTF-8 con BOM, máximo 5000 filas). En celular las
+  filas se ven como tarjetas. El módulo de la admisión sale de su servicio actual (`ServEgre`).
+

@@ -513,6 +513,34 @@ async function buscarDocumento(p, modulo, tipo, doc) {
   await buscarDocumento(p, 'urg', 'CC', '99000006');
   console.log('-- admisiones del paciente (documento)', JSON.stringify(await p.$$eval('.tabla-admisiones tbody tr', l => l.map(x => x.innerText.replace(/\s+/g, ' ').trim()))));
   await foto(p, '61_documento_admisiones_cerradas');
+  // Ventana "Historias" del módulo: TODAS las admisiones (abiertas y cerradas) con su estado y filtro
+  await p.goto(B + 'atencion.php?modulo=ce&historias=1');
+  const filasHist = async () => p.$$eval('#ventana-historias tbody tr, .tabla-historias tbody tr', l => [...new Set(l)].map(x => {
+    const c = x.querySelector('[data-etiqueta="Admisión"] a'), e = x.querySelector('[data-etiqueta="Estado"]');
+    return (c ? c.innerText.trim() : '') + ' ' + (e ? e.innerText.trim() : ''); }));
+  console.log('-- historias CE (todas)', JSON.stringify(await filasHist()));
+  await foto(p, '62_historias_todas');
+  await p.goto(B + 'atencion.php?modulo=ce&historias=1&estado=cerradas');
+  console.log('-- historias CE (cerradas)', JSON.stringify(await filasHist()));
+  // Clic en una cerrada: se abre en solo lectura
+  await p.click('.tabla-historias tbody tr:first-child [data-etiqueta="Admisión"] a'); await p.waitForLoadState();
+  console.log('-- cerrada desde la ventana', p.url().replace(B, '/'), JSON.stringify(await p.$eval('.et-estado', e => e.innerText)));
+  await cerrarAlertas(p);
+  // Pantalla "Admisiones" (menú lateral): los 3 módulos, filtro por estado y búsqueda por número de admisión
+  await p.click('nav.menu a[href^="admisiones.php"]'); await p.waitForLoadState();
+  await p.selectOption('select[name=estado]', 'cerrada'); await p.click('.filtros-admisiones button[type=submit]'); await p.waitForLoadState();
+  const filasAdm = async () => p.$$eval('.tabla-listado-admisiones tbody tr', l => l.map(x => x.querySelector('[data-etiqueta="Admisión"]').innerText.trim()
+    + ' ' + x.querySelector('[data-etiqueta="Estado"]').innerText.trim()));
+  console.log('-- admisiones cerradas', JSON.stringify(await filasAdm()));
+  await foto(p, '63_admisiones_cerradas');
+  await p.selectOption('select[name=estado]', ''); await p.fill('#q-admisiones', adm.obs); await p.press('#q-admisiones', 'Enter'); await p.waitForLoadState();
+  console.log('-- admisiones buscar por numero', adm.obs, JSON.stringify(await filasAdm()));
+  await foto(p, '64_admisiones_buscar');
+  const resp = await p.request.get(B + 'admisiones.php?filtrar=1&estado=cerrada&csv=1');
+  console.log('-- admisiones CSV', resp.headers()['content-type'], (await resp.text()).split('\n').length - 2, 'filas');
+  await p.setViewportSize({ width: 390, height: 844 }); await p.goto(B + 'admisiones.php?filtrar=1');
+  await p.screenshot({ path: `${OUT}/65_movil_admisiones.png` }); console.log('FOTO', '65_movil_admisiones');
+  await p.setViewportSize({ width: 1280, height: 900 });
   await p.goto(B + 'atencion.php?modulo=urg&historias=1');
 
   // Salir e ingreso del administrador: el administrador si ve el tablero
