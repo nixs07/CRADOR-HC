@@ -429,11 +429,10 @@ vista_inicio($a ? 'Admisión ' . $a['ConsAdmi'] : $mod['nombre']);
                     </select><?= me($eA, 'CodiEstr') ?></div>
             </div>
             <div class="et-fila">
-                <div class="c-4"><label for="MotiCons">Motivo de ingreso</label>
-                    <textarea id="MotiCons" name="MotiCons" rows="2" maxlength="5000"><?= v($d, 'MotiCons') ?></textarea></div>
-                <div class="c-2"><label for="TipoAcom">Acompañante</label>
+                <!-- Sin "Motivo de ingreso": SIHOS no lo tiene en el encabezado (Admision.MotiCons se guarda '.') -->
+                <div class="c-3"><label for="TipoAcom">Acompañante</label>
                     <select id="TipoAcom" name="TipoAcom" class="<?= ce($eA, 'TipoAcom') ?>" required><?= opciones('TipoAcom', $d['TipoAcom']) ?></select><?= me($eA, 'TipoAcom') ?></div>
-                <div class="c-2"><label for="NombAcom">Nombre del acompañante</label>
+                <div class="c-5"><label for="NombAcom">Nombre del acompañante</label>
                     <input type="text" id="NombAcom" name="NombAcom" value="<?= v($d, 'NombAcom') ?>" maxlength="80"></div>
                 <div class="c-2"><label for="Parentes">Parentesco</label>
                     <select id="Parentes" name="Parentes" class="<?= ce($eA, 'Parentes') ?>"><?= opciones('Parentes', $d['Parentes']) ?></select><?= me($eA, 'Parentes') ?></div>

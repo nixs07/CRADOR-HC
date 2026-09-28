@@ -263,7 +263,8 @@ function admision_validar(array $mod, array $pac): array
         'CondUsua' => campo('CondUsua', 1),
         'DiagIngr' => strtoupper(campo('DiagIngr', 8)),
         'CodiCama' => campo('CodiCama', 10),
-        'MotiCons' => campo('MotiCons', 5000),
+        // Motivo de ingreso: no se pide en el encabezado (SIHOS no lo tiene ahí); Admision.MotiCons se guarda '.'
+        'MotiCons' => '.',
         'TipoAcom' => campo('TipoAcom', 1),
         'NombAcom' => mb_strtoupper(campo('NombAcom', 80)),
         'Parentes' => campo('Parentes', 2),

@@ -85,7 +85,14 @@ async function buscarDocumento(p, modulo, tipo, doc) {
   const nums = { urg: ['06', '07'], obs: ['08', '09'], ce: ['10', '11'] };
   const adm = {};
   for (const x of casos) {
-    await buscarDocumento(p, x.mod, x.tipo, x.doc);
+    if (x.mod === 'ce') {
+      // Documento con autocompletar (desde 3 caracteres, por número o nombre): al escoger carga el paciente
+      await p.goto(B + 'atencion.php?modulo=ce&nueva=1');
+      await autocompletar(p, '#NumeUsua', x.doc.slice(0, 6), x.tipo + ' ' + x.doc, '56_documento_autocompletar');
+      await p.waitForLoadState(); await p.waitForSelector('#form-admision');
+    } else {
+      await buscarDocumento(p, x.mod, x.tipo, x.doc);
+    }
     if (x.nuevo) {
       await estado(p, 'documento no existe ' + x.doc);
       await p.click('text=Crear paciente nuevo'); await p.waitForLoadState();
@@ -104,7 +111,6 @@ async function buscarDocumento(p, modulo, tipo, doc) {
     const h = new Date(Date.now() - 3600e3 - 5 * 3600e3); // hace 1 h, hora Colombia (UTC-5)
     await p.fill('#HoraIngr', h.toISOString().slice(11, 16));
     await p.fill('#DiagIngr', x.mod === 'urg' ? 'R101' : x.mod === 'obs' ? 'A09X' : 'Z000');
-    await p.fill('#form-admision #MotiCons', 'Motivo de prueba (datos inventados) ' + x.mod);
     if (x.mod === 'obs') await primeraOpcion(p, '#CodiCama');
     await primeraOpcion(p, '#NumeCont');
     await primeraOpcion(p, '#CodiEstr');

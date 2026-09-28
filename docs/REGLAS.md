@@ -439,3 +439,5 @@ número definitivo.
 - **Barra de pestañas sin repetidos**: con los permisos reales, Consulta Externa trae objetos distintos (otro
   `CodiObje`) con el mismo nombre (dos "Procedimientos", dos "Imagenes"). `pestanas_usuario()` deja solo el primero
   por orden, por nombre y por panel, como SIHOS (el mismo `CodiObje` por varios grupos ya sale una vez).
+- **Sin "Motivo de ingreso" en el encabezado** (SIHOS no lo tiene ahí): la admisión guarda `Admision.MotiCons = '.'`
+  (lo que SIHOS guarda cuando no se escribe). El motivo se registra en el Triage y en la consulta.

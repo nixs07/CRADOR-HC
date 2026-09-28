@@ -32,6 +32,7 @@ OUT=docs/capturas NODE_PATH=$(npm root -g) node docs/capturas/recorrido.js
 | `02_login_movil.png` | Ingreso en celular |
 | `23_seleccion_modulo.png` | Selección de módulo |
 | `15_lista_urg.png` | Urgencias: ventana de historias abiertas |
+| `56_documento_autocompletar.png` | Documento del encabezado con autocompletar (por número o nombre, desde 3 caracteres) |
 | `03_pacientes_busqueda.png` | Búsqueda de pacientes por nombre (botón "…") |
 | `04_paciente_nuevo.png` | Paciente nuevo |
 | `05_paciente_creado.png` | De vuelta en el módulo con el documento cargado (encabezado en modo nueva admisión) |
