@@ -1489,3 +1489,12 @@ tr[data-href] { cursor: pointer; }
 /* Ventana "Buscar historia" */
 .buscar-historia { display: flex; gap: 10px; padding: 0 20px 12px; }
 .buscar-historia .buscador-campo { flex: 1; }
+
+/* "Profesional: NOMBRE" a la derecha de la barra de cada pestaña, como texto (como SIHOS), no como caja */
+.barra-registro .br-profesional {
+    margin-left: auto; flex-direction: row; align-items: center; gap: 6px; min-width: 0; align-self: center;
+}
+.barra-registro .br-profesional label { margin: 0; font-size: 13px; font-weight: 600; color: var(--texto-suave); text-transform: none; letter-spacing: 0; }
+.barra-registro .br-profesional label::after { content: ":"; }
+.barra-registro .br-profesional > span { min-height: 0; font-size: 14px; font-weight: 700; color: var(--azul-texto); }
+.barra-registro .br-profesional + .br-derecha { margin-left: 12px; }

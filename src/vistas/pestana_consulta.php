@@ -57,7 +57,7 @@ if (!$esCE): ?>
         <?= csrf_campo() ?>
         <input type="hidden" name="accion" value="consulta">
         <input type="hidden" name="ConsConsEdit" value="<?= $consEdit ?>">
-        <?= barra_registro('Nuevo', $anteriores, 'FechCons', 'HoraCons', $d, $er, '', '', ['Cargos', 'Consultar', 'Imprimir'], $urlNueva) ?>
+        <?= barra_registro('Nuevo', $anteriores, 'FechCons', 'HoraCons', $d, $er, '', $profesional, ['Cargos', 'Consultar', 'Imprimir'], $urlNueva) ?>
         <?php
         // Al guardar una sección se vuelve a ella (?sec=antecedentes...): su acordeón queda abierto y la página en el
         // mismo sitio (js/interfaz.js, "quedarse en la sección")
@@ -104,7 +104,7 @@ foreach ($bloques as $id => [$icono, $sub2]): ?>
         <div class="panel-cuerpo formulario-panel">
         <?= errores_resumen($er) ?>
         <?php if ($id === 'anamnesis'): ?>
-            <?= barra_registro('Nuevo', $anteriores, 'FechCons', 'HoraCons', $d, $er, '', '', [], $urlNueva) ?>
+            <?= barra_registro('Nuevo', $anteriores, 'FechCons', 'HoraCons', $d, $er, '', $profesional, [], $urlNueva) ?>
             <?php consulta_bloque_anamnesis($d, $er, true, $profesional); ?>
         <?php elseif ($id === 'revision'): ?>
             <?php consulta_bloque_revision($d, $er, 'cons-', true); ?>

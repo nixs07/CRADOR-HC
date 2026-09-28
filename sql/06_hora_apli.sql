@@ -12,7 +12,7 @@
 
 CREATE TABLE IF NOT EXISTS `HoraApli` (
   `CodiHora` int(2) NOT NULL COMMENT 'Horas entre aplicaciones (0 = AHORA)',
-  `NombHora` varchar(20) NOT NULL DEFAULT '' COMMENT 'Nombre que se muestra en "Cada"',
+  `NombHora` varchar(10) NOT NULL DEFAULT '' COMMENT 'Nombre que se muestra en "Cada"',
   `FechDigi` date NOT NULL DEFAULT '0000-00-00',
   `HoraDigi` time NOT NULL DEFAULT '00:00:00',
   `UsuaDigi` varchar(12) DEFAULT '',

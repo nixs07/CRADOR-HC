@@ -91,8 +91,8 @@ CREATE TABLE IF NOT EXISTS `InstRemi` (
 -- COLUMNAS del documento; TIPOS POR CONFIRMAR ("+ timestamps" = created_at, updated_at, deleted_at).
 CREATE TABLE IF NOT EXISTS `priv_listas_tipos` (
   `id` bigint(20) unsigned NOT NULL,
-  `nombre` varchar(255) DEFAULT NULL,
-  `descripcion` text,
+  `nombre` varchar(50) DEFAULT NULL,
+  `descripcion` varchar(255) DEFAULT NULL,
   `prv_lista_tipo_id` bigint(20) unsigned DEFAULT NULL,
   `created_at` timestamp NULL DEFAULT NULL, `updated_at` timestamp NULL DEFAULT NULL, `deleted_at` timestamp NULL DEFAULT NULL,
   PRIMARY KEY (`id`)
@@ -102,11 +102,11 @@ CREATE TABLE IF NOT EXISTS `priv_listas_elementos` (
   `id` bigint(20) unsigned NOT NULL,
   `codigo` varchar(50) DEFAULT NULL,
   `nombre` varchar(255) DEFAULT NULL,
-  `descripcion` text,
+  `descripcion` varchar(500) DEFAULT NULL,
   `prv_lista_tipo_id` bigint(20) unsigned DEFAULT NULL,
   `prv_lista_elemento_id` bigint(20) unsigned DEFAULT NULL,
   `favorito` tinyint(1) DEFAULT NULL,
-  `metadato` text,
+  `metadato` longtext,
   `activo` tinyint(1) DEFAULT NULL,
   `created_at` timestamp NULL DEFAULT NULL, `updated_at` timestamp NULL DEFAULT NULL, `deleted_at` timestamp NULL DEFAULT NULL,
   PRIMARY KEY (`id`),

@@ -198,25 +198,29 @@ function pestanas_usuario(string $login, array $mod): array
     if (!$objetos) {
         return $fija;
     }
-    // Id del panel de CRADOR-HC por nombre de objeto (de la lista fija del módulo)
-    $porNombre = [];
-    foreach ($fija as [$id, $nombre, $nota]) {
-        $porNombre[nombre_objeto($nombre)] = [$id, $nota];
+    // Orden: el de la lista fija (recorrido y capturas de SIHOS de un médico). SIHOS no ordena siempre igual las
+    // pestañas que empatan en ModuObje.Orden (en dos cargas seguidas cambió), así que el orden sale de la lista fija
+    // y los PERMISOS del usuario solo deciden qué pestañas aparecen. Las permitidas que no están en la lista van al
+    // final por ModuObje.Orden. Sin repetidos por nombre (hay objetos distintos con el mismo nombre).
+    $permitidas = [];
+    foreach ($objetos as $o) {
+        $permitidas[nombre_objeto((string) $o['NombObje'])] ??= (string) $o['NombObje'];
     }
-    // Sin repetidos, como SIHOS: con los permisos reales hay objetos DISTINTOS (otro CodiObje) con el mismo nombre
-    // (p. ej. dos "Procedimientos" o dos "Imagenes" en Consulta Externa). Se deja solo el primero por orden, tanto
-    // por nombre como por panel (el mismo CodiObje ya viene una sola vez por el GROUP BY).
     $barra = [];
     $vistos = [];
     $n = 0;
-    foreach ($objetos as $o) {
-        $clave = nombre_objeto((string) $o['NombObje']);
-        [$id, $nota] = $porNombre[$clave] ?? ['obj' . (int) $o['CodiObje'], NO_DISPONIBLE];
-        if (isset($vistos['n:' . $clave]) || isset($vistos['p:' . $id])) {
-            continue;
+    foreach ($fija as [$id, $nombre, $nota]) {
+        $clave = nombre_objeto($nombre);
+        if (isset($permitidas[$clave]) && !isset($vistos[$clave])) {
+            $vistos[$clave] = true;
+            $barra[++$n] = [$id, $permitidas[$clave], $nota];
         }
-        $vistos['n:' . $clave] = $vistos['p:' . $id] = true;
-        $barra[++$n] = [$id, (string) $o['NombObje'], $nota];
+    }
+    foreach ($permitidas as $clave => $nombreObje) {
+        if (!isset($vistos[$clave])) {
+            $vistos[$clave] = true;
+            $barra[++$n] = ['obj' . md5($clave), $nombreObje, NO_DISPONIBLE];
+        }
     }
     return $barra;
 }

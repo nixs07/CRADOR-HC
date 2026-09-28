@@ -6,11 +6,10 @@
  * Los campos de SIHOS sin columna o sin catálogo en CRADOR-HC se muestran deshabilitados (campo_sin_columna).
  */
 
-/** Anamnesis: (Fecha · Hora en la barra) · Profesional · Tipo (CE: Actividad) · Finalidad · Motivo · Enfermedad Actual. */
+/** Anamnesis: (Fecha · Hora · Profesional en la barra, como SIHOS) · Tipo (CE: Actividad) · Finalidad · Motivo · Enfermedad Actual. */
 function consulta_bloque_anamnesis(array $d, array $er, bool $esCE, string $profesional): void
 { ?>
     <div class="rejilla">
-        <div class="campo-lectura"><span class="cl-etiqueta">Profesional</span><span class="cl-valor"><?= e($profesional) ?></span></div>
         <?= campo_buscador('TipoCons', $esCE ? 'Actividad' : 'Tipo', $d, $er, 'procedimientos', true) ?>
         <?= campo_lista('FinaCons', 'Finalidad', 'FinaCons', $d, $er) ?>
     </div>
