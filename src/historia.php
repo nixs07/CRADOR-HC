@@ -134,11 +134,15 @@ function suministro_nombre(?string $codigo): ?string
 
 /**
  * Busca suministros activos por código o nombre (máximo 30). Como SIHOS, al escoger se llenan también la unidad
- * (u = CodiSumi.UnidMedi) y la vía (v = CodiSumi.ViaAdmin) de la fila.
+ * (u = CodiSumi.UnidMedi), la vía (v = CodiSumi.ViaAdmin) y el contenido (k = CodiSumi.Contenid, para calcular la
+ * cantidad solicitada) de la fila.
  */
 function suministros_buscar(string $texto): array
 {
-    return buscador_buscar('suministros', $texto, ['u' => 'UnidMedi', 'v' => 'ViaAdmin']);
+    return array_map(function ($f) {
+        $f['k'] = (string) contenido_numero($f['k']);
+        return $f;
+    }, buscador_buscar('suministros', $texto, ['u' => 'UnidMedi', 'v' => 'ViaAdmin', 'k' => 'Contenid']));
 }
 
 /** Procedimiento del POST: vacío o un código activo de CodiProc. */
@@ -161,6 +165,69 @@ function hc_ultima_consulta(string $consAdmi): int
     $st = db()->prepare('SELECT IFNULL(MAX(ConsCons), 0) FROM RipsCons WHERE CodiInst = ? AND ConsAdmi = ?');
     $st->execute([CODI_INST, $consAdmi]);
     return (int) $st->fetchColumn();
+}
+
+/**
+ * Diagnóstico de ingreso de la admisión (solo lectura en el encabezado; no se digita): Admision.DiagIngr y, si está
+ * vacío, el principal de la PRIMERA consulta (RipsCons) o, si no hay, el del PRIMER procedimiento (HojaProc).
+ */
+function diag_ingreso(array $a): string
+{
+    $dx = trim((string) ($a['DiagIngr'] ?? ''));
+    if ($dx !== '') {
+        return $dx;
+    }
+    foreach (['SELECT CodiDiag FROM RipsCons WHERE CodiInst = ? AND ConsAdmi = ? AND TRIM(IFNULL(CodiDiag, \'\')) <> \'\' ORDER BY ConsCons LIMIT 1',
+              'SELECT DiagPrin FROM HojaProc WHERE CodiInst = ? AND ConsAdmi = ? AND TRIM(DiagPrin) <> \'\' ORDER BY ConsHoPr LIMIT 1'] as $sql) {
+        $st = db()->prepare($sql);
+        $st->execute([CODI_INST, $a['ConsAdmi']]);
+        $v = trim((string) $st->fetchColumn());
+        if ($v !== '') {
+            return $v;
+        }
+    }
+    return '';
+}
+
+/** Llena Admision.DiagIngr con $codigo solo si está vacío (primera consulta o primer procedimiento con diagnóstico). */
+function diag_ingreso_llenar(PDO $pdo, array $a, string $codigo): void
+{
+    if (trim($codigo) === '') {
+        return;
+    }
+    $pdo->prepare("UPDATE Admision SET DiagIngr = ? WHERE CodiInst = ? AND ConsAdmi = ? AND TRIM(IFNULL(DiagIngr, '')) = ''")
+        ->execute([$codigo, CODI_INST, $a['ConsAdmi']]);
+}
+
+/** Mensaje de SIHOS cuando falta el DXP de Prescripción, Prescripción A u Ordenación. */
+const DX_NORMATIVA = 'Debe seleccionar diagnóstico, es obligatorio según la normativa 2275';
+
+/**
+ * DXP de Prescripción, Prescripción A y Ordenación (como SIHOS): se ESCOGE de los diagnósticos ya registrados en las
+ * consultas de la admisión (diagnosticos_atencion). Sin consulta la lista está vacía y no deja guardar.
+ */
+function hc_dx_de_consulta(string $campo, array $a, array &$e): string
+{
+    $v = strtoupper(campo($campo, 8));
+    $st = db()->prepare('SELECT CodiDiag, CodiRel1, CodiRel2, CodiRel3, CodiRel4 FROM RipsCons WHERE CodiInst = ? AND ConsAdmi = ?
+                          ORDER BY FechCons DESC, HoraCons DESC, ConsCons DESC');
+    $st->execute([CODI_INST, $a['ConsAdmi']]);
+    $permitidos = array_map('strval', array_keys(diagnosticos_atencion($a, $st->fetchAll())));
+    if ($v === '' || !in_array($v, $permitidos, true)) {
+        $e[$campo] = DX_NORMATIVA;
+    }
+    return $v;
+}
+
+/** "Ningun diagnostico debe repetirse" entre el DXP y los DXR (campos => valores ya leídos). */
+function hc_dx_sin_repetir(array $valores, array &$e): void
+{
+    $vistos = [];
+    foreach ($valores as $campo => $v) {
+        if ($v === '' || isset($e[$campo])) continue;
+        if (in_array($v, $vistos, true)) $e[$campo] = 'Ningun diagnostico debe repetirse';
+        $vistos[] = $v;
+    }
 }
 
 /**
@@ -265,6 +332,18 @@ const ANTECEDENTES = [
  * **3 = No Sabe y 4 = No Corresponde son un supuesto pendiente de confirmar** (docs/consultas_sihos.sql).
  */
 const ANTE_OPCIONES = ['1' => 'Si', '2' => 'No', '3' => 'No Sabe', '4' => 'No Corresponde'];
+
+/**
+ * Método de planificación (Antecede.MetoDesc): lista con los NOMBRES de SIHOS (dato del usuario, 28/09/2026).
+ * CÓDIGOS PROVISIONALES (1..14 en el orden en que el usuario los vio en SIHOS): no se encontró el catálogo real en los
+ * documentos. Por confirmar con docs/consultas_sihos.sql (sección "Método de planificación") antes de cargar a SIHOS.
+ */
+const METODOS_PLANIFICACION = [
+    1 => 'Otro Metodo', 2 => 'Implante Subdermico', 3 => 'Implante Subdermico y Barrera', 4 => 'Oral',
+    5 => 'Emergencia y Barrera', 6 => 'Esterilizacion', 7 => 'Esterilizacion y Barrera', 8 => 'Barrera',
+    9 => 'Abstinencia Periodica', 10 => 'Anillo Vaginal', 11 => 'Coito Interrumpido', 12 => 'Diafragma (con espermicida)',
+    13 => 'Parche transdermico', 14 => 'D. Intrauterino levonorgestrel',
+];
 
 /** Antecedentes que se muestran en el módulo. */
 function antecedentes_modulo(bool $ce): array
@@ -542,8 +621,9 @@ function antecedentes_multiples_validar(array &$d, array &$e): void
     $d['multiples'] = [];
     $d['MetoDesc'] = null;
     if (($d['MetoPlan'] ?? 2) === 1) {
-        $v = campo('MetoDesc', 1);
-        if ($v === '' || !ctype_digit($v)) $e['MetoDesc'] = 'Debe ingresar un tipo de planificacion familiar';
+        // Se escoge de la lista (METODOS_PLANIFICACION, códigos provisionales)
+        $v = campo('MetoDesc', 3);
+        if ($v === '' || !ctype_digit($v) || !isset(METODOS_PLANIFICACION[(int) $v])) $e['MetoDesc'] = 'Debe ingresar un tipo de planificacion familiar';
         $d['MetoDesc'] = $v === '' ? null : (int) $v;
     }
     if (($d['Familiar'] ?? 2) === 1) {
@@ -682,6 +762,9 @@ function consulta_guardar(array $a, array $d, array $u): int
                 'ServEgre' => $a['ServEgre'], 'CodiServ' => $a['ServEgre'],
             ], $fila) + $ahora);
         }
+
+        // Diagnóstico de ingreso: si la admisión no lo tiene, queda el de esta (primera) consulta
+        diag_ingreso_llenar($pdo, $a, $d['CodiDiag']);
 
         // Antecedentes: una fila por consulta (ConsCons)
         $ante = ['TipoDocu' => $a['TipoDocu'], 'NumeUsua' => $a['NumeUsua'], 'CodiModu' => $modu,
@@ -889,26 +972,89 @@ const TIEMPO_HORAS = [1 => 1, 2 => 24, 3 => 720];
 
 /**
  * Campos de cada fila de la rejilla de prescripción (se envían como arreglos: CodiSumi[] ...). Hospitalaria
- * (Urgencias/Observación): Código · Cantidad por dosis · Unidad · Vía · Cada · A partir de · Número (Dosis) ·
+ * (Urgencias/Observación): Código · Cantidad por dosis · Unidad · Vía · Cada (HoraApli) · A partir de · Número (Dosis) ·
  * Cantidad solicitada · Nota · Medi. Prin. Ambulatoria (Prescripción A de Consulta Externa): Dosis · Vía ·
- * Frecuencia · Periodo de duración · Cantidad solicitada · Nota.
+ * Frecuencia · Periodo de duración · Total (Dosis) · Cantidad solicitada · Nota.
  */
 const PRES_CAMPOS = ['CodiSumi' => 20, 'CantSumi' => 12, 'UnidMedi' => 2, 'CodiVia' => 1, 'CantFrec' => 3,
-                     'TiemFrec' => 1, 'CantPeDu' => 3, 'TiemPeDu' => 1, 'HoraInic' => 5, 'NumeDosi' => 5, 'CantSoli' => 5,
-                     'MediPrin' => 1, 'PresMedi' => 1000];
+                     'TiemFrec' => 1, 'CantPeDu' => 3, 'TiemPeDu' => 1, 'HoraApli' => 2, 'HoraInic' => 5, 'NumeDosi' => 5,
+                     'CantSoli' => 5, 'MediPrin' => 1, 'PresMedi' => 1000];
 
-/** Diagnósticos de la admisión para las listas DXP / DXR de Prescripción y Ordenación (código => texto). */
+/** Mensaje de SIHOS: la prescripción hospitalaria cubre máximo 24 horas. */
+const PRES_MAX_24 = 'No es posible prescribir para mas de 24 Horas';
+
+/**
+ * "Cada" de la prescripción hospitalaria (DetaPres.HoraApli, tabla HoraApli de SIHOS): 0 = AHORA, 1..24 = horas.
+ * Se toma del catálogo local HoraApli (sql/06_hora_apli.sql, provisional) y, si no existe o está vacío, de 0..24.
+ */
+function horas_aplicacion(): array
+{
+    $l = lista('HoraApli');
+    if (!$l) {
+        $l = ['0' => 'AHORA'];
+        for ($h = 1; $h <= 24; $h++) $l[(string) $h] = $h . ($h === 1 ? ' HORA' : ' HORAS');
+    }
+    uksort($l, fn ($x, $y) => (int) $x <=> (int) $y);
+    return $l;
+}
+
+/**
+ * Contenido del medicamento (CodiSumi.Contenid, varchar: "Contenido en Unidades de UnidMedi"): unidades menores
+ * (las de la dosis) que trae la unidad mayor que entrega farmacia. Se toma el primer número ("500", "500 MG", "0,5").
+ * 0 si no está parametrizado.
+ */
+function suministro_contenido(?string $codigo): float
+{
+    $st = db()->prepare('SELECT Contenid FROM CodiSumi WHERE CodiSumi = ? LIMIT 1');
+    $st->execute([strtoupper(trim((string) $codigo))]);
+    return contenido_numero((string) $st->fetchColumn());
+}
+
+/** Primer número de un texto de contenido ("500 MG" -> 500, "0,5" -> 0.5); 0 si no hay. */
+function contenido_numero(string $t): float
+{
+    return preg_match('/\d+(?:[.,]\d+)?/', $t, $m) ? (float) str_replace(',', '.', $m[0]) : 0.0;
+}
+
+/**
+ * Cálculo de la prescripción como SIHOS (docs/REVISION_CLAUDE_LOCAL.md, 28/09/2026). Todo lo calculado es editable:
+ * si el formulario trae NumeDosi o CantSoli se respetan.
+ *  - Hospitalaria: NumeDosi = 24 / HoraApli (AHORA = 1; si no da exacto, la parte entera: nunca pasa de 24 h).
+ *  - Ambulatoria: NumeDosi = duración en horas / frecuencia en horas (hacia arriba si no da exacto).
+ *  - CantTota = CantSumi (dosis) x NumeDosi; CantSoli = redondeo hacia arriba de CantTota / Contenid (sin Contenid:
+ *    redondeo hacia arriba de CantTota).
+ * Ej.: 75 mg c/12 h -> 2 dosis -> 150 mg -> 2 (Contenid 75); c/12 h 5 días -> 10; c/8 h 3 días -> 9; c/6 h 3 días -> 12;
+ * 1000 mg x 12 = 12000 / 500 = 24.
+ */
+function pres_numero_dosis_hosp(int $horaApli): int
+{
+    return $horaApli <= 0 ? 1 : max(1, intdiv(24, $horaApli));
+}
+
+function pres_numero_dosis_amb(int $horasFrec, int $horasDura): int
+{
+    return ($horasFrec > 0 && $horasDura > 0) ? max(1, (int) ceil($horasDura / $horasFrec)) : 1;
+}
+
+function pres_cantidad_solicitada(float $cantTota, float $contenid): int
+{
+    // round(.., 6) evita que 150/75 = 2.0000000001 suba a 3
+    return (int) ceil(round($contenid > 0 ? $cantTota / $contenid : $cantTota, 6));
+}
+
+/**
+ * Diagnósticos de la admisión para la lista DXP de Prescripción, Prescripción A y Ordenación (código => texto): el
+ * principal y los relacionados ya registrados en las consultas (RipsCons), la más reciente primero. Como SIHOS: sin
+ * consulta la lista queda vacía ("Seleccione un diagnóstico") y no deja guardar (DX_NORMATIVA).
+ */
 function diagnosticos_atencion(array $a, array $consultas): array
 {
     $r = [];
     foreach ($consultas as $c) {
         foreach (['CodiDiag', 'CodiRel1', 'CodiRel2', 'CodiRel3', 'CodiRel4'] as $k) {
-            $v = trim((string) ($c[$k] ?? ''));
+            $v = strtoupper(trim((string) ($c[$k] ?? '')));
             if ($v !== '') $r[$v] = diag_texto($v);
         }
-    }
-    if (!$r && trim((string) $a['DiagIngr']) !== '') {
-        $r[$a['DiagIngr']] = diag_texto($a['DiagIngr']);
     }
     return $r;
 }
@@ -924,11 +1070,14 @@ function prescripcion_validar(array $a): array
     $d['PresSali'] = $amb ? 2 : 1;
     $d['ObseOrde'] = campo('ObseOrde', 5000);
     $d['PersEntr'] = campo('PersEntr', 15);
-    // Diagnostico obligatorio (normativa 2275, como SIHOS)
-    $d['CodiDiag'] = hc_diagnostico('PresDiag', true, $e, 'el diagnóstico de la prescripción');
+    // DXP: se escoge de los diagnósticos de las consultas de la admisión, obligatorio (normativa 2275, como SIHOS);
+    // DXR 1-4: CIE-10 con buscador, opcionales
+    $d['CodiDiag'] = hc_dx_de_consulta('PresDiag', $a, $e);
     foreach ([1, 2, 3, 4] as $k) {
         $d["CodiRel$k"] = hc_diagnostico("PresRel$k", false, $e);
     }
+    hc_dx_sin_repetir(['PresDiag' => $d['CodiDiag'], 'PresRel1' => $d['CodiRel1'], 'PresRel2' => $d['CodiRel2'],
+                       'PresRel3' => $d['CodiRel3'], 'PresRel4' => $d['CodiRel4']], $e);
     // Tipo de prescripcion (EncaPres.TipoPres): 1 Regular, 2 Control, 3 Domiciliaria (supuesto de
     // RESULTADO_CONSULTAS_SIHOS.md §4: en SIHOS solo se usan 0 y 1; no afecta datos reales)
     $tp = campo('TipoPres', 1);
@@ -956,27 +1105,42 @@ function prescripcion_validar(array $a): array
         if ($cant === null || $cant <= 0 || $cant > 99999) $e["item{$n}c"] = "Medicamento $n: la cantidad debe ser mayor que 0.";
         if (!lista_valida('UnidMedi', $it['UnidMedi'])) $e["item{$n}u"] = "Medicamento $n: seleccione la unidad.";
         if (!lista_valida('ViaAdmi', $it['CodiVia'])) $e["item{$n}v"] = "Medicamento $n: seleccione la vía.";
-        $frec = (int) $it['CantFrec'];
-        if ($frec < 1 || $frec > 99 || !lista_valida('CodiTiem', $it['TiemFrec'])) $e["item{$n}f"] = "Medicamento $n: Debe indicar el tiempo de Aplicacion";
-        $hf = $frec * (TIEMPO_HORAS[(int) $it['TiemFrec']] ?? 0);
+        $it['Contenid'] = suministro_contenido($it['CodiSumi']);   // DetaPres.Contenid = el de CodiSumi
+        $numeEscrito = trim((string) $it['NumeDosi']);
+        if ($numeEscrito !== '' && (!ctype_digit($numeEscrito) || (int) $numeEscrito < 1 || (int) $numeEscrito > 99999)) {
+            $e["item{$n}n"] = "Medicamento $n: escriba el número de dosis.";
+        }
         if ($amb) {
-            // Ambulatoria: Frecuencia y Periodo de duración; Total (Dosis) = duración / frecuencia
+            // Ambulatoria: Frecuencia (CantFrec + TiemFrec) y Periodo de duración (CantPeDu + TiemPeDu)
+            $frec = (int) $it['CantFrec'];
+            if ($frec < 1 || $frec > 99 || !lista_valida('CodiTiem', $it['TiemFrec'])) $e["item{$n}f"] = "Medicamento $n: Debe indicar el tiempo de Aplicacion";
             $dura = (int) $it['CantPeDu'];
             if ($dura < 1 || $dura > 99 || !lista_valida('CodiTiem', $it['TiemPeDu'])) $e["item{$n}d"] = "Medicamento $n: escriba el periodo de duración.";
+            $hf = $frec * (TIEMPO_HORAS[(int) $it['TiemFrec']] ?? 0);
             $hd = $dura * (TIEMPO_HORAS[(int) $it['TiemPeDu']] ?? 0);
-            $it['NumeDosi'] = ($hf > 0 && $hd > 0) ? max(1, (int) ceil($hd / $hf)) : 1;
+            $it['NumeDosi'] = $numeEscrito !== '' ? (int) $numeEscrito : pres_numero_dosis_amb($hf, $hd);
+            $it['HoraApli'] = 0;   // Supuesto: la fórmula ambulatoria no usa "Cada" (HoraApli); por confirmar
             $it['HoraInic'] = $d['HoraPres'];
         } else {
-            // Hospitalaria: Cada · A partir de · Número (Dosis). La duración se deduce: número de dosis x frecuencia
-            $it['NumeDosi'] = (int) $it['NumeDosi'];
-            if ($it['NumeDosi'] < 1 || $it['NumeDosi'] > 99999) $e["item{$n}n"] = "Medicamento $n: escriba el número de dosis.";
-            $it['HoraInic'] = hora_valida($it['HoraInic']) ?? $d['HoraPres'];
-            $it['CantPeDu'] = min(127, max(0, $it['NumeDosi'] * $frec));
-            $it['TiemPeDu'] = $it['TiemFrec'];
-            // Como SIHOS: la prescripcion hospitalaria cubre maximo 24 horas (numero de dosis x frecuencia)
-            if (!isset($e["item{$n}n"], $e["item{$n}f"]) && $it['NumeDosi'] * $hf > 24) {
-                $e["item{$n}h"] = "Medicamento $n: No es posible prescribir para mas de 24 Horas";
+            // Hospitalaria: "Cada" = HoraApli (0 = AHORA, 1..24 horas), máximo 24 horas
+            $hApli = trim((string) $it['HoraApli']);
+            if ($hApli === '' || !ctype_digit($hApli) || !isset(horas_aplicacion()[(string) (int) $hApli])) {
+                $e["item{$n}f"] = "Medicamento $n: Debe indicar el tiempo de Aplicacion";
+                $hApli = '0';
             }
+            $it['HoraApli'] = (int) $hApli;
+            if ($it['HoraApli'] > 24) $e["item{$n}h"] = "Medicamento $n: " . PRES_MAX_24;
+            $it['NumeDosi'] = $numeEscrito !== '' ? (int) $numeEscrito : pres_numero_dosis_hosp($it['HoraApli']);
+            if (!isset($e["item{$n}n"], $e["item{$n}f"]) && $it['NumeDosi'] * $it['HoraApli'] > 24) {
+                $e["item{$n}h"] = "Medicamento $n: " . PRES_MAX_24;
+            }
+            // Frecuencia y duración en horas (supuesto: CantFrec = HoraApli en horas; duración = dosis x horas, tope 127)
+            $frec = $it['HoraApli'];
+            $it['CantFrec'] = $it['HoraApli'];
+            $it['TiemFrec'] = 1;
+            $it['CantPeDu'] = min(127, max(0, $it['NumeDosi'] * $it['HoraApli']));
+            $it['TiemPeDu'] = 1;
+            $it['HoraInic'] = hora_valida($it['HoraInic']) ?? $d['HoraPres'];
             // Nota obligatoria en la prescripcion hospitalaria
             if ($it['PresMedi'] === '') $e["item{$n}o"] = "Medicamento $n: la Nota es obligatoria.";
         }
@@ -984,7 +1148,8 @@ function prescripcion_validar(array $a): array
         $it['CantSumi'] = $cant ?? 0;
         $soli = trim((string) $it['CantSoli']);
         if ($soli !== '' && (!ctype_digit($soli) || (int) $soli > 99999)) $e["item{$n}s"] = "Medicamento $n: la cantidad solicitada debe ser un número entero.";
-        $it['CantSoli'] = (int) $soli;
+        // Cantidad solicitada (unidades mayores a farmacia): la escrita o, si viene vacía, ceil(CantTota / Contenid)
+        $it['CantSoli'] = $soli !== '' ? (int) $soli : pres_cantidad_solicitada($it['CantTota'], $it['Contenid']);
         if ($it['PresMedi'] === '') {
             $it['PresMedi'] = sprintf('%s: %s %s VIA %s CADA %d %s', $nombre,
                 rtrim(rtrim(number_format((float) $it['CantSumi'], 2, '.', ''), '0'), '.'),
@@ -1011,7 +1176,7 @@ function prescripcion_guardar(array $a, array $d, string $login): int
             'Consecut' => $pres,
             'Fecha' => $d['FechPres'], 'Hora' => $d['HoraPres'], 'FechEntr' => $d['FechPres'],
             'ObseOrde' => $d['ObseOrde'], 'PresSali' => $d['PresSali'], 'PersEntr' => $d['PersEntr'],
-            'CodiDiag' => $d['CodiDiag'] !== '' ? $d['CodiDiag'] : ($a['DiagIngr'] ?? ''),
+            'CodiDiag' => $d['CodiDiag'],
             'CodiRel1' => $d['CodiRel1'], 'CodiRel2' => $d['CodiRel2'], 'CodiRel3' => $d['CodiRel3'], 'CodiRel4' => $d['CodiRel4'],
             'ImprOrde' => 0,
         ] + $ahora);
@@ -1019,8 +1184,8 @@ function prescripcion_guardar(array $a, array $d, string $login): int
             hc_insertar($pdo, 'DetaPres', [
                 'CodiInst' => CODI_INST, 'ConsAdmi' => $a['ConsAdmi'], 'ConsPres' => $pres, 'Item' => $i + 1,
                 'CodiModu' => $modu, 'CodiFina' => null, 'CodiSumi' => $it['CodiSumi'],
-                'CantSumi' => $it['CantSumi'], 'Contenid' => 0, 'CodiVia' => (int) $it['CodiVia'],
-                'HoraApli' => 0, 'HoraInic' => $it['HoraInic'],
+                'CantSumi' => $it['CantSumi'], 'Contenid' => $it['Contenid'], 'CodiVia' => (int) $it['CodiVia'],
+                'HoraApli' => (int) $it['HoraApli'], 'HoraInic' => $it['HoraInic'],
                 'CantFrec' => (int) $it['CantFrec'], 'TiemFrec' => (int) $it['TiemFrec'],
                 'CantPeDu' => (int) $it['CantPeDu'], 'TiemPeDu' => (int) $it['TiemPeDu'],
                 'NumeDosi' => $it['NumeDosi'], 'CantTota' => $it['CantTota'], 'CantApli' => 0,
@@ -1106,10 +1271,13 @@ function ordenes_validar(array $a): array
     $e = [];
     hc_fecha_hora($a, $d, $e, 'FechOrde', 'HoraOrde', 'orden');
     $d['ObseOrde'] = campo('ObseOrdeProc', 5000);
-    $d['CodiDiag'] = hc_diagnostico('OrdeDiag', false, $e);
+    // DXP de la lista de diagnósticos de las consultas (obligatorio, normativa 2275) y DXR 1-4 con buscador
+    $d['CodiDiag'] = hc_dx_de_consulta('OrdeDiag', $a, $e);
     foreach ([1, 2, 3, 4] as $i) {
         $d["CodiRel$i"] = hc_diagnostico("OrdeRel$i", false, $e);
     }
+    hc_dx_sin_repetir(['OrdeDiag' => $d['CodiDiag'], 'OrdeRel1' => $d['CodiRel1'], 'OrdeRel2' => $d['CodiRel2'],
+                       'OrdeRel3' => $d['CodiRel3'], 'OrdeRel4' => $d['CodiRel4']], $e);
     // Finalidad de la orden (catalogo FinaCons): obligatoria como en SIHOS ("seleccione la finalidad antes de agregar")
     $d['CodiFina'] = hc_de_lista('FinaCons', 'OrdeFina', true, $e, 'Seleccione la finalidad antes de agregar procedimientos.', 2);
     $d['Autoriza'] = 0;   // Verificado en SIHOS: siempre 0 (igual que OrdeSali)
@@ -1145,7 +1313,7 @@ function ordenes_guardar(array $a, array $d, string $login): int
             // Consecutivo general de SIHOS: temporal (= ConsOrde) en la contingencia; se reasigna al cargar
             'Consecut' => $orde,
             'Fecha' => $d['FechOrde'], 'Hora' => $d['HoraOrde'], 'ObseOrde' => $d['ObseOrde'],
-            'CodiDiag' => $d['CodiDiag'] !== '' ? $d['CodiDiag'] : ($a['DiagIngr'] ?? ''),
+            'CodiDiag' => $d['CodiDiag'],
             'CodiFina' => $d['CodiFina'],
             'CodiRel1' => $d['CodiRel1'], 'CodiRel2' => $d['CodiRel2'], 'CodiRel3' => $d['CodiRel3'], 'CodiRel4' => $d['CodiRel4'],
             'OrdeSali' => 0, 'OrdeAmbu' => $d['OrdeAmbu'], 'ImprOrde' => 0, 'Autoriza' => $d['Autoriza'],
@@ -1248,6 +1416,8 @@ function procedimiento_guardar(array $a, array $d, string $login): int
             'ContRevi' => $d['ContRevi'], 'MediRevi' => $d['ContRevi'] ? $l8 : null,
             'FechRevi' => $d['ContRevi'] ? date('Y-m-d') : null, 'HoraRevi' => $d['ContRevi'] ? date('H:i:s') : '00:00:00',
         ] + $dig);
+        // Diagnóstico de ingreso: si la admisión no lo tiene (sin consulta), queda el del primer procedimiento
+        diag_ingreso_llenar($pdo, $a, $d['DiagPrin']);
         if ($d['orden']) {
             $pdo->prepare('UPDATE DetaOrde SET CantReal = CantReal + 1, FechModi = CURDATE(), HoraModi = CURTIME(), UsuaModi = ?
                             WHERE CodiInst = ? AND ConsAdmi = ? AND ConsOrde = ? AND Item = ?')

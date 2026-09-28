@@ -190,3 +190,13 @@ docker compose exec -T db sh -c 'mysql -uroot -p"$MYSQL_ROOT_PASSWORD" "$MYSQL_D
 Get-Content sql/04_listas_permisos.sql | docker compose exec -T db sh -c 'mysql -uroot -p"$MYSQL_ROOT_PASSWORD" "$MYSQL_DATABASE"'
 Get-Content sql/05_tablas_clinicas_nuevas.sql | docker compose exec -T db sh -c 'mysql -uroot -p"$MYSQL_ROOT_PASSWORD" "$MYSQL_DATABASE"'
 ```
+
+### Catálogo HoraApli (28/09/2026)
+
+La prescripción hospitalaria usa el catálogo `HoraApli` ("Cada": 0 = AHORA, 1..24 horas) en `sql/06_hora_apli.sql`
+(estructura provisional, no se copia de SIHOS hasta confirmarla). En una base que ya existía, ejecútelo una vez (no
+borra nada; si no se ejecuta, la app usa la lista 0..24 igual):
+
+```powershell
+Get-Content sql/06_hora_apli.sql | docker compose exec -T db sh -c 'mysql -uroot -p"$MYSQL_ROOT_PASSWORD" "$MYSQL_DATABASE"'
+```

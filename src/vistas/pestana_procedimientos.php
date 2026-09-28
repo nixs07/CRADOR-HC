@@ -5,9 +5,16 @@
  * Como SIHOS: Nuevo · Fecha · Hora · Actividad · Finalidad · Cant · Id Estudio (sin columna) · Realizado? ·
  * Descripción · Diagnósticos · Guardar · Cancelar · Imprimir · Consultar · Revisado (HojaProc.ContRevi) · lista.
  * El selector "Atiende la orden" no está en SIHOS: quedó oculto (procedimiento_validar aún acepta OrdenItem).
- * Variables: $a, $mod, $editable, $aqui, $tab, $F, $E, $procedimientos, $pendientes.
+ * Variables: $a, $mod, $editable, $aqui, $tab, $F, $E, $procedimientos, $pendientes, $consultas.
  */
-$d = $F['procedimiento'] ?? ['FechProc' => date('Y-m-d'), 'HoraProc' => date('H:i'), 'CodiFina' => '2', 'ProcTipoDiag' => '1', 'DiagPrin' => $a['DiagIngr'], 'CantProc' => '1', 'ProcReal' => 1];
+// Diagnóstico principal con buscador; por defecto el principal de la consulta más reciente (como SIHOS) o, sin
+// consulta, el de ingreso
+$dxConsulta = '';
+foreach ($consultas as $c) {
+    if (trim((string) $c['CodiDiag']) !== '') { $dxConsulta = trim((string) $c['CodiDiag']); break; }
+}
+$d = $F['procedimiento'] ?? ['FechProc' => date('Y-m-d'), 'HoraProc' => date('H:i'), 'CodiFina' => '2', 'ProcTipoDiag' => '1',
+                             'DiagPrin' => $dxConsulta !== '' ? $dxConsulta : $a['DiagIngr'], 'CantProc' => '1', 'ProcReal' => 1];
 $anteriores = [];
 foreach ($procedimientos as $p) {
     $anteriores['reg-proc-' . (int) $p['ConsHoPr']] = (int) $p['ConsHoPr'] . ' · ' . fecha_hora($p['FechProc'] . ' ' . $p['HoraProc']) . ' · ' . $p['CodiProc'];

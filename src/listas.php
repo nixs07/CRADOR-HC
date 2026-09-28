@@ -54,13 +54,16 @@ const LISTAS = [
     'TipoAlergia'  => ['priv_listas_elementos', 'id', 'nombre', 'prv_lista_tipo_id = 13 AND (activo = 1 OR activo IS NULL)'],
     'FactorRiesgo' => ['priv_listas_elementos', 'id', 'nombre', 'prv_lista_tipo_id = 14 AND (activo = 1 OR activo IS NULL)'],
     'PregAnte'     => ['priv_listas_elementos', 'id', 'nombre', 'prv_lista_tipo_id = 45 AND (activo = 1 OR activo IS NULL)'],
+    // "Cada" de la prescripcion hospitalaria (DetaPres.HoraApli): 0 = AHORA, 1..24 horas. Estructura PROVISIONAL
+    // (sql/06_hora_apli.sql): columnas por confirmar con SHOW CREATE TABLE HoraApli en SIHOS
+    'HoraApli'     => ['HoraApli', 'CodiHora', 'NombHora', ''],
     // Codigo Dorado: EstaCodo guarda el CODIGO como numero (lista 47)
     'EstaCodo'     => ['priv_listas_elementos', 'codigo', 'nombre', 'prv_lista_tipo_id = 47 AND (activo = 1 OR activo IS NULL)'],
 ];
 
 /** Devuelve [codigo => nombre] de una lista, ordenada por nombre (se guarda en memoria por peticion). */
 /** Listas de catalogos agregados despues (sql/04): si la tabla aun no existe en una instalacion, quedan vacias. */
-const LISTAS_PROVISIONALES = ['InstRemi', 'EstaIngr', 'Conducta', 'TipoAlergia', 'FactorRiesgo', 'PregAnte', 'EstaCodo'];
+const LISTAS_PROVISIONALES = ['InstRemi', 'EstaIngr', 'Conducta', 'TipoAlergia', 'FactorRiesgo', 'PregAnte', 'EstaCodo', 'HoraApli'];
 
 function lista(string $nombre): array
 {

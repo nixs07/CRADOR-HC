@@ -262,6 +262,84 @@
         revisar();
     });
 
+    // --- Antecedentes: habilitar la descripcion y los campos adicionales solo con "Si" (como SIHOS) ----------
+    // <div data-antecedente> con <select data-ante-sino> (1 Si, 2 No, 3 No Sabe, 4 No Corresponde) y la descripcion
+    // <input data-ante-desc>. Con Si: descripcion editable (obligatoria) y campos adicionales habilitados (parentesco,
+    // tipo de alergia, metodo...). Con otra opcion: la descripcion queda de SOLO LECTURA (no se borra un texto que ya
+    // exista; se sigue enviando igual) y los adicionales deshabilitados. [data-siempre] (FUR, FPP) no se toca.
+    document.querySelectorAll('[data-antecedente]').forEach(function (fila) {
+        var sel = fila.querySelector('select[data-ante-sino]');
+        if (!sel) { return; }
+        var desc = fila.querySelector('[data-ante-desc]');
+        function aplicar() {
+            var si = sel.value === '1';
+            fila.classList.toggle('ta-si', si);
+            if (desc) {
+                desc.readOnly = !si;
+                desc.tabIndex = si ? 0 : -1;
+                desc.setAttribute('aria-disabled', si ? 'false' : 'true');
+                desc.placeholder = si ? 'Descripción (obligatoria)' : '';
+            }
+            fila.querySelectorAll('.ta-desc input, .ta-desc select, .ta-desc textarea').forEach(function (c) {
+                if (c === desc || c.closest('[data-siempre]')) { return; }
+                c.disabled = !si;
+            });
+        }
+        sel.addEventListener('change', aplicar);
+        aplicar();
+    });
+
+    // --- Prescripcion: calculo como SIHOS (docs/REVISION_CLAUDE_LOCAL.md, 28/09/2026) --------------------------
+    // <tr data-pres-calculo="hosp|amb">. Hospitalaria: Cada = HoraApli (0 AHORA, 1..24 h) y Numero (Dosis) = 24 / horas
+    // (AHORA = 1), maximo 24 horas. Ambulatoria: Total (Dosis) = duracion en horas / frecuencia en horas. Las dos:
+    // total = dosis x numero de dosis y Cantidad solicitada = redondeo hacia arriba de total / Contenid (CodiSumi).
+    // Todo editable: el numero de dosis solo se recalcula al cambiar la frecuencia (o si esta vacio) y la cantidad
+    // solicitada al cambiar la dosis, el numero de dosis, la frecuencia o el medicamento.
+    var HORAS_TIEMPO = { '1': 1, '2': 24, '3': 720 };
+    var MAX_24 = 'No es posible prescribir para mas de 24 Horas';
+    function presNumero(el) { return el ? parseFloat(String(el.value).replace(',', '.')) : NaN; }
+    function presCalcular(fila, origen) {
+        var q = function (s) { return fila.querySelector(s); };
+        var nume = q('[data-nume]'), soli = q('[data-soli]'), dosis = q('[data-dosis]'), aviso = q('[data-total]');
+        if (!nume || !soli || !dosis) { return; }
+        var hosp = fila.dataset.presCalculo === 'hosp';
+        var sugerido = null, horasFrec = null;
+        var deFrecuencia = false;
+        if (hosp) {
+            var h = q('[data-hora-apli]');
+            if (h && h.value !== '') { horasFrec = parseInt(h.value, 10); sugerido = horasFrec <= 0 ? 1 : Math.max(1, Math.floor(24 / horasFrec)); }
+            deFrecuencia = origen === h;
+        } else {
+            var fr = presNumero(q('[data-frec]')) * (HORAS_TIEMPO[q('[data-frec-t]').value] || 0);
+            var du = presNumero(q('[data-dura]')) * (HORAS_TIEMPO[q('[data-dura-t]').value] || 0);
+            var cada = q('[data-cada-horas]');
+            if (cada) { cada.textContent = fr > 0 ? 'c/' + fr + ' h' : ''; }
+            if (fr > 0 && du > 0) { sugerido = Math.max(1, Math.ceil(du / fr)); }
+            deFrecuencia = !!(origen && origen.matches && origen.matches('[data-frec], [data-frec-t], [data-dura], [data-dura-t]'));
+        }
+        var d = presNumero(dosis);
+        if (sugerido !== null && (deFrecuencia || (nume.value === '' && d > 0))) { nume.value = sugerido; }
+        var n = presNumero(nume);
+        // Maximo 24 horas en la hospitalaria (el servidor tambien lo revisa)
+        nume.setCustomValidity(hosp && horasFrec > 0 && n * horasFrec > 24 ? MAX_24 : '');
+        var cont = presNumero(q('[data-contenid]'));
+        if (!(d > 0) || !(n > 0)) { if (aviso) { aviso.textContent = ''; } return; }
+        var total = Math.round(d * n * 100) / 100;
+        if (origen && origen !== soli) { soli.value = Math.ceil(Math.round((cont > 0 ? total / cont : total) * 1e6) / 1e6); }
+        if (aviso) {
+            aviso.textContent = hosp && horasFrec > 0 && n * horasFrec > 24 ? MAX_24
+                : 'Total ' + total + (cont > 0 ? ' · contenido ' + cont : '');
+            aviso.classList.toggle('pres-error', hosp && horasFrec > 0 && n * horasFrec > 24);
+        }
+    }
+    ['input', 'change'].forEach(function (tipo) {
+        document.addEventListener(tipo, function (ev) {
+            var fila = ev.target.closest && ev.target.closest('tr[data-pres-calculo]');
+            if (fila && (tipo === 'change' || ev.target.tagName === 'INPUT')) { presCalcular(fila, ev.target); }
+        });
+    });
+    document.querySelectorAll('tr[data-pres-calculo]').forEach(function (f) { presCalcular(f, null); });
+
     // --- IMC y presion arterial media ----------------------------------------
     document.querySelectorAll('form[data-signos]').forEach(function (form) {
         function num(n) {

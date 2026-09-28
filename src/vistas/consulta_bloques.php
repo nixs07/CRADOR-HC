@@ -22,7 +22,7 @@ function consulta_bloque_anamnesis(array $d, array $er, bool $esCE, string $prof
 function antecedente_opciones(string $c, array $d, string $etq): string
 {
     $v = (string) ($d[$c] ?? '2');
-    $h = '<select id="ante-' . e($c) . '" name="' . e($c) . '" aria-label="' . e($etq) . '">';
+    $h = '<select id="ante-' . e($c) . '" name="' . e($c) . '" aria-label="' . e($etq) . '" data-ante-sino>';
     foreach (ANTE_OPCIONES as $k => $n) {
         $h .= '<option value="' . e($k) . '"' . ((string) $k === $v ? ' selected' : '') . '>' . e($n) . '</option>';
     }
@@ -51,18 +51,23 @@ function consulta_bloque_antecedentes(array $d, array $er, bool $esCE, array $re
     ?>
     <div class="tabla-antecedentes">
         <div class="ta-cabeza"><span>Antecedente</span><span>Si | No | No Sabe | No Corresponde</span><span>Descripción</span></div>
-        <?php foreach (antecedentes_modulo($esCE) as $c => [$etq, $desc]): ?>
-            <div class="ta-fila">
+        <?php foreach (antecedentes_modulo($esCE) as $c => [$etq, $desc]): $si = (string) ($d[$c] ?? '2') === '1'; ?>
+            <!-- Como SIHOS: con "Si" se habilitan la descripción (obligatoria) y los campos adicionales; con No / No Sabe /
+                 No Corresponde quedan deshabilitados. La descripción queda de solo lectura (no se borra un texto que ya
+                 exista: se sigue enviando tal cual); los campos adicionales se deshabilitan (js/formularios.js). -->
+            <div class="ta-fila<?= $si ? ' ta-si' : '' ?>" data-antecedente>
                 <label class="ta-etiqueta" for="ante-<?= e($c) ?>"><?= e($etq) ?></label>
                 <?= antecedente_opciones($c, $d, $etq) ?>
                 <div class="ta-desc">
                     <?php if ($desc !== null): ?>
                         <input type="text" id="ante-<?= e($desc) ?>" name="<?= e($desc) ?>" value="<?= v($d, $desc) ?>" maxlength="2000"
-                               aria-label="Descripción de <?= e($etq) ?>" class="<?= ce($er, $desc) ?>"><?= me($er, $desc) ?>
+                               aria-label="Descripción de <?= e($etq) ?>" class="<?= ce($er, $desc) ?>" data-ante-desc
+                               placeholder="<?= $si ? 'Descripción (obligatoria)' : '' ?>"<?= $si ? '' : ' readonly' ?>><?= me($er, $desc) ?>
                     <?php endif; ?>
                     <div class="rejilla rejilla-4">
                     <?php if ($c === 'MetoPlan'): ?>
-                        <div><label for="MetoDesc">Método</label><input type="number" id="MetoDesc" name="MetoDesc" min="0" max="9" value="<?= e($d['MetoDesc'] ?? '') ?>" class="<?= ce($er, 'MetoDesc') ?>" title="Código del método (Antecede.MetoDesc)"><?= me($er, 'MetoDesc') ?></div>
+                        <div class="c-metodo"><label for="MetoDesc">Método</label><select id="MetoDesc" name="MetoDesc" class="<?= ce($er, 'MetoDesc') ?>"<?= $si ? '' : ' disabled' ?>>
+                            <?= opciones_arreglo(METODOS_PLANIFICACION, (string) ($d['MetoDesc'] ?? '')) ?></select><?= me($er, 'MetoDesc') ?></div>
                     <?php elseif ($c === 'Familiar'): ?>
                         <?= campo_lista('FamiPare', 'Parentesco', 'Parentes', $d, $er, false) ?>
                         <?= campo_buscador('FamiDiag', 'Diagnóstico', $d, $er, 'diagnosticos') ?>
@@ -71,8 +76,8 @@ function consulta_bloque_antecedentes(array $d, array $er, bool $esCE, array $re
                             <?= pregunta_sino($pid, $d, $preguntas[(string) $pid] ?? ('Pregunta ' . $pid)) ?>
                         <?php endforeach; ?>
                         <?php if ($c === 'Obstetri' && $esCE): ?>
-                            <div><label for="FechRegl">FUR</label><input type="date" id="FechRegl" name="FechRegl" value="<?= v($d, 'FechRegl') ?>" class="<?= ce($er, 'FechRegl') ?>"><?= me($er, 'FechRegl') ?></div>
-                            <div><label for="FechPart">Fecha Probable del Parto</label><input type="date" id="FechPart" name="FechPart" value="<?= v($d, 'FechPart') ?>" class="<?= ce($er, 'FechPart') ?>"><?= me($er, 'FechPart') ?></div>
+                            <div data-siempre><label for="FechRegl">FUR</label><input type="date" id="FechRegl" name="FechRegl" value="<?= v($d, 'FechRegl') ?>" class="<?= ce($er, 'FechRegl') ?>"><?= me($er, 'FechRegl') ?></div>
+                            <div data-siempre><label for="FechPart">Fecha Probable del Parto</label><input type="date" id="FechPart" name="FechPart" value="<?= v($d, 'FechPart') ?>" class="<?= ce($er, 'FechPart') ?>"><?= me($er, 'FechPart') ?></div>
                         <?php endif; ?>
                     <?php elseif ($c === 'AlerSiNo'): ?>
                         <?= campo_lista('AlerTipo', 'Tipo de Alergia', 'TipoAlergia', $d, $er, false) ?>

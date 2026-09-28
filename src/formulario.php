@@ -549,6 +549,29 @@ function tabla_diagnosticos(array $filas, array $datos, array $errores, bool $pr
     return $html . '</div>';
 }
 
+/**
+ * DXP y DXR 1-4 de Prescripción, Prescripción A y Ordenación, como SIHOS: el DXP es una LISTA con los diagnósticos
+ * ya registrados en las consultas de la admisión ($dx = diagnosticos_atencion()); sin consulta queda vacía
+ * ("Seleccione un diagnóstico") y el servidor no deja guardar (DX_NORMATIVA). Los DXR se digitan con buscador CIE-10.
+ * $campos: [DXP, DXR1, DXR2, DXR3, DXR4] (name de cada campo); $valores: los mismos con su valor.
+ */
+function barra_diagnosticos(array $campos, array $valores, array $dx, array $errores, string $etqRel = 'DXR '): string
+{
+    [$dxp] = $campos;
+    $v = strtoupper((string) ($valores[$dxp] ?? ''));
+    $h = '<div class="barra-registro barra-dx"><div class="br-campo br-dxp"><label for="' . e($dxp) . '">DXP <span class="obligatorio" aria-hidden="true">*</span></label>'
+       . '<select id="' . e($dxp) . '" name="' . e($dxp) . '" class="' . ce($errores, $dxp) . '" data-mensaje="' . e(DX_NORMATIVA) . '" required>'
+       . '<option value="">Seleccione un diagnóstico</option>';
+    foreach ($dx as $c => $t) {
+        $h .= '<option value="' . e($c) . '"' . ($v === (string) $c ? ' selected' : '') . '>' . e($t) . '</option>';
+    }
+    $h .= '</select>' . me($errores, $dxp) . '</div>';
+    foreach (array_slice($campos, 1) as $i => $c) {
+        $h .= campo_buscador($c, $etqRel . ($i + 1), $valores, $errores, 'diagnosticos', false, 'br-campo br-dxr');
+    }
+    return $h . '</div>';
+}
+
 /** Casilla (checkbox) con valor 1. */
 function casilla(string $nombre, string $etiqueta, array $datos, string $id = ''): string
 {

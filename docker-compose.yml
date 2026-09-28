@@ -36,6 +36,7 @@ services:
       - ./sql/03_catalogos_listas.sql:/docker-entrypoint-initdb.d/03_catalogos_listas.sql:ro
       - ./sql/04_listas_permisos.sql:/docker-entrypoint-initdb.d/04_listas_permisos.sql:ro
       - ./sql/05_tablas_clinicas_nuevas.sql:/docker-entrypoint-initdb.d/05_tablas_clinicas_nuevas.sql:ro
+      - ./sql/06_hora_apli.sql:/docker-entrypoint-initdb.d/06_hora_apli.sql:ro
       # Carpeta sql completa (solo lectura) para cargar a mano los datos de prueba.
       # sql/99_datos_prueba.sql NO se carga automaticamente.
       - ./sql:/sql:ro

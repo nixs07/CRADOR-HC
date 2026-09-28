@@ -28,13 +28,6 @@ $filaOrden = function (array $it) {
     <?php return ob_get_clean();
 };
 $dx = diagnosticos_atencion($a, $consultas);
-$selDx = function (string $name, string $etq, ?string $valor) use ($dx) {
-    $h = '<div class="br-campo"><label for="' . e($name) . '">' . e($etq) . '</label><select id="' . e($name) . '" name="' . e($name) . '"><option value="">—</option>';
-    foreach ($dx as $c => $t) {
-        $h .= '<option value="' . e($c) . '"' . ((string) $valor === (string) $c ? ' selected' : '') . '>' . e($t) . '</option>';
-    }
-    return $h . '</select></div>';
-};
 $vaciaOrden = ['OrdProc' => '', 'OrdCant' => '1', 'OrdObse' => ''];
 if (!$do['items']) {
     $itemsOrden = array_fill(0, 6, $vaciaOrden);
@@ -55,11 +48,11 @@ if (!$do['items']) {
             <?= campo_sin_columna('Salida', 'checkbox') ?>
             <div class="casillas"><?= casilla('OrdeAmbu', 'Ambulatoria', $do) ?></div>
         </div>
-        <?php if (!$dx): ?><div class="alerta alerta-aviso"><?= icono('triangle-alert') ?><div>No hay diagnósticos.</div></div><?php endif; ?>
-        <div class="barra-registro barra-dx">
-            <?= $selDx('OrdeDiag', 'DXP', $do['CodiDiag'] ?? array_key_first($dx)) ?>
-            <?php foreach ([1, 2, 3, 4] as $k): ?><?= $selDx("OrdeRel$k", "DXR$k", $do["CodiRel$k"] ?? '') ?><?php endforeach; ?>
-        </div>
+        <?php if (!$dx): ?><div class="alerta alerta-aviso"><?= icono('triangle-alert') ?><div>No hay diagnósticos en las consultas de la admisión: registre primero la consulta (el DXP es obligatorio según la normativa 2275).</div></div><?php endif; ?>
+        <?= barra_diagnosticos(['OrdeDiag', 'OrdeRel1', 'OrdeRel2', 'OrdeRel3', 'OrdeRel4'],
+            ['OrdeDiag' => isset($F['ordenes']) ? $do['CodiDiag'] : (string) array_key_first($dx)]
+            + ['OrdeRel1' => $do['CodiRel1'] ?? '', 'OrdeRel2' => $do['CodiRel2'] ?? '', 'OrdeRel3' => $do['CodiRel3'] ?? '', 'OrdeRel4' => $do['CodiRel4'] ?? ''],
+            $dx, $eo, 'DXR') ?>
         <div data-filas>
             <?= me($eo, 'OrdProc') ?>
             <div class="rejilla-grilla">

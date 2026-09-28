@@ -163,6 +163,14 @@ REPLACE INTO priv_listas_elementos (id, codigo, nombre, prv_lista_tipo_id, activ
 UPDATE CodiSumi SET IdenUniMedi_id = 100 + CAST(SUBSTRING(CodiSumi, 3) AS UNSIGNED) WHERE CodiSumi LIKE 'MP%';
 -- Vía de administración de los inyectables de prueba (el buscador de medicamentos llena unidad y vía de la fila)
 UPDATE CodiSumi SET ViaAdmin = 2 WHERE CodiSumi IN ('MP0002', 'MP0003', 'MP0005');
+-- Parametrizacion para el calculo de la prescripcion (CodiSumi.Contenid en unidades de UnidMedi; valores inventados
+-- que reproducen los ejemplos de docs/REVISION_CLAUDE_LOCAL.md): acetaminofen 500 MG por tableta y diclofenaco
+-- 75 MG por ampolla
+UPDATE CodiSumi SET UnidMedi = 1, Contenid = '500' WHERE CodiSumi = 'MP0001';
+REPLACE INTO CodiSumi (CodiSumi, NombSumi, CodiGrup, UnidMedi, Contenid, ViaAdmin, SumiActi, NumeSeri, ModeDevo, RotuDevo, FechComp, UltiDepr,
+                       BodeActu, CodiServ, TiDoReSe, NuDoReSe, CodiDocu, NumeDocu, ConsDevo, EstaDevo, CodiTerc, NumeTerc,
+                       NumeFact, FechVida, MeDeprec, MeseDepr, DiasDepr) VALUES
+ ('MP0006', 'DICLOFENACO 75 MG / 3 ML SOLUCION INYECTABLE', 'MED', 1, '75', 3, 1, '', '', '', '0000-00-00', '0000-00-00', 0, '', '', '', '', 0, 0, 0, '', '', '', '0000-00-00', 0, 0, 0);
 -- Codigos fijos de SIHOS: 1 = enfermeria, 2 = medica, 5 = consentimiento
 DELETE FROM TipoNota WHERE CodiTipo NOT IN (1, 2, 5);
 REPLACE INTO TipoNota (CodiTipo, NombTipo) VALUES (1, 'NOTA ENFERMERIA'), (2, 'NOTA MEDICA'), (5, 'CONSENTIMIENTO');
