@@ -103,12 +103,13 @@ vista_inicio('Admisiones');
     <div class="titulo-con-acciones"><h2><?= numero($total) ?> <?= $total === 1 ? 'admisión' : 'admisiones' ?></h2></div>
     <div class="tabla-contenedor tabla-tarjetas">
     <table class="tabla tabla-admisiones tabla-listado-admisiones">
-        <thead><tr><th>Admisión</th><th>Ingreso</th><th>Módulo / Servicio</th><th>Paciente</th><th>Edad</th><th>EPS</th>
-            <th>Dx ingreso</th><th>Profesional</th><th>Estado</th><th>Carga a SIHOS</th></tr></thead>
+        <thead><tr><th>Admisión</th><th>Estado</th><th>Ingreso</th><th>Módulo / Servicio</th><th>Paciente</th><th>Edad</th><th>EPS</th>
+            <th>Dx ingreso</th><th>Profesional</th><th>Carga a SIHOS</th></tr></thead>
         <tbody>
         <?php foreach ($filas as $r): [$et, $ec] = admision_estado($r); $u = 'atencion.php?id=' . urlencode($r['ConsAdmi']); $carga = (string) ($r['estado_carga'] ?? ''); ?>
             <tr data-href="<?= e($u) ?>">
                 <td data-etiqueta="Admisión" class="celda-codigo"><a href="<?= e($u) ?>"><?= e($r['ConsAdmi']) ?></a></td>
+                <td data-etiqueta="Estado"><span class="etiqueta etiqueta-<?= e($ec) ?>"><?= e($et) ?></span></td>
                 <td data-etiqueta="Ingreso" class="sin-salto"><?= e(fecha_hora($r['FechIngr'] . ' ' . $r['HoraIngr'])) ?></td>
                 <td data-etiqueta="Módulo / Servicio"><?= e($modulo_de($r)) ?><small class="bloque"><?= e($r['NombServ'] ?? $r['ServEgre']) ?></small></td>
                 <td class="celda-principal celda-paciente" data-etiqueta="Paciente"><a href="<?= e($u) ?>"><?= e(paciente_nombre($r)) ?></a>
@@ -117,7 +118,6 @@ vista_inicio('Admisiones');
                 <td data-etiqueta="EPS"><?= e($r['NombAdmi'] ?? $r['CodiAdmi']) ?></td>
                 <td data-etiqueta="Dx ingreso"><?= e(diag_texto(diag_ingreso($r))) ?></td>
                 <td data-etiqueta="Profesional"><?= e($r['UsuaDigi']) ?></td>
-                <td data-etiqueta="Estado"><span class="etiqueta etiqueta-<?= e($ec) ?>"><?= e($et) ?></span></td>
                 <td data-etiqueta="Carga a SIHOS"><?php if ($carga !== ''): ?><span class="etiqueta etiqueta-<?= e($carga) ?>"><?= e(ucfirst($carga)) ?></span><?php else: ?>—<?php endif; ?></td>
             </tr>
         <?php endforeach; ?>
