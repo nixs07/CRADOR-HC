@@ -342,12 +342,12 @@ vista_inicio($a ? 'Admisión ' . $a['ConsAdmi'] : $mod['nombre']);
         </div>
         <!-- Botones del encabezado de SIHOS (los que no aplican en contingencia, deshabilitados) -->
         <div class="et-acciones-sihos">
-            <button type="button" class="boton boton-claro" disabled title="No aplica en contingencia"><?= icono('pencil') ?>Modificar</button>
-            <button type="button" class="boton boton-claro" disabled title="No aplica en contingencia"><?= icono('trash-2') ?>Eliminar</button>
+            <button type="button" class="boton boton-claro" disabled title="No disponible"><?= icono('pencil') ?>Modificar</button>
+            <button type="button" class="boton boton-claro" disabled title="No disponible"><?= icono('trash-2') ?>Eliminar</button>
             <button type="submit" form="form-buscar" class="boton boton-claro"><?= icono('search') ?>Buscar</button>
-            <button type="button" class="boton boton-claro" disabled title="No aplica en contingencia"><?= icono('printer') ?>Imprimir</button>
+            <button type="button" class="boton boton-claro" disabled title="No disponible"><?= icono('printer') ?>Imprimir</button>
             <a href="<?= e($base) ?>&amp;nueva=1" class="boton boton-claro" title="Vaciar el encabezado"><?= icono('x') ?>Limpiar</a>
-            <button type="button" class="boton boton-claro" disabled title="No aplica en contingencia"><?= icono('ban') ?>Anular</button>
+            <button type="button" class="boton boton-claro" disabled title="No disponible"><?= icono('ban') ?>Anular</button>
             <?php if ($editable): ?>
                 <a href="<?= e($aqui) ?>&amp;tab=<?= e($tab) ?>&amp;cerrar=1" class="boton boton-peligro" data-abrir-ventana="cerrar-historia"><?= icono('log-out') ?>Cerrar Historia</a>
             <?php else: ?>

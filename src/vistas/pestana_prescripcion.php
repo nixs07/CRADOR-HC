@@ -24,7 +24,7 @@ $filaMed = function (array $it) use ($amb, $vacia) {
     <tr data-fila>
         <td class="c-cod"><input type="text" name="CodiSumi[]" value="<?= e($it['CodiSumi']) ?>" maxlength="20" data-buscar="suministros" autocomplete="off" aria-label="Código"></td>
         <td class="nota-campo"><?= e($it['CodiSumi'] ? (suministro_nombre($it['CodiSumi']) ?? '') : '') ?></td>
-        <td><input type="checkbox" disabled title="Suspender: no aplica en contingencia" aria-label="Susp"></td>
+        <td><input type="checkbox" disabled title="Suspender: no disponible" aria-label="Susp"></td>
         <td class="c-num"><input type="number" name="CantSumi[]" value="<?= e($it['CantSumi']) ?>" step="any" min="0" inputmode="decimal" aria-label="<?= $amb ? 'Dosis' : 'Cantidad por dosis' ?>"></td>
         <td class="c-sel"><select name="UnidMedi[]" aria-label="Unidad" data-llena="u"><?= opciones('UnidMedi', $it['UnidMedi']) ?></select></td>
         <td class="c-sel"><select name="CodiVia[]" aria-label="Vía" data-llena="v"><?= opciones('ViaAdmi', $it['CodiVia']) ?></select></td>

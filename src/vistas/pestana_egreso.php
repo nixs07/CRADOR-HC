@@ -77,7 +77,7 @@ $porCerrar = array_values(array_filter($consultas, fn ($c) => ($c['FechCier'] ??
             <?php endif; ?>
             <a href="<?= e($aqui) ?>&amp;tab=egreso&amp;cerrar=1" class="boton boton-peligro" data-abrir-ventana="cerrar-historia"><?= icono('log-out') ?>Cerrar Historia</a>
             <button type="reset" class="boton boton-claro"><?= icono('refresh-cw') ?>Limpiar</button>
-            <button type="button" class="boton boton-claro" disabled title="No aplica en contingencia"><?= icono('printer') ?>Imprimir</button>
+            <button type="button" class="boton boton-claro" disabled title="No disponible"><?= icono('printer') ?>Imprimir</button>
         </div>
     </form>
     </div>
@@ -98,7 +98,7 @@ $porCerrar = array_values(array_filter($consultas, fn ($c) => ($c['FechCier'] ??
 
 <!-- Pendientes, como SIHOS -->
 <h3 class="titulo-tabla"><?= icono('clipboard-list') ?>Insumos y medicamentos pendientes por descargar</h3>
-<?= panel_vacio('No aplica en contingencia (inventario).') ?>
+<?= panel_vacio('No disponible (inventario).') ?>
 <h3 class="titulo-tabla"><?= icono('clipboard-list') ?>Ayudas diagnósticas pendientes por interpretar</h3>
 <?php if (!$pendientes): ?>
     <?= panel_vacio('No hay ayudas diagnósticas pendientes.') ?>

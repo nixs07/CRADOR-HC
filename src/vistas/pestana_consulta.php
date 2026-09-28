@@ -112,7 +112,7 @@ foreach ($bloques as $id => [$icono, $sub2]): ?>
                 <div class="br-campo"><label>Hora</label><span><?= e(substr((string) $d['HoraCons'], 0, 5)) ?></span></div>
             </div>
             <div class="rejilla">
-                <div><span class="etiqueta-campo">Laboratorios</span><p class="nota-campo">Resultados de laboratorio: no aplica en contingencia.</p></div>
+                <div><span class="etiqueta-campo">Laboratorios</span><p class="nota-campo">Resultados de laboratorio: no disponible.</p></div>
                 <div><span class="etiqueta-campo">Últimos Diagnósticos</span><p class="nota-campo"><?php
                     $ult = array_values(array_filter(array_map(fn ($c) => trim((string) $c['CodiDiag']), $consultas)));
                     echo $ult ? e(implode(' · ', array_map('diag_texto', array_slice(array_unique($ult), 0, 5)))) : 'Sin diagnósticos anteriores.'; ?></p></div>

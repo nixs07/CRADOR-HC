@@ -52,7 +52,7 @@ function campo_lectura(string $etiqueta, $valor, string $clase = ''): string
 }
 
 /** Nota de las pestañas de SIHOS que no tienen tablas en la contingencia. */
-const NO_DISPONIBLE = 'No disponible en contingencia';
+const NO_DISPONIBLE = 'No disponible';
 
 /**
  * Lista FIJA de pestañas por módulo (respaldo de pestanas_usuario() cuando no están los catálogos de permisos):
@@ -462,7 +462,7 @@ const BOTON_ICONO = ['Guardar' => 'save', 'Modificar' => 'pencil', 'Consultar' =
                      'Cerrar Consulta' => 'lock', 'Nuevo' => 'plus', 'Nueva' => 'plus'];
 
 /** Botón de SIHOS que no aplica en la contingencia: visible y deshabilitado. */
-function boton_no_aplica(string $texto, bool $chico = false, string $motivo = 'No aplica en contingencia'): string
+function boton_no_aplica(string $texto, bool $chico = false, string $motivo = 'No disponible'): string
 {
     return '<button type="button" class="boton boton-claro' . ($chico ? ' boton-chico' : '') . '" disabled title="' . e($motivo) . '">'
          . icono(BOTON_ICONO[$texto] ?? 'info') . e($texto) . '</button>';
@@ -471,7 +471,7 @@ function boton_no_aplica(string $texto, bool $chico = false, string $motivo = 'N
 /**
  * Botonera inferior de la pestaña con los botones de SIHOS en su orden. Los de $enviar son submit (el primero
  * resaltado; ['Texto' => 'valor'] envía name="boton" con ese valor), los de $limpiar son reset y el resto se ve
- * deshabilitado ("No aplica en contingencia").
+ * deshabilitado ("No disponible").
  */
 function botonera(array $lista, array $enviar = ['Guardar'], array $limpiar = ['Cancelar', 'Limpiar']): string
 {
@@ -502,7 +502,7 @@ function botonera(array $lista, array $enviar = ['Guardar'], array $limpiar = ['
  */
 function campo_sin_columna(string $etiqueta, string $tipo = 'select', string $clase = '', string $valor = ''): string
 {
-    $t = 'title="Sin columna o sin catálogo local: no disponible en contingencia"';
+    $t = 'title="Sin columna o sin catálogo local: no disponible"';
     if ($tipo === 'checkbox') {
         return '<div class="' . e($clase) . ' sin-columna"><label class="opcion"><input type="checkbox" disabled ' . $t . '> ' . e($etiqueta) . '</label></div>';
     }

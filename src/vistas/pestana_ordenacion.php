@@ -20,7 +20,7 @@ $filaOrden = function (array $it) {
         <td class="c-cod"><input type="text" name="OrdProc[]" value="<?= e($it['OrdProc']) ?>" maxlength="15" data-buscar="procedimientos" autocomplete="off" aria-label="Código"></td>
         <td class="nota-campo"><?= e($it['OrdProc'] ? (procedimiento_nombre($it['OrdProc']) ?? '') : '') ?></td>
         <td class="c-num"><input type="number" name="OrdCant[]" value="<?= e($it['OrdCant']) ?>" min="1" max="999" aria-label="Cant"></td>
-        <td><input type="checkbox" disabled title="Suspender: no aplica en contingencia" aria-label="Susp"></td>
+        <td><input type="checkbox" disabled title="Suspender: no disponible" aria-label="Susp"></td>
         <td><input type="text" name="OrdObse[]" value="<?= e($it['OrdObse']) ?>" maxlength="70" aria-label="Nota"></td>
         <td><input type="text" disabled title="Tomar A (Cada): sin columna en DetaOrde" aria-label="Tomar A (Cada)"></td>
         <td><button type="button" class="boton-icono" data-quitar-fila aria-label="Quitar fila" title="Quitar"><?= icono('x') ?></button></td>
