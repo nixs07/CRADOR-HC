@@ -71,3 +71,25 @@ SELECT Cabeza, COUNT(*) AS n FROM EstaGene WHERE FechDigi >= '2026-08-01' GROUP 
 -- Código Dorado (lista tipo 47) y Conducta (lista tipo 33) usados
 SELECT EstaCodo, COUNT(*) AS n FROM RipsCons WHERE FechCons >= '2026-08-01' GROUP BY EstaCodo;
 SELECT Conducta, COUNT(*) AS n FROM RipsCons WHERE FechCons >= '2026-08-01' GROUP BY Conducta;
+
+-- =====================================================================================================
+-- 28/09/2026 (puntos 4 y 7 de REVISION_CLAUDE_LOCAL.md): método de planificación y catálogo HoraApli
+-- =====================================================================================================
+-- Método de planificación (Antecede.MetoDesc): ¿de qué tabla o lista sale? Hoy CRADOR usa códigos PROVISIONALES 1..14
+SELECT MetoPlan, MetoDesc, COUNT(*) AS n FROM Antecede WHERE FechDigi >= '2026-01-01' GROUP BY MetoPlan, MetoDesc ORDER BY n DESC;
+SELECT TABLE_NAME, COLUMN_NAME FROM information_schema.COLUMNS
+ WHERE TABLE_SCHEMA = 'sihos' AND (TABLE_NAME LIKE '%Plan%' OR TABLE_NAME LIKE '%Meto%' OR TABLE_NAME LIKE '%Anti%conc%');
+SELECT t.id AS tipo, t.nombre AS lista, e.id, e.codigo, e.nombre FROM priv_listas_tipos t JOIN priv_listas_elementos e ON e.prv_lista_tipo_id = t.id
+ WHERE t.nombre LIKE '%planifica%' OR t.nombre LIKE '%anticon%' OR e.nombre LIKE '%Implante%' OR e.nombre LIKE '%Anillo%';
+-- "Cada" de la prescripción hospitalaria: estructura y filas reales de HoraApli
+SHOW CREATE TABLE HoraApli;
+SELECT * FROM HoraApli;
+-- Qué guarda SIHOS en una prescripción hospitalaria (PresSali 1) y en una ambulatoria (PresSali 2): frecuencia, duración,
+-- número de dosis, total, contenido y cantidad solicitada (sin datos de pacientes)
+SELECT e.PresSali, d.HoraApli, d.CantFrec, d.TiemFrec, d.CantPeDu, d.TiemPeDu, d.NumeDosi, d.CantSumi, d.CantTota,
+       d.Contenid, s.Contenid AS ContenidSumi, d.CantSoli
+  FROM DetaPres d JOIN EncaPres e ON e.CodiInst = d.CodiInst AND e.ConsAdmi = d.ConsAdmi AND e.ConsPres = d.ConsPres
+  LEFT JOIN CodiSumi s ON s.CodiSumi = d.CodiSumi
+ WHERE e.Fecha >= '2026-09-20' ORDER BY e.PresSali, d.HoraApli LIMIT 60;
+-- Medicamentos sin Contenid parametrizado (¿cómo calcula SIHOS la cantidad solicitada en ese caso?)
+SELECT COUNT(*) AS sin_contenido FROM CodiSumi WHERE SumiActi = 1 AND (Contenid = '' OR Contenid = '0');

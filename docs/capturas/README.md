@@ -100,8 +100,17 @@ actual: el error abre la pestaña 1), una Prescripción A (fórmula de salida), 
 | Archivo | Pantalla |
 | --- | --- |
 | `55_triage_obligatorios.png` | Triage guardado sin signos y con peso 350: mensajes de SIHOS ("Digite la talla"…, "Por favor verifique el peso, este no puede sobrepasar 300 Kg.") |
+| `57_guardar_se_queda.png` | Consultas: al guardar Antecedentes la página se queda en la misma sección y el aviso sale abajo, junto a Continuar |
+| `58_antecedentes_si_no.png` | Antecedentes: con Si se habilitan descripción y campos adicionales; con No la descripción queda de solo lectura (sin borrar el texto); método de planificación en lista |
+| `59_prescripcion_a_calculo.png` | Prescripción A: 1000 mg c/6 h por 3 días → Total (Dosis) 12 → 12000 / 500 = 24 |
+| `60_admision_cerrada_por_numero.png` | Número de admisión + Enter abre una historia cerrada en solo lectura |
+| `61_documento_admisiones_cerradas.png` | Documento sin admisión abierta: lista de sus admisiones (cerradas) para abrirlas |
 
 El recorrido también comprueba: signos obligatorios en Evolución, toma de Signos Vitales posterior a la anterior,
 Cerrar Consulta completa (signos y Revisión por Sistema), Nota y máximo 24 horas en la Prescripción, buscador de
-medicamentos que llena unidad y vía ("dipirona" → AMPOLLA / INTRAVENOSA), remisión con placa de ambulancia y
-examen físico "No se Explora" = 3.
+medicamentos que llena unidad, vía y contenido, remisión con placa de ambulancia y examen físico "No se Explora" = 3.
+Desde el 28/09/2026 también: DXP como lista (vacía sin consulta: "Debe seleccionar diagnóstico, es obligatorio según la
+normativa 2275"), cálculo de la prescripción con los ejemplos de SIHOS (75 mg c/12 h → 2 dosis → 2 unidades; c/12 h
+5 días → 10; c/8 h 3 días → 9; c/6 h 3 días → 12; 12000 / 500 = 24), antecedente que pasa a No sin borrar su texto,
+aviso abajo y quedarse en la sección al guardar, y búsqueda por número de admisión de una historia cerrada. Con
+`PROYECTO=<proyecto de docker compose>` el recorrido consulta la base para verificar (líneas `-- BD`).

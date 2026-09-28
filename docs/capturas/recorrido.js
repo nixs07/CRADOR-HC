@@ -8,8 +8,11 @@ const fs = require('fs'); fs.mkdirSync(OUT, { recursive: true });
 
 async function foto(p, nombre) {
   const f = `${OUT}/${nombre}.png`;
-  await p.evaluate(() => window.scrollTo(0, 0)); await p.waitForTimeout(150);
+  // El pie (Volver · aviso · Continuar) es fijo abajo: en la captura de página completa se deja al final
+  await p.evaluate(() => { window.scrollTo(0, 0); document.querySelectorAll('.pie-trabajo').forEach(x => { x.style.position = 'static'; }); });
+  await p.waitForTimeout(350);
   await p.screenshot({ path: f, fullPage: true }); console.log('FOTO', f);
+  await p.evaluate(() => document.querySelectorAll('.pie-trabajo').forEach(x => { x.style.position = ''; }));
 }
 async function estado(p, etiqueta) {
   // Mensajes visibles (no los de paneles o ventanas ocultas)
@@ -45,6 +48,27 @@ async function autocompletar(p, loc, texto, codigo, foto_) {
   console.log('-- autocompletar', JSON.stringify(texto), '->', v);
 }
 // Busca el documento en el encabezado de la pantalla del modulo
+// Aviso de "guardado / no se guardó": abajo, junto a Continuar, visible sin subir la página
+async function aviso(p, etiqueta) {
+  const r = await p.evaluate(() => {
+    const pie = document.querySelector('.pie-trabajo .pie-avisos');
+    const t = pie ? pie.innerText.replace(/\s+/g, ' ').trim() : '';
+    const b = pie ? pie.getBoundingClientRect() : null;
+    return { texto: t, visible: !!b && b.height > 0 && b.top >= 0 && b.bottom <= window.innerHeight, scrollY: Math.round(window.scrollY),
+             tab: (document.querySelector('a.actual') || { dataset: {} }).dataset.tab || '' };
+  });
+  console.log('-- aviso abajo', etiqueta, JSON.stringify(r));
+  return r;
+}
+// Consulta en la base del stack de prueba (PROYECTO = nombre del proyecto de Docker Compose): solo para verificar
+function bd(sql) {
+  const { execFileSync } = require('child_process');
+  const proy = process.env.PROYECTO || 'hscj2';
+  try {
+    return execFileSync('docker', ['compose', '-p', proy, 'exec', '-T', 'db', 'sh', '-c',
+      'mysql -N -uroot -p"$MYSQL_ROOT_PASSWORD" "$MYSQL_DATABASE" -e "$0" 2>/dev/null', sql], { encoding: 'utf8' }).trim();
+  } catch (e) { return 'ERROR ' + e.message.split('\n')[0]; }
+}
 async function buscarDocumento(p, modulo, tipo, doc) {
   await p.goto(B + 'atencion.php?modulo=' + modulo + '&nueva=1');
   await p.selectOption('#TipoDocu', tipo); await p.fill('#NumeUsua', doc);
@@ -110,7 +134,8 @@ async function buscarDocumento(p, modulo, tipo, doc) {
     await estado(p, 'encabezado nueva admision ' + x.mod);
     const h = new Date(Date.now() - 3600e3 - 5 * 3600e3); // hace 1 h, hora Colombia (UTC-5)
     await p.fill('#HoraIngr', h.toISOString().slice(11, 16));
-    await p.fill('#DiagIngr', x.mod === 'urg' ? 'R101' : x.mod === 'obs' ? 'A09X' : 'Z000');
+    // Diagnóstico de ingreso: ya no se digita (se llena con el de la primera consulta o procedimiento)
+    console.log('-- diagnostico de ingreso en nueva admision', await p.$eval('#form-admision', f => f.querySelector('[name=DiagIngr]') ? 'CAMPO' : 'solo lectura'));
     if (x.mod === 'obs') await primeraOpcion(p, '#CodiCama');
     await primeraOpcion(p, '#NumeCont');
     await primeraOpcion(p, '#CodiEstr');
@@ -147,6 +172,14 @@ async function buscarDocumento(p, modulo, tipo, doc) {
   await foto(p, '12_triage');
   await guardar('#triage button[type=submit]', 'triage guardado');
 
+  // Sin consulta: el DXP de la prescripción es una lista vacía y no deja guardar (normativa 2275)
+  await pestana('prescripcion');
+  console.log('-- DXP sin consulta', JSON.stringify(await p.$$eval('#PresDiag option', l => l.map(o => o.textContent))));
+  await p.$eval('#prescripcion form', f => { f.noValidate = true; });
+  await p.locator('#prescripcion tbody [data-fila]').nth(0).locator('input[name="CodiSumi[]"]').fill('MP0006');
+  await guardar('#prescripcion button[type=submit]', 'prescripcion sin consulta (no deja guardar)');
+  await aviso(p, 'prescripcion sin consulta');
+  await p.goto(B + 'atencion.php?id=' + adm.urg + '&tab=triage');
   // Continuar (pie) pasa a la pestaña 2 sin recargar; 18. Signos Vitales
   await p.click('[data-continuar]'); console.log('-- continuar lleva a', await p.$eval('a.actual', a => a.dataset.tab));
   await pestana('signos');
@@ -170,7 +203,17 @@ async function buscarDocumento(p, modulo, tipo, doc) {
   await p.fill('#ConsMoti', 'DOLOR EN LA BOCA DEL ESTOMAGO (datos inventados)');
   await p.fill('#EnfeActu', 'Cuadro de 1 dia de dolor epigastrico urente, sin vomito. Datos inventados.');
   await guardar('#consulta button[name=boton][value=anamnesis]', 'consulta: guardar anamnesis');
+  await aviso(p, 'anamnesis');
   await p.click('#consulta summary:has-text("Antecedentes")');
+  // Con No la descripción queda de solo lectura; con Si se habilita (y es obligatoria), igual los campos adicionales
+  console.log('-- antecedente No: descripcion solo lectura', await p.$eval('#ante-PersDesc', i => i.readOnly), 'parentesco deshabilitado', await p.$eval('#FamiPare', s => s.disabled));
+  await p.selectOption('#ante-Personal', '1');
+  console.log('-- antecedente Si: descripcion editable', !(await p.$eval('#ante-PersDesc', i => i.readOnly)));
+  await p.fill('#ante-PersDesc', 'TEXTO QUE NO SE DEBE BORRAR (inventado)');
+  // Planificación: el método es una lista con nombres (códigos provisionales)
+  await p.selectOption('#ante-MetoPlan', '1');
+  console.log('-- metodos de planificacion', JSON.stringify(await p.$$eval('#MetoDesc option', l => l.map(o => o.value + ' ' + o.textContent))));
+  await p.selectOption('#MetoDesc', { label: 'Implante Subdermico' });
   await p.selectOption('#ante-Patologi', '1'); await p.fill('#ante-PatoDesc', 'GASTRITIS HACE 2 AÑOS');
   await p.selectOption('#ante-AlerSiNo', '1'); await p.fill('#ante-AlerDesc', 'PENICILINA (inventado)');
   await p.selectOption('#AlerTipo', '21'); await autocompletar(p, '#AlerMedi', 'MP0001', 'MP0001');
@@ -186,7 +229,18 @@ async function buscarDocumento(p, modulo, tipo, doc) {
   await autocompletar(p, rc.locator('input[name="RecoNomb[]"]'), 'omepra', 'MP0004');
   await rc.locator('input[name="RecoCant[]"]').fill('20'); await rc.locator('input[name="RecoFrec[]"]').fill('24');
   await rc.locator('select[name="RecoVia[]"]').selectOption('1'); await rc.locator('input[name="RecoNota[]"]').fill('LO TOMA EN CASA (inventado)');
+  await p.evaluate(() => document.querySelector('#consulta button[name=boton][value=antecedentes]').scrollIntoView({ block: 'center' }));
+  const yAntes = await p.evaluate(() => Math.round(window.scrollY));
   await guardar('#consulta button[name=boton][value=antecedentes]', 'consulta: guardar antecedentes');
+  const r6 = await aviso(p, 'antecedentes (se queda en la seccion)');
+  console.log('-- se queda en Antecedentes: acordeon abierto', await p.$eval('#sec-antecedentes', d => d.open), 'scroll antes', yAntes, 'despues', r6.scrollY);
+  await p.screenshot({ path: `${OUT}/57_guardar_se_queda.png` }); console.log('FOTO 57_guardar_se_queda');
+  // Con "No" NO se borra el texto que ya existía
+  await p.selectOption('#ante-Personal', '2');
+  await guardar('#consulta button[name=boton][value=antecedentes]', 'consulta: antecedente Personal pasa a No');
+  console.log('-- BD Antecede Personal/PersDesc/MetoPlan/MetoDesc', bd("SELECT Personal, PersDesc, MetoPlan, MetoDesc FROM Antecede WHERE ConsAdmi = '" + adm.urg + "'"));
+  await p.$eval('#sec-antecedentes', d => d.scrollIntoView({ block: 'start' }));
+  await p.screenshot({ path: `${OUT}/58_antecedentes_si_no.png` }); console.log('FOTO 58_antecedentes_si_no');
   await p.click('#consulta summary:has-text("Revisión por Sistema")');
   await p.fill('#ConsRevi', 'NIEGA OTROS SINTOMAS'); await p.selectOption('#SintResp', '2');
   await signos('cons-', { PANume: '116', PADeno: '74', Pulso: '80', Respirac: '16', Temperat: '36.7', Saturaci: '98', Oximetria: '97' });
@@ -210,23 +264,45 @@ async function buscarDocumento(p, modulo, tipo, doc) {
   // 4. Prescripción
   await pestana('prescripcion');
   // Rejilla de SIHOS: Cantidad por dosis · Unidad · Vía · Cada · A partir de · Número (Dosis) · Cantidad solicitada
-  await p.selectOption('#TipoPres', '1'); await p.selectOption('#PresRel1', 'E86X');
+  // DXP = lista con los diagnósticos de la consulta; DXR 1-4 con buscador CIE-10
+  console.log('-- DXP con consulta', JSON.stringify(await p.$$eval('#PresDiag option', l => l.map(o => o.textContent))));
+  await p.selectOption('#TipoPres', '1'); await autocompletar(p, '#PresRel1', 'R101', 'R101');
   const f1 = p.locator('#prescripcion tbody [data-fila]').nth(0);
   await autocompletar(p, f1.locator('input[name="CodiSumi[]"]'), 'omepra', 'MP0004', '53_prescripcion_autocompletar');
   await f1.locator('input[name="CantSumi[]"]').fill('20');
   await f1.locator('select[name="UnidMedi[]"]').selectOption('1'); await f1.locator('select[name="CodiVia[]"]').selectOption('1');
-  await f1.locator('input[name="CantFrec[]"]').fill('24'); await f1.locator('input[name="NumeDosi[]"]').fill('1');
-  await f1.locator('input[name="HoraInic[]"]').fill('08:00'); await f1.locator('input[name="CantSoli[]"]').fill('1');
+  await f1.locator('select[name="HoraApli[]"]').selectOption('24');
+  await f1.locator('input[name="HoraInic[]"]').fill('08:00');
   await f1.locator('input[name="PresMedi[]"]').fill('EN AYUNAS');
   await f1.locator('select[name="MediPrin[]"]').selectOption('1');
   const f2 = p.locator('#prescripcion tbody [data-fila]').nth(1);
-  // Un solo buscador (código o nombre): al escoger llena código, nombre, unidad y vía de la fila
-  await autocompletar(p, f2.locator('input[name="CodiSumi[]"]'), 'dipirona', 'MP0002'); await f2.locator('input[name="CantSumi[]"]').fill('1');
+  // Un solo buscador (código o nombre): al escoger llena código, nombre, unidad, vía y contenido de la fila.
+  // Ejemplo de SIHOS: diclofenaco 75 mg cada 12 h -> 2 dosis -> 150 mg -> 2 unidades (Contenid 75)
+  await autocompletar(p, f2.locator('input[name="CodiSumi[]"]'), 'diclofen', 'MP0006'); await f2.locator('input[name="CantSumi[]"]').fill('75');
   console.log('-- buscador de medicamentos llena unidad y via', await f2.locator('select[name="UnidMedi[]"]').inputValue(), await f2.locator('select[name="CodiVia[]"]').inputValue());
-  await f2.locator('input[name="CantFrec[]"]').fill('8'); await f2.locator('input[name="NumeDosi[]"]').fill('3');
-  await f2.locator('input[name="PresMedi[]"]').fill('DILUIR EN 100 CC SSN');
+  await f2.locator('select[name="HoraApli[]"]').selectOption('12');
+  console.log('-- calculo 75 mg c/12 h: NumeDosi', await f2.locator('input[name="NumeDosi[]"]').inputValue(), 'CantSoli', await f2.locator('input[name="CantSoli[]"]').inputValue(), JSON.stringify(await f2.locator('[data-total]').innerText()));
+  await f2.locator('input[name="PresMedi[]"]').fill('APLICAR LENTO');
+  // AHORA = 1 dosis; acetaminofen 1000 mg c/6 h -> 4 dosis -> 4000 mg -> 8 tabletas de 500
+  const f3 = p.locator('#prescripcion tbody [data-fila]').nth(2);
+  await autocompletar(p, f3.locator('input[name="CodiSumi[]"]'), 'acetamin', 'MP0001'); await f3.locator('input[name="CantSumi[]"]').fill('1000');
+  await f3.locator('select[name="HoraApli[]"]').selectOption('0');
+  console.log('-- calculo 1000 mg AHORA: NumeDosi', await f3.locator('input[name="NumeDosi[]"]').inputValue(), 'CantSoli', await f3.locator('input[name="CantSoli[]"]').inputValue());
+  await f3.locator('select[name="HoraApli[]"]').selectOption('6');
+  console.log('-- calculo 1000 mg c/6 h: NumeDosi', await f3.locator('input[name="NumeDosi[]"]').inputValue(), 'CantSoli', await f3.locator('input[name="CantSoli[]"]').inputValue());
+  await f3.locator('input[name="PresMedi[]"]').fill('SI HAY FIEBRE');
+  // Máximo 24 horas: 3 dosis cada 12 h no deja guardar (mensaje de SIHOS)
+  await f2.locator('input[name="NumeDosi[]"]').fill('3');
+  console.log('-- 3 dosis c/12 h', JSON.stringify(await f2.locator('[data-total]').innerText()));
+  await p.$eval('#prescripcion form', f => { f.noValidate = true; });
+  await guardar('#prescripcion button[type=submit]', 'prescripcion de mas de 24 horas');
+  await aviso(p, 'prescripcion mas de 24 h');
+  await p.locator('#prescripcion tbody [data-fila]').nth(1).locator('input[name="NumeDosi[]"]').fill('2');
   await foto(p, '28_prescripcion_formulario');
   await guardar('#prescripcion button[type=submit]', 'prescripcion guardada');
+  await aviso(p, 'prescripcion guardada');
+  console.log('-- BD DetaPres', bd("SELECT CONCAT_WS(' ', CodiSumi, CantSumi, 'HoraApli', HoraApli, 'NumeDosi', NumeDosi, 'CantTota', CantTota, 'Contenid', Contenid, 'CantSoli', CantSoli) FROM DetaPres WHERE ConsAdmi = '" + adm.urg + "' ORDER BY Item").replace(/\n/g, ' | '));
+  console.log('-- BD EncaPres DXP', bd("SELECT CONCAT_WS(' ', CodiDiag, CodiRel1) FROM EncaPres WHERE ConsAdmi = '" + adm.urg + "'"));
   await foto(p, '28_prescripcion');
 
   // 5. ORDENES MEDICAS y 7. Ordenación
@@ -235,7 +311,8 @@ async function buscarDocumento(p, modulo, tipo, doc) {
   await guardar('#ordenes_medicas button[type=submit]', 'orden medica guardada');
   await foto(p, '38_ordenes_medicas');
   await pestana('ordenacion');
-  await p.selectOption('#OrdeFina', '10'); await p.selectOption('#OrdeRel1', 'E86X');
+  console.log('-- DXP Ordenacion', JSON.stringify(await p.$$eval('#OrdeDiag option', l => l.map(o => o.textContent))));
+  await p.selectOption('#OrdeFina', '10'); await autocompletar(p, '#OrdeRel1', 'R101', 'R101');
   const o1 = p.locator('#ordenacion tbody [data-fila]').nth(0);
   await autocompletar(p, o1.locator('input[name="OrdProc[]"]'), 'hemograma', '902210', '54_ordenacion_autocompletar');
   const o2 = p.locator('#ordenacion tbody [data-fila]').nth(1);
@@ -245,6 +322,8 @@ async function buscarDocumento(p, modulo, tipo, doc) {
 
   // 6. Procedimientos (el selector "Atiende la orden" no está en SIHOS: quedó oculto)
   await pestana('procedimientos');
+  console.log('-- procedimiento: diagnostico principal por defecto (el de la consulta)', await p.inputValue('#proc-DiagPrin'));
+  console.log('-- BD diagnostico de ingreso (primera consulta)', bd("SELECT DiagIngr FROM Admision WHERE ConsAdmi = '" + adm.urg + "'"));
   await p.fill('#CodiProc', '939403'); await p.selectOption('#CodiFina', '2'); await p.fill('#CantProc', '1');
   await p.fill('#IndiAdic', 'NEBULIZACION CON SSN, SIN COMPLICACIONES (datos inventados)');
   await p.fill('#proc-DiagRela', 'E86X'); await p.selectOption('#proc-ProcTipoDiaR', '2');
@@ -382,6 +461,11 @@ async function buscarDocumento(p, modulo, tipo, doc) {
   await pestana('antecedentes');
   await p.selectOption('#ante-Familiar', '1'); await p.fill('#ante-FamiDesc', 'MADRE CON HIPERTENSION (inventado)');
   await p.selectOption('#FamiPare', '2'); await autocompletar(p, '#FamiDiag', 'R101', 'R101');
+  // Guardar en la pestaña 3. Antecedentes: se queda en Antecedentes (no vuelve a Anamnesis)
+  await pestana('anamnesis'); await p.fill('#EnfeActu', 'ASISTE A CONTROL, SIN QUEJAS. Datos inventados.'); await pestana('antecedentes');
+  await guardar('#antecedentes button[type=submit]', 'consulta CE: guardar antecedentes');
+  await aviso(p, 'CE antecedentes (se queda en la pestaña)');
+  await pestana('anamnesis'); await p.fill('#EnfeActu', '');
   await pestana('laboratorios');
   await p.fill('#LaboImag', 'NO TRAE PARACLINICOS'); await p.fill('#cons-CodiDiag', 'Z000'); await p.selectOption('#cons-TipoDiag', '1');
   await pestana('plan');
@@ -394,11 +478,20 @@ async function buscarDocumento(p, modulo, tipo, doc) {
   await guardar('#anamnesis button[type=submit]', 'consulta CE guardada');
   // 5. Prescripción A (fórmula de salida fija: PresSali = 2)
   await pestana('prescripcion');
+  // Ejemplos de SIHOS (fórmula ambulatoria): c/12 h por 5 días -> 10; c/8 h por 3 días -> 9; c/6 h por 3 días -> 12;
+  // 1000 mg x 12 = 12000 / 500 = 24 tabletas
+  console.log('-- DXP Prescripcion A', JSON.stringify(await p.$$eval('#PresDiag option', l => l.map(o => o.textContent))));
   const fc = p.locator('#prescripcion tbody [data-fila]').nth(0);
-  await fc.locator('input[name="CodiSumi[]"]').fill('MP0001'); await fc.locator('input[name="CantSumi[]"]').fill('1');
-  await fc.locator('select[name="UnidMedi[]"]').selectOption('3'); await fc.locator('select[name="CodiVia[]"]').selectOption('1');
-  await fc.locator('input[name="CantFrec[]"]').fill('8'); await fc.locator('input[name="CantPeDu[]"]').fill('5');
+  await autocompletar(p, fc.locator('input[name="CodiSumi[]"]'), 'acetamin', 'MP0001'); await fc.locator('input[name="CantSumi[]"]').fill('1000');
+  await fc.locator('select[name="CodiVia[]"]').selectOption('1');
+  for (const [fr, du, dt] of [['12', '5', '2'], ['8', '3', '2'], ['6', '3', '2']]) {
+    await fc.locator('input[name="CantFrec[]"]').fill(fr); await fc.locator('select[name="TiemFrec[]"]').selectOption('1');
+    await fc.locator('input[name="CantPeDu[]"]').fill(du); await fc.locator('select[name="TiemPeDu[]"]').selectOption(dt);
+    console.log(`-- calculo ambulatorio c/${fr} h por ${du} dias: Total (Dosis)`, await fc.locator('input[name="NumeDosi[]"]').inputValue(), 'CantSoli', await fc.locator('input[name="CantSoli[]"]').inputValue());
+  }
+  await foto(p, '59_prescripcion_a_calculo');
   await guardar('#prescripcion button[type=submit]', 'prescripcion A CE guardada');
+  console.log('-- BD DetaPres CE', bd("SELECT CONCAT_WS(' ', CodiSumi, CantSumi, 'c/', CantFrec, TiemFrec, 'x', CantPeDu, TiemPeDu, 'NumeDosi', NumeDosi, 'CantTota', CantTota, 'Contenid', Contenid, 'CantSoli', CantSoli) FROM DetaPres WHERE ConsAdmi = '" + adm.ce + "'"));
   await pestana('notas_medicas');
   await p.fill('#NotaEnfeMed', 'SE ENTREGAN RECOMENDACIONES. (datos inventados)');
   await guardar('#notas_medicas button[type=submit]', 'nota medica CE guardada');
@@ -407,6 +500,19 @@ async function buscarDocumento(p, modulo, tipo, doc) {
   await foto(p, '47_ce_cerrar_historia');
   await p.click('#cerrar-historia button[type=submit]'); await p.waitForLoadState(); await estado(p, 'historia CE cerrada');
   await foto(p, '35_ce_cerrada');
+  // Buscar como SIHOS: número de admisión + Enter abre una historia CERRADA (solo lectura)
+  await p.goto(B + 'atencion.php?modulo=urg&nueva=1');
+  await p.fill('#adm', adm.obs.toLowerCase()); await p.press('#adm', 'Enter'); await p.waitForLoadState();
+  console.log('-- admision cerrada por numero', p.url().replace(B, '/'), JSON.stringify(await p.$eval('.et-estado', e => e.innerText)),
+              'solo lectura:', await p.$$eval('.alerta', l => l.some(x => x.innerText.includes('solo se puede consultar'))));
+  await cerrarAlertas(p);
+  await foto(p, '60_admision_cerrada_por_numero');
+  await p.goto(B + 'atencion.php?modulo=urg&nueva=1');
+  await p.fill('#adm', 'C00000000000'); await p.press('#adm', 'Enter'); await p.waitForLoadState(); await aviso(p, 'admision que no existe');
+  // El documento también abre las cerradas: sin admisión abierta sale la lista de sus admisiones
+  await buscarDocumento(p, 'urg', 'CC', '99000006');
+  console.log('-- admisiones del paciente (documento)', JSON.stringify(await p.$$eval('.tabla-admisiones tbody tr', l => l.map(x => x.innerText.replace(/\s+/g, ' ').trim()))));
+  await foto(p, '61_documento_admisiones_cerradas');
   await p.goto(B + 'atencion.php?modulo=urg&historias=1');
 
   // Salir e ingreso del administrador: el administrador si ve el tablero

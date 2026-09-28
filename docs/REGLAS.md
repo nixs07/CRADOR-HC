@@ -166,7 +166,7 @@ carga (fase 3)** comparando con una admisión real de cada módulo.
 | Consulta (RipsCons) | `UsuaCons = UsuaAsis` = login. `CodiEspe` = especialidad del usuario. Cierre y `TipoCons`: ver "Verificado contra SIHOS". |
 | Antecedentes (Antecede) | Se guarda una fila por consulta, ligada por `ConsCons`. Lo múltiple (familiares, alergias, factores, farmacológicos, preguntas) va en `comu_antecedentes_multiples` (ver al final). Lista Sí/No de SIHOS (`CodiSino`, confirmada): 1 Si, 2 No (por defecto), 3 No Sabe, 4 No Corresponde. En el orden de SIHOS: Planificación (`MetoPlan`), Familiares, Personales, Patológicos, Obstétricos, Ginecológicos, Quirúrgicos, Tóxicos, Alérgicos (`AlerSiNo`), Fisiológicos, Alimentarios, Traumáticos, Farmacológicos y Factor de riesgo (`FactRies`), cada uno con su columna `*Desc` (obligatoria si es Sí). Planificación y Factor de riesgo no tienen columna de descripción. |
 | Examen físico (EstaGene) | Sistemas y etiquetas de SIHOS: Cabeza, Ojos, Oídos, Nariz, Boca, Cuello, Tórax (`CardPulm`), Abdomen, G/U (`GeniUrin`), Ano, Extremidades, Neurológico, Osteomuscular y Piel. Valores: ver "Verificado contra SIHOS". `ConsHoPr = 0`. |
-| Prescripción | `TipoPres` 1 Regular / 2 Control / 3 Domiciliaria (supuesto: en SIHOS solo se usan 0 y 1), `FechEntr = Fecha`, `CodiFina` del detalle = `NULL`, `HoraApli = 0` (no hay catálogo `HoraApli` local), `HoraInic` = hora de la prescripción. `NumeDosi` = duración ÷ frecuencia (en horas, con `CodiTiem` 1 = horas, 2 = días, 3 = meses según el comentario de `DetaPres`) y `CantTota = CantSumi × NumeDosi`. La Nota (`PresMedi`) es obligatoria en la prescripción hospitalaria; en la Prescripción A, si no se escribe, se arma con dosis, vía, frecuencia y duración. `PresSali`: ver "Verificado contra SIHOS". |
+| Prescripción | `TipoPres` 1 Regular / 2 Control / 3 Domiciliaria (supuesto: en SIHOS solo se usan 0 y 1), `FechEntr = Fecha`, `CodiFina` del detalle = `NULL`, `HoraApli` = "Cada" (catálogo `HoraApli`, ver 28/09/2026 al final), `HoraInic` = hora de la prescripción. `NumeDosi` = duración ÷ frecuencia (en horas, con `CodiTiem` 1 = horas, 2 = días, 3 = meses según el comentario de `DetaPres`) y `CantTota = CantSumi × NumeDosi`. La Nota (`PresMedi`) es obligatoria en la prescripción hospitalaria; en la Prescripción A, si no se escribe, se arma con dosis, vía, frecuencia y duración. `PresSali`: ver "Verificado contra SIHOS". |
 | Administración de medicamentos (HojaMedi) | Pestaña Medicamentos. Solo de lo prescrito en la admisión; `Item = Item` de `DetaPres`; `EstaApli = 1`; plan = hora de aplicación. Suma la cantidad en `DetaPres.CantApli`. |
 | Órdenes (EncaOrde/DetaOrde) | Pestaña Ordenación. La finalidad (obligatoria) es de la orden (`EncaOrde.CodiFina`, catálogo `FinaCons`) y `DetaOrde.CodiFina` queda `NULL`. `OrdeAmbu` (Ambulatoria): 1 marcado, 0 no. DXP y DXR1-DXR4 en `CodiDiag`, `CodiRel1-4`. `CantReal` suma al realizar el procedimiento del ítem. |
 | Orden médica en texto | `EncaData/DetaData` con `TipoObje = 7`, `CodiItem` 131 Urgencias / 130 Observación. En Consulta Externa no se muestra. |
@@ -281,8 +281,8 @@ revisión del 26/09/2026 en [`REVISION_SIHOS.md`](REVISION_SIHOS.md), que manda 
   (`CantSoli`) · Nota (`PresMedi`) · Medi. Prin. (`MediPrin`) · Entregado (`CantEntr`, solo lectura). `CantTota` =
   dosis × número de dosis; la duración no está en esa pantalla: **supuesto** `CantPeDu` = número de dosis × cada
   (tope 127, `tinyint`) y `TiemPeDu` = `TiemFrec`. Prescripción A (Consulta Externa): Dosis · Vía · Frecuencia ·
-  Periodo de duración (`CantPeDu/TiemPeDu`) · Total (Dosis) calculado · Cantidad solicitada · Nota. DXP y DXR 1-4 son
-  listas con los diagnósticos de las consultas (`CodiDiag`, `CodiRel1-4`); Responsable de la entrega → `PersEntr`.
+  Periodo de duración (`CantPeDu/TiemPeDu`) · Total (Dosis) calculado · Cantidad solicitada · Nota. DXP es lista con los
+  diagnósticos de las consultas y DXR 1-4 con buscador (`CodiDiag`, `CodiRel1-4`; ver 28/09/2026); Responsable de la entrega → `PersEntr`.
   `PresSali` = 1 en Urgencias/Observación y 2 en Consulta Externa (sin casilla). Tipo "Domiciliaria" = `TipoPres` 3
   (**supuesto**: SIHOS no tiene registros con Control ni Domiciliaria). Un solo buscador por código o nombre llena
   código, nombre, unidad (`CodiSumi.UnidMedi`) y vía (`CodiSumi.ViaAdmin`) de la fila.
@@ -418,7 +418,8 @@ número definitivo.
   trae las columnas, no los tipos): reemplazar por su `SHOW CREATE TABLE` de SIHOS.
 - **A qué tabla apunta el id de medicamento** de `tipo_medicamento_id` / `farmacologico_id` (¿`CodUniPro.id`,
   `IdenUniMedi.id`?). Hoy se usa `CodiSumi.IdenUniMedi_id`.
-- **Método de planificación** (`Antecede.MetoDesc`): no se sabe qué lista usa; se escribe el código a mano.
+- **Método de planificación** (`Antecede.MetoDesc`): lista con los nombres de SIHOS y **códigos provisionales 1..14**
+  (`METODOS_PLANIFICACION` en `src/historia.php`); confirmar con `docs/consultas_sihos.sql`.
 - **Orden y número de las preguntas** 502–510 de la lista 45 (Patológicos 502–508, Obstétricos 509–510 según el
   documento; los textos de prueba son supuestos) y los ids de las listas 46/47 en los datos de prueba (inventados).
 - **Código Dorado**: formato de Acciones inmediatas (`Accinme`) y Continuidad del cuidado (`ContCuid`): siguen deshabilitados.
@@ -441,3 +442,43 @@ número definitivo.
   por orden, por nombre y por panel, como SIHOS (el mismo `CodiObje` por varios grupos ya sale una vez).
 - **Sin "Motivo de ingreso" en el encabezado** (SIHOS no lo tiene ahí): la admisión guarda `Admision.MotiCons = '.'`
   (lo que SIHOS guarda cuando no se escribe). El motivo se registra en el Triage y en la consulta.
+
+## Puntos 3 a 8 de la revisión del Claude local (28/09/2026, `REVISION_CLAUDE_LOCAL.md` en la rama `recorrido-sihos`)
+
+- **DXP (Prescripción, Prescripción A y Ordenación)**: lista con los diagnósticos (principal y Rela 1-4) ya registrados
+  en las consultas de la admisión (`RipsCons`), la más reciente primero; no se digita. Sin consulta la lista queda con
+  "Seleccione un diagnóstico" y no deja guardar: "Debe seleccionar diagnóstico, es obligatorio según la normativa 2275"
+  (el servidor revisa que el código esté en esa lista). DXR 1-4 con buscador CIE-10. "Ningun diagnostico debe repetirse"
+  entre DXP y DXR. Ya no se usa `Admision.DiagIngr` como respaldo del DXP.
+- **Procedimientos**: diagnóstico principal con buscador; por defecto el principal de la consulta más reciente (o el de
+  ingreso si no hay consulta).
+- **Diagnóstico de ingreso (encabezado)**: no se digita al crear la admisión; se muestra en solo lectura. Si
+  `Admision.DiagIngr` está vacío se llena solo (UPDATE en la misma transacción) con el principal de la primera consulta
+  que lo tenga o, si antes se registra un procedimiento, con el `DiagPrin` del primer procedimiento.
+- **Antecedentes (todos)**: con **Si** se habilitan la descripción (obligatoria, "Ingrese una descripción") y los campos
+  adicionales (método, parentesco, diagnóstico, tipo de alergia, medicamento, preguntas, tipo de riesgo); con No / No
+  Sabe / No Corresponde la descripción queda de **solo lectura** (se sigue enviando: **no se borra** un texto que ya
+  exista, p. ej. "NIEGA") y los adicionales deshabilitados. FUR y Fecha Probable del Parto (Consulta Externa) siempre
+  habilitados.
+- **Método de planificación**: lista con nombres (Otro Metodo, Implante Subdermico, … D. Intrauterino levonorgestrel),
+  códigos provisionales 1..14 en `Antecede.MetoDesc`. Mensaje "Debe ingresar un tipo de planificacion familiar".
+- **Aviso de guardado**: los mensajes de la pantalla de trabajo ("… guardada", "No se guardó. …") salen **abajo**, en el
+  pie fijo junto a Continuar (`vista_inicio(..., false)` + `avisos_flash()`), también con errores de validación.
+- **Quedarse en la sección**: al guardar, la pantalla vuelve a la misma pestaña; en Consultas (Urgencias/Observación) al
+  mismo acordeón (`&sec=`), y en Consulta Externa a la pestaña del Guardar pulsado (1, 2, 3, 4 o 7; con errores, a esa
+  misma si tiene alguno, si no a la del primer error). `js/interfaz.js` deja el botón pulsado a la misma altura de la
+  pantalla (sessionStorage, 2 minutos).
+- **Cálculo de la prescripción** (fórmulas del Claude local): `DetaPres.Contenid` = número de `CodiSumi.Contenid`.
+  Hospitalaria: Cada = `HoraApli` (catálogo `HoraApli`, 0 AHORA, 1..24), `NumeDosi` = 24 / horas (AHORA = 1; si no es
+  exacto, la parte entera), máximo 24 horas (`NumeDosi × HoraApli`, "No es posible prescribir para mas de 24 Horas").
+  Ambulatoria: `NumeDosi` = duración en horas / frecuencia en horas (hacia arriba). Las dos: `CantTota = CantSumi ×
+  NumeDosi` y `CantSoli` = redondeo hacia arriba de `CantTota / Contenid`. Todo editable (si el formulario trae
+  `NumeDosi`/`CantSoli` se respetan). **Supuestos**: sin `Contenid` → `CantSoli` = redondeo arriba de `CantTota`; en la
+  hospitalaria `CantFrec = HoraApli`, `TiemFrec = 1`, `CantPeDu = NumeDosi × HoraApli` (tope 127), `TiemPeDu = 1`; en la
+  ambulatoria `HoraApli = 0`. Campo "Cantidad por dosis" más grande.
+- **Catálogo `HoraApli`**: `sql/06_hora_apli.sql`, estructura **provisional** (`CodiHora`, `NombHora`), no se copia de
+  SIHOS hasta confirmarla; si no existe, la app usa 0..24.
+- **Buscar historias**: en el encabezado, número de admisión + Enter (`atencion.php?adm=`) abre cualquier admisión de la
+  contingencia, abierta o cerrada (la cerrada en solo lectura). El documento + Buscar carga el paciente: si tiene
+  admisión abierta la abre; si no, muestra la lista de sus admisiones (cerradas) para abrirlas, y el formulario de
+  nueva admisión. "Historias abiertas" sigue listando solo las abiertas.
