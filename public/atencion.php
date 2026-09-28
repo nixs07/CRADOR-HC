@@ -65,13 +65,9 @@ if ($buscado) {
             [$docTipo, $docNum] = [$candidatos[0]['TipoDocu'], $candidatos[0]['NumeUsua']];
         }
     }
-    if ($pac) {
-        $abierta = admision_abierta_de_paciente($pac['TipoDocu'], $pac['NumeUsua']);
-        if ($abierta) {
-            flash('aviso', 'El paciente ya tiene una admisión abierta.');
-            redirigir('atencion.php?id=' . urlencode($abierta['ConsAdmi']));
-        }
-    }
+    // Como pidió el usuario: buscar al paciente SOLO carga el encabezado; nunca abre una historia ni guarda nada.
+    // Si ya tiene una admisión abierta se avisa con un botón para abrirla (la decisión es del profesional).
+    $abiertaPac = $pac ? admision_abierta_de_paciente($pac['TipoDocu'], $pac['NumeUsua']) : null;
 }
 $urlBusqueda = $base . '&TipoDocu=' . urlencode($docTipo) . '&NumeUsua=' . urlencode($docNum);
 
@@ -408,6 +404,16 @@ vista_inicio($a ? 'Admisión ' . $a['ConsAdmi'] : $mod['nombre'], false);
         <div class="et-aviso">
             <div class="alerta alerta-aviso"><?= icono('triangle-alert') ?><div>No existe un paciente con documento <?= e($docTipo . ' ' . $docNum) ?>.
                 <a href="paciente_nuevo.php?TipoDocu=<?= e(urlencode($docTipo)) ?>&amp;NumeUsua=<?= e(urlencode($docNum)) ?>">Crear paciente nuevo</a>.</div></div>
+        </div>
+    <?php elseif ($pac && !empty($abiertaPac)): ?>
+        <!-- El paciente ya tiene una admisión abierta: NO se abre sola; el profesional decide -->
+        <div class="et-aviso">
+            <div class="alerta alerta-aviso"><?= icono('triangle-alert') ?><div>
+                Este paciente ya tiene la admisión <strong><?= e($abiertaPac['ConsAdmi']) ?></strong> abierta
+                (ingreso <?= e(fecha_hora($abiertaPac['FechIngr'] . ' ' . $abiertaPac['HoraIngr'])) ?>).
+                Para crear otra, primero cierre esa historia.
+                <a href="atencion.php?id=<?= e(urlencode($abiertaPac['ConsAdmi'])) ?>" class="boton boton-claro boton-chico"><?= icono('file-text') ?>Abrir esa admisión</a>
+            </div></div>
         </div>
     <?php endif; ?>
 
