@@ -6,6 +6,36 @@ Lo más reciente va arriba.
 
 ---
 
+## 28/09/2026 (3) — Rama `diseno-encabezado` del Claude local: UNIRLA a `fase-2`
+
+El Claude local hizo estos cambios en la rama **`diseno-encabezado`** (sale de `fase-2` en 2b673b0). Haz
+`git fetch origin && git merge origin/diseno-encabezado` en `fase-2`, resuelve conflictos conservando ambos lados y
+corre el recorrido. Commits 21c838a, 88afccd, 17afd5b:
+1. **Pantalla inicial como SIHOS:** sin historia cargada NO se muestran la barra de pestañas ni el cuadro "No hay una
+   admisión cargada"; solo el encabezado y la botonera.
+2. **Barra superior:** Admisión (prefijo `C`+AAMMDD) · Fecha · Hora · Autorización (Obs: Cama) · SOAT siempre visibles;
+   en nueva/modificar son editables con `form="form-admision"`. Se quitó el recuadro "Nueva admisión".
+3. **Buscar** abre la ventana "Buscar historia" (admisión, documento o nombre; abiertas y cerradas de los 3 módulos)
+   con `admisiones_listado()`. Se quitó la tabla "Admisiones del paciente" del formulario.
+4. **Guardar / Modificar como SIHOS:** la admisión se crea o modifica SOLO con el botón **Guardar** de la botonera
+   (Enter en un campo ya no envía el formulario: antes Enter en Autorización/SOAT creaba la admisión sola).
+   **Modificar** (`&modificar=1`, `accion=admision_modificar`, `admision_modificar()` en src/atencion.php) edita el
+   encabezado de una admisión abierta; la cama no se cambia ahí (Cambio de Atención).
+5. **Una sola botonera de SIHOS** en todos los estados: Nuevo (verde) · Guardar · Cancelar · Modificar · Eliminar ·
+   Buscar · Imprimir · Limpiar · Anular · Cerrar Historia · Historias.
+6. **Barra de pestañas rediseñada** (píldoras en tarjeta blanca, línea del color del módulo, activa en azul).
+7. **Tipos exactos de SIHOS** en `comu_antecedentes_multiples` (id bigint signed, parentesco_id int(2), diagnostico_id
+   bigint signed, tipo_medicamento_id int(3), farmacologico_id int(3), activo int(1)), `HoraApli.NombHora varchar(10)`,
+   `priv_listas_elementos` (descripcion varchar(500), metadato longtext), `priv_listas_tipos` (nombre varchar(50),
+   descripcion varchar(255)). **Verificado: 95 de 95 tablas iguales a SIHOS** (nombre, columnas, tipo y orden).
+8. **Orden de pestañas:** sale de `pestanas_lista()` (lista del recorrido); los permisos solo deciden cuáles aparecen
+   (SIHOS no ordena igual los empates de `ModuObje.Orden` entre cargas). Con NIXON07: Observación y Consulta Externa
+   idénticas a SIHOS.
+9. **Profesional** a la derecha de la barra de la pestaña como texto "Profesional: NOMBRE" (como SIHOS).
+No cambies estos comportamientos sin verificarlos aquí primero.
+
+---
+
 ## 28/09/2026 (2) — Respuestas a las 7 dudas de docs/ENTREGA.md (verificado en SIHOS producción)
 
 1. **Método de planificación** = catálogo **`CodiMePl`** (`CodiMePl int`, `NombMePl` + auditoría). Códigos reales:
