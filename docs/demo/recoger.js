@@ -46,9 +46,9 @@ async function ingresar(p, login) {
     const todos = {};
     for (const a of letras) for (const b of letras) {
       const r = await p.evaluate(u => fetch(u).then(r => r.json()), B + `api.php?que=${que}&q=${a}${b}`);
-      (r || []).forEach(x => { todos[x.c] = x.n; });
+      (r || []).forEach(x => { todos[x.c] = x; });
     }
-    catalogo[que] = Object.entries(todos).map(([c, n]) => ({ c, n }));
+    catalogo[que] = Object.values(todos);
     console.log(que, catalogo[que].length);
   }
   // Administrador
