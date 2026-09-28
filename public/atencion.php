@@ -290,7 +290,15 @@ $mostrar = in_array((int) ($_GET['mostrar'] ?? 25), [10, 25, 50, 100], true) ? (
 $filas = array_values(array_filter($todas, fn ($f) => $serv === '' || $f['ServEgre'] === $serv));
 $totalFiltradas = count($filas);
 $filas = array_slice($filas, 0, $mostrar);
-$historiasAbiertas = isset($_GET['historias']) || (!$a && !$buscado && !isset($_GET['nueva']));
+$historiasAbiertas = isset($_GET['historias']) || (!$a && !$buscado && !isset($_GET['nueva']) && !isset($_GET['buscar']));
+
+// Ventana "Buscar" del encabezado (como SIHOS): por número de admisión, documento o nombre del paciente,
+// abiertas y cerradas, de los 3 módulos. No se mezcla con el formulario de la admisión.
+$buscarAbierto = isset($_GET['buscar']);
+$bq = is_string($_GET['bq'] ?? null) ? mb_substr(trim($_GET['bq']), 0, 60) : '';
+[$resBuscar, $totBuscar] = ($buscarAbierto && $bq !== '')
+    ? admisiones_listado(['desde' => '', 'hasta' => '', 'modulo' => '', 'estado' => '', 'serv' => '', 'q' => $bq], 1, 50)
+    : [[], 0];
 
 // Campos de signos con prefijo en el id cuando conviven los formularios de triage y signos
 $prefijoSignos = 'toma-';
@@ -312,14 +320,12 @@ vista_inicio($a ? 'Admisión ' . $a['ConsAdmi'] : $mod['nombre'], false);
             <form method="get" action="atencion.php" class="et-buscar-admision" role="search">
                 <input type="hidden" name="modulo" value="<?= e($clave) ?>">
                 <label class="et-etiqueta" for="adm">Admisión</label>
-                <input type="text" id="adm" name="adm" value="<?= $a ? e($a['ConsAdmi']) : '' ?>" maxlength="14" autocomplete="off"
-                       placeholder="<?= $pac ? 'Nueva' : 'Número + Enter' ?>" title="Escriba el número de admisión y pulse Enter (abiertas y cerradas)"
+                <input type="text" id="adm" name="adm" value="<?= $a ? e($a['ConsAdmi']) : 'C' . date('ymd') ?>" maxlength="14" autocomplete="off"
+                       placeholder="Número + Enter" title="Escriba el número de admisión y pulse Enter (abiertas y cerradas)"
                        inputmode="text" spellcheck="false">
             </form>
             <?php if ($a): [$estado, $claseEstado] = admision_estado($a); ?>
                 <span class="etiqueta" title="Número temporal: al cargar a SIHOS se asigna el definitivo">Temporal</span>
-            <?php elseif ($pac): ?>
-                <span class="etiqueta etiqueta-curso">Nueva admisión</span>
             <?php endif; ?>
         </div>
         <?php if ($a): ?>
@@ -333,6 +339,23 @@ vista_inicio($a ? 'Admisión ' . $a['ConsAdmi'] : $mod['nombre'], false);
             <?php endif; ?>
             <?= campo_lectura('SOAT', $a['NumePoli'], 'c-auto') ?>
             <span class="etiqueta etiqueta-<?= e($claseEstado) ?> et-estado"><?= e($estado) ?></span>
+        </div>
+        <?php elseif ($pac): ?>
+        <!-- Nueva admisión: los campos de la barra pertenecen al formulario de la admisión (atributo form) -->
+        <div class="et-barra-campos et-barra-edicion">
+            <div class="c-fecha"><label for="FechIngr">Fecha</label>
+                <input type="date" id="FechIngr" name="FechIngr" form="form-admision" value="<?= v($d, 'FechIngr') ?>" max="<?= date('Y-m-d') ?>" class="<?= ce($eA, 'FechIngr') ?>" required></div>
+            <div class="c-hora"><label for="HoraIngr">Hora</label>
+                <input type="time" id="HoraIngr" name="HoraIngr" form="form-admision" value="<?= e(substr($d['HoraIngr'], 0, 5)) ?>" class="<?= ce($eA, 'HoraIngr') ?>" required></div>
+            <div class="c-auto"><label for="NumeAuto">Autorización</label>
+                <input type="text" id="NumeAuto" name="NumeAuto" form="form-admision" value="<?= v($d, 'NumeAuto') ?>" maxlength="50"></div>
+            <div class="c-auto"><label for="NumePoli">SOAT</label>
+                <input type="text" id="NumePoli" name="NumePoli" form="form-admision" value="<?= v($d, 'NumePoli') ?>" maxlength="30" title="Póliza SOAT (accidentes de tránsito)"></div>
+        </div>
+        <?php else: ?>
+        <div class="et-barra-campos">
+            <?= campo_lectura('Fecha', '', 'c-fecha') ?><?= campo_lectura('Hora', '', 'c-hora') ?>
+            <?= campo_lectura($clave === 'obs' ? 'Cama' : 'Autorización', '', 'c-auto') ?><?= campo_lectura('SOAT', '', 'c-auto') ?>
         </div>
         <?php endif; ?>
     </div>
@@ -394,60 +417,29 @@ vista_inicio($a ? 'Admisión ' . $a['ConsAdmi'] : $mod['nombre'], false);
         </div>
         <!-- Botones del encabezado de SIHOS (los que no aplican en contingencia, deshabilitados) -->
         <div class="et-acciones-sihos">
+            <a href="<?= e($base) ?>&amp;nueva=1" class="boton boton-nuevo-sihos"><?= icono('user-plus') ?>Nuevo</a>
             <button type="button" class="boton boton-claro" disabled title="No disponible"><?= icono('pencil') ?>Modificar</button>
             <button type="button" class="boton boton-claro" disabled title="No disponible"><?= icono('trash-2') ?>Eliminar</button>
-            <button type="submit" form="form-buscar" class="boton boton-claro"><?= icono('search') ?>Buscar</button>
+            <a href="<?= e($aqui) ?>&amp;buscar=1" class="boton boton-claro" data-abrir-ventana="buscar-historia"><?= icono('search') ?>Buscar</a>
             <button type="button" class="boton boton-claro" disabled title="No disponible"><?= icono('printer') ?>Imprimir</button>
             <a href="<?= e($base) ?>&amp;nueva=1" class="boton boton-claro" title="Vaciar el encabezado"><?= icono('x') ?>Limpiar</a>
             <button type="button" class="boton boton-claro" disabled title="No disponible"><?= icono('ban') ?>Anular</button>
             <?php if ($editable): ?>
                 <a href="<?= e($aqui) ?>&amp;tab=<?= e($tab) ?>&amp;cerrar=1" class="boton boton-peligro" data-abrir-ventana="cerrar-historia"><?= icono('log-out') ?>Cerrar Historia</a>
             <?php else: ?>
-                <button type="button" class="boton boton-peligro" disabled title="La historia ya está cerrada"><?= icono('log-out') ?>Cerrar Historia</button>
+                <button type="button" class="boton boton-peligro" disabled title="<?= $a ? 'La historia ya está cerrada' : 'Cargue una historia' ?>"><?= icono('log-out') ?>Cerrar Historia</button>
             <?php endif; ?>
             <span class="et-sep"></span>
             <a href="<?= e($base) ?>&amp;historias=1" class="boton boton-claro" data-abrir-ventana="historias"><?= icono('clipboard-list') ?>Historias <span class="contador" title="Abiertas"><?= $abiertasModulo ?></span></a>
-            <a href="<?= e($base) ?>&amp;nueva=1" class="boton boton-claro"><?= icono('user-plus') ?>Nueva admisión</a>
         </div>
 
     <?php elseif ($pac): ?>
-        <?php $anterioresPac = admisiones_de_paciente($pac['TipoDocu'], $pac['NumeUsua']); if ($anterioresPac): ?>
-        <!-- Como SIHOS: el documento abre también las historias CERRADAS del paciente (en solo lectura) -->
-        <div class="admisiones-paciente">
-            <h3><?= icono('history') ?>Admisiones del paciente (<?= count($anterioresPac) ?>): clic para abrirla</h3>
-            <div class="tabla-contenedor tabla-tarjetas">
-            <table class="tabla tabla-admisiones">
-                <thead><tr><th>Admisión</th><th>Ingreso</th><th>Servicio</th><th>Diagnóstico</th><th>Estado</th><th>Egreso</th></tr></thead>
-                <tbody>
-                <?php foreach ($anterioresPac as $ap): [$estAp, $claseAp] = admision_estado($ap); $urlAp = 'atencion.php?id=' . urlencode($ap['ConsAdmi']); ?>
-                    <tr data-href="<?= e($urlAp) ?>">
-                        <td data-etiqueta="Admisión" class="celda-codigo"><a href="<?= e($urlAp) ?>"><?= e($ap['ConsAdmi']) ?></a></td>
-                        <td data-etiqueta="Ingreso" class="sin-salto"><?= e(fecha_hora($ap['FechIngr'] . ' ' . $ap['HoraIngr'])) ?></td>
-                        <td data-etiqueta="Servicio"><?= e($ap['NombServ'] ?? $ap['ServEgre']) ?></td>
-                        <td data-etiqueta="Diagnóstico"><?= e(diag_texto(diag_ingreso($ap))) ?></td>
-                        <td data-etiqueta="Estado"><span class="etiqueta etiqueta-<?= e($claseAp) ?>"><?= e($estAp) ?></span></td>
-                        <td data-etiqueta="Egreso" class="sin-salto"><?= ($ap['FechEgre'] ?? '0000-00-00') > '0000-00-00' ? e(fecha_hora($ap['FechEgre'] . ' ' . $ap['HoraEgre'])) : '' ?></td>
-                    </tr>
-                <?php endforeach; ?>
-                </tbody>
-            </table>
-            </div>
-        </div>
-        <?php endif; ?>
         <!-- Paciente sin admision abierta: el encabezado queda editable para crearla aqui mismo -->
         <form method="post" action="<?= e($urlBusqueda) ?>" class="formulario et-form" id="form-admision" data-una-vez>
             <?= csrf_campo() ?>
             <input type="hidden" name="accion" value="admision">
             <?= errores_resumen($eA) ?>
             <div class="et-fila">
-                <div class="c-2"><label for="FechIngr">Fecha</label>
-                    <input type="date" id="FechIngr" name="FechIngr" value="<?= v($d, 'FechIngr') ?>" max="<?= date('Y-m-d') ?>" class="<?= ce($eA, 'FechIngr') ?>" required><?= me($eA, 'FechIngr') ?></div>
-                <div class="c-2"><label for="HoraIngr">Hora</label>
-                    <input type="time" id="HoraIngr" name="HoraIngr" value="<?= e(substr($d['HoraIngr'], 0, 5)) ?>" class="<?= ce($eA, 'HoraIngr') ?>" required><?= me($eA, 'HoraIngr') ?></div>
-                <div class="c-1"><label for="NumeAuto">Autorización</label>
-                    <input type="text" id="NumeAuto" name="NumeAuto" value="<?= v($d, 'NumeAuto') ?>" maxlength="50"></div>
-                <div class="c-1"><label for="NumePoli">SOAT</label>
-                    <input type="text" id="NumePoli" name="NumePoli" value="<?= v($d, 'NumePoli') ?>" maxlength="30" title="Póliza SOAT (accidentes de tránsito)"></div>
                 <div class="c-3"><label for="CodiServ">Servicio</label>
                     <select id="CodiServ" name="CodiServ" class="<?= ce($eA, 'CodiServ') ?>" required><?= opciones_arreglo($servicios, $d['CodiServ'], false) ?></select><?= me($eA, 'CodiServ') ?></div>
                 <?php if ($mod['cama']): ?>
@@ -505,7 +497,7 @@ vista_inicio($a ? 'Admisión ' . $a['ConsAdmi'] : $mod['nombre'], false);
                     <input type="text" id="TeleAcom" name="TeleAcom" value="<?= v($d, 'TeleAcom') ?>" maxlength="10" inputmode="tel"></div>
             </div>
             <div class="acciones et-acciones">
-                <button type="submit" class="boton boton-primario"><?= icono('save') ?>Crear admisión</button>
+                <button type="submit" class="boton boton-nuevo-sihos"><?= icono('save') ?>Crear admisión</button>
                 <a href="<?= e($base) ?>&amp;nueva=1" class="boton boton-claro"><?= icono('x') ?>Cancelar</a>
                 <a href="<?= e($base) ?>&amp;historias=1" class="boton boton-claro" data-abrir-ventana="historias"><?= icono('clipboard-list') ?>Historias</a>
             </div>
@@ -519,10 +511,22 @@ vista_inicio($a ? 'Admisión ' . $a['ConsAdmi'] : $mod['nombre'], false);
             <?= campo_lectura('Causa Externa', '', 'c-3') ?><?= campo_lectura('Estado Ingreso', '', 'c-1') ?><?= campo_lectura('Condición', '', 'c-2') ?>
             <?= campo_lectura('Discapacidad', '', 'c-2') ?><?= campo_lectura('Diagnóstico', '', 'c-4') ?>
         </div>
-        <p class="et-ayuda"><?= icono('info') ?><span>Escriba el documento y pulse <strong>Buscar</strong> para cargar al paciente, escriba el <strong>número de admisión</strong> y pulse <strong>Enter</strong> (abiertas y cerradas), o abra <strong>Historias</strong>.</span></p>
+        <p class="et-ayuda"><?= icono('info') ?><span>Para una admisión nueva escriba el <strong>documento</strong> del paciente. Para abrir una historia escriba su <strong>número de admisión</strong> y pulse <strong>Enter</strong>, o use <strong>Buscar</strong> (por admisión, documento o nombre) o <strong>Historias</strong>.</span></p>
         <div class="et-acciones-sihos">
+            <a href="<?= e($base) ?>&amp;nueva=1" class="boton boton-nuevo-sihos"><?= icono('user-plus') ?>Nuevo</a>
+            <button type="button" class="boton boton-claro" disabled title="No disponible"><?= icono('pencil') ?>Modificar</button>
+            <button type="button" class="boton boton-claro" disabled title="No disponible"><?= icono('trash-2') ?>Eliminar</button>
+            <a href="<?= e($aqui) ?>&amp;buscar=1" class="boton boton-claro" data-abrir-ventana="buscar-historia"><?= icono('search') ?>Buscar</a>
+            <button type="button" class="boton boton-claro" disabled title="No disponible"><?= icono('printer') ?>Imprimir</button>
+            <a href="<?= e($base) ?>&amp;nueva=1" class="boton boton-claro" title="Vaciar el encabezado"><?= icono('x') ?>Limpiar</a>
+            <button type="button" class="boton boton-claro" disabled title="No disponible"><?= icono('ban') ?>Anular</button>
+            <?php if ($editable): ?>
+                <a href="<?= e($aqui) ?>&amp;tab=<?= e($tab) ?>&amp;cerrar=1" class="boton boton-peligro" data-abrir-ventana="cerrar-historia"><?= icono('log-out') ?>Cerrar Historia</a>
+            <?php else: ?>
+                <button type="button" class="boton boton-peligro" disabled title="<?= $a ? 'La historia ya está cerrada' : 'Cargue una historia' ?>"><?= icono('log-out') ?>Cerrar Historia</button>
+            <?php endif; ?>
+            <span class="et-sep"></span>
             <a href="<?= e($base) ?>&amp;historias=1" class="boton boton-claro" data-abrir-ventana="historias"><?= icono('clipboard-list') ?>Historias <span class="contador" title="Abiertas"><?= $abiertasModulo ?></span></a>
-            <a href="<?= e($base) ?>&amp;nueva=1" class="boton boton-claro"><?= icono('user-plus') ?>Nueva admisión</a>
         </div>
     <?php endif; ?>
 </section>
@@ -560,17 +564,12 @@ if ($a) {
                 'cambio' => $clave === 'obs' ? count(traslados_de_admision($a['ConsAdmi'])) : 0,
                 'egreso' => $egreso ? 1 : 0];
 }
-pestanas_historia($a, $mod, $tab, $conteos ?? []);
+if ($a) {
+    pestanas_historia($a, $mod, $tab, $conteos);
+}
 ?>
 
-<?php if (!$a): ?>
-    <section class="panel panel-vacio">
-        <div class="panel-cuerpo">
-            <?= icono('clipboard-list') ?>
-            <p><strong>No hay una admisión cargada.</strong><br>Las pestañas se activan al cargar una historia abierta o crear la admisión.</p>
-        </div>
-    </section>
-<?php else: ?>
+<?php if ($a): ?>
 
 <?php if ($tieneTriage): ?>
 <section id="triage" class="seccion panel" data-panel="triage"<?= $tab === 'triage' ? '' : ' hidden' ?>>
@@ -848,6 +847,50 @@ if ($erroresPantalla) {
         </table>
         </div>
         <p class="nota-campo">Mostrando <?= count($filas) ?> de <?= $totalFiltradas ?> registros.</p>
+        <?php endif; ?>
+        </div>
+    </div>
+</div>
+<!-- Ventana "Buscar" del encabezado (como SIHOS): admisión, documento o nombre; abiertas y cerradas de los 3 módulos -->
+<div class="ventana" id="buscar-historia" role="dialog" aria-modal="true" aria-labelledby="buscar-titulo"<?= $buscarAbierto ? '' : ' hidden' ?>>
+    <div class="ventana-caja">
+        <div class="ventana-cabeza">
+            <h2 id="buscar-titulo"><?= icono('search') ?>Buscar historia</h2>
+            <a href="<?= e($aqui) ?><?= $a ? '' : '&amp;nueva=1' ?>" class="boton-icono" data-cerrar-ventana aria-label="Cerrar"><?= icono('x') ?></a>
+        </div>
+        <form method="get" action="atencion.php" class="buscador buscar-historia">
+            <input type="hidden" name="modulo" value="<?= e($clave) ?>">
+            <input type="hidden" name="buscar" value="1">
+            <div class="buscador-campo"><?= icono('search') ?>
+                <input type="text" name="bq" value="<?= e($bq) ?>" placeholder="Número de admisión, documento o nombre del paciente" aria-label="Buscar historia" autocomplete="off"<?= $buscarAbierto ? ' autofocus' : '' ?>>
+            </div>
+            <button type="submit" class="boton boton-primario"><?= icono('search') ?>Buscar</button>
+        </form>
+        <div class="ventana-cuerpo">
+        <?php if ($bq === ''): ?>
+            <div class="alerta vacio"><?= icono('info') ?><div>Escriba el <strong>número de admisión</strong> (ej. C26092800001), el <strong>documento</strong> o el <strong>nombre</strong> del paciente. Salen las historias abiertas y cerradas de los tres módulos.</div></div>
+        <?php elseif (!$resBuscar): ?>
+            <div class="alerta vacio"><?= icono('info') ?><div>No se encontró ninguna historia con “<?= e($bq) ?>”.</div></div>
+        <?php else: ?>
+        <div class="tabla-contenedor tabla-tarjetas">
+        <table class="tabla tabla-historias">
+            <thead><tr><th>Admisión</th><th>Paciente</th><th>Ingreso</th><th>Servicio</th><th>Diagnóstico</th><th>Estado</th></tr></thead>
+            <tbody>
+            <?php foreach ($resBuscar as $r): $url = 'atencion.php?id=' . urlencode($r['ConsAdmi']); [$er, $cr] = admision_estado($r); ?>
+                <tr data-href="<?= e($url) ?>"<?= (int) $r['Cerrado'] === 1 ? ' class="fila-cerrada"' : '' ?>>
+                    <td data-etiqueta="Admisión" class="celda-codigo"><a href="<?= e($url) ?>"><?= e($r['ConsAdmi']) ?></a></td>
+                    <td class="celda-principal celda-paciente" data-etiqueta="Paciente"><a href="<?= e($url) ?>"><?= e(paciente_nombre($r)) ?></a>
+                        <small class="bloque"><?= e($r['TipoDocu'] . ' ' . $r['NumeUsua']) ?></small></td>
+                    <td data-etiqueta="Ingreso" class="sin-salto"><?= e(fecha_hora($r['FechIngr'] . ' ' . $r['HoraIngr'])) ?></td>
+                    <td data-etiqueta="Servicio"><?= e($r['NombServ'] ?? $r['ServEgre']) ?></td>
+                    <td data-etiqueta="Diagnóstico"><?= e(diag_texto(diag_ingreso($r))) ?></td>
+                    <td data-etiqueta="Estado"><span class="etiqueta etiqueta-<?= e($cr) ?>"><?= e($er) ?></span></td>
+                </tr>
+            <?php endforeach; ?>
+            </tbody>
+        </table>
+        </div>
+        <p class="nota-campo">Mostrando <?= count($resBuscar) ?> de <?= $totBuscar ?> historias.</p>
         <?php endif; ?>
         </div>
     </div>
