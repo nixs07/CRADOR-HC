@@ -5,3 +5,6 @@
 *.sql.gz
 *.bak
 respaldos/
+docs/demo/recogido.json
+docs/demo/index.html
+.claude/worktrees/

@@ -22,10 +22,10 @@ set_exception_handler(function (Throwable $e): void {
         http_response_code(500);
     }
     $sinBd = $e instanceof PDOException && stripos($e->getMessage(), 'SQLSTATE[HY000] [') !== false;
-    echo '<!DOCTYPE html><html lang="es"><head><meta charset="utf-8"><title>Error · CRADOR-HC</title>'
+    echo '<!DOCTYPE html><html lang="es"><head><meta charset="utf-8"><title>Error · HSCJ</title>'
        . '<link rel="stylesheet" href="css/estilo.css"></head><body><main class="contenido">'
        . '<div class="alerta alerta-error"><strong>'
-       . ($sinBd ? 'No hay conexión con la base de datos local de la contingencia.'
+       . ($sinBd ? 'No hay conexión con la base de datos local.'
                  : 'Ocurrió un error inesperado.')
        . '</strong><br>Avise a sistemas. Hora: ' . date('d/m/Y H:i:s') . '</div>'
        . '<p><a href="index.php">Volver al inicio</a></p></main></body></html>';

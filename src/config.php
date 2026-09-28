@@ -57,4 +57,26 @@ const MODULOS = [
     'Consulta Externa'          => ['001', '013'],
 ];
 
+/** Codigo de la institucion en SIHOS (Admision.CodiInst y demas tablas). */
+const CODI_INST = '868650001001';
+
+/**
+ * Datos de cada modulo para registrar atenciones (ver docs/REGLAS.md).
+ *  clave      : se usa en las URL (atencion.php?modulo=urg)
+ *  servicios  : Admision.CodiServ permitidos (el primero es el de defecto)
+ *  TipoAten   : Admision.TipoAten
+ *  CodiModu   : SignVita.CodiModu y demas tablas con modulo
+ *  ViaIngre   : via de ingreso por defecto (lo mas usado en SIHOS)
+ *  cama       : si la admision exige cama (Observacion)
+ *  triage     : si el modulo registra triage (solo Urgencias)
+ */
+const MODULOS_DETALLE = [
+    'urg' => ['nombre' => 'Urgencias', 'servicios' => ['007'], 'TipoAten' => 3, 'CodiModu' => 6,
+              'ViaIngre' => 1, 'cama' => false, 'triage' => true],
+    'obs' => ['nombre' => 'Observación e Internación', 'servicios' => ['008'], 'TipoAten' => 3, 'CodiModu' => 8,
+              'ViaIngre' => 1, 'cama' => true, 'triage' => false],
+    'ce'  => ['nombre' => 'Consulta Externa', 'servicios' => ['001', '013'], 'TipoAten' => 1, 'CodiModu' => 5,
+              'ViaIngre' => 2, 'cama' => false, 'triage' => false],
+];
+
 date_default_timezone_set(config('TZ', 'America/Bogota'));

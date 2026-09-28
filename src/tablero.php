@@ -39,3 +39,22 @@ function tablero_cargas(): array
     }
     return $r;
 }
+
+/**
+ * Admisiones abiertas de Urgencias por clasificacion de triage.
+ * Devuelve [1 => n, 2 => n, ... 5 => n, 0 => n sin triage].
+ */
+function tablero_triage_urgencias(): array
+{
+    $r = [1 => 0, 2 => 0, 3 => 0, 4 => 0, 5 => 0, 0 => 0];
+    $servicios = MODULOS_DETALLE['urg']['servicios'];
+    $marcas = implode(',', array_fill(0, count($servicios), '?'));
+    $st = db()->prepare("SELECT ClasTria, COUNT(*) AS total FROM Admision
+                          WHERE Cerrado = 2 AND Anulado = 2 AND CodiServ IN ($marcas) GROUP BY ClasTria");
+    $st->execute($servicios);
+    foreach ($st as $fila) {
+        $c = (int) $fila['ClasTria'];
+        $r[isset($r[$c]) ? $c : 0] += (int) $fila['total'];
+    }
+    return $r;
+}

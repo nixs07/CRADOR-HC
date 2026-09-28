@@ -15,6 +15,7 @@
 -- fechas relativas al dia en que se carga (CURDATE()).
 -- Tablero esperado: Urgencias 3, Observacion 2, Consulta Externa 3 abiertas,
 -- 6 admisiones del dia, 4 pendientes por cargar a SIHOS (1 con error, 1 cargada).
+-- Pacientes 99000006, 99000007 y 99000008 no tienen admision: sirven para probar "Nueva admision".
 -- =====================================================================
 
 SET NAMES utf8;
@@ -60,14 +61,157 @@ REPLACE INTO Contrato (CodiInst, NumeCont, NumeCon1, CodiAdmi, DescCont, CodiMan
  ('868650001001', 'PRU-002', 'PRU-002', 'EPSP02', 'CONTRATO DE PRUEBA CONTRIBUTIVO EVENTO', 'SOAT', 'SOAT', '01',
   CONCAT(YEAR(CURDATE()), '-01-01'), CONCAT(YEAR(CURDATE()), '-12-31'), 1, 1, 1, '01', '');
 
+-- --- Catalogos para registrar atenciones (fase 2), con codigos reales de SIHOS --
+REPLACE INTO TipoAfil (CodiTipo, NombTipo) VALUES ('A', 'ADICIONAL'), ('B', 'BENEFICIARIO'), ('C', 'COTIZANTE'), ('D', 'NO APLICA');
+REPLACE INTO CodiEstr (CodiEstr, NombEstr) VALUES ('0', 'NIVEL CERO'), ('1', 'NIVEL UNO'), ('2', 'NIVEL DOS'), ('A', 'CATEGORIA A'), ('B', 'CATEGORIA B');
+REPLACE INTO AdmiEstr (CodiInst, CodiAdmi, TiDoTerc, NuDoTerc, CodiEstr, TipoAten, TipoAfil, EstaEstr) VALUES
+ ('868650001001', 'EPSP01', 'NI', '800000001', '1', 3, 'D', 1), ('868650001001', 'EPSP01', 'NI', '800000001', '2', 3, 'D', 1),
+ ('868650001001', 'EPSP01', 'NI', '800000001', '1', 1, 'D', 1),
+ ('868650001001', 'EPSP02', 'NI', '800000002', 'A', 3, 'C', 1), ('868650001001', 'EPSP02', 'NI', '800000002', 'B', 3, 'B', 1),
+ ('868650001001', 'EPSP02', 'NI', '800000002', 'A', 1, 'C', 1), ('868650001001', 'EPSP02', 'NI', '800000002', 'A', 3, 'B', 1);
+REPLACE INTO CodiDepa (CodiDepa, NombDepa) VALUES ('86', 'Putumayo'), ('52', 'Nariño');
+REPLACE INTO CodiMuni (CodiDepa, CodiMuni, NombMuni) VALUES ('86', '001', 'MOCOA'), ('86', '568', 'PUERTO ASIS'),
+ ('86', '757', 'SAN MIGUEL'), ('86', '865', 'VALLE DEL GUAMEZ HORMIGA'), ('52', '001', 'PASTO');
+REPLACE INTO CodiZona (CodiZona, NombZona) VALUES ('U', 'Urbana'), ('R', 'Rural');
+REPLACE INTO ViaIngre (CodiVia, NombVia, ValoDefe) VALUES (1, 'Urgencias', 0), (2, 'Consulta Externa o programada', 1), (3, 'Remitido', 0);
+REPLACE INTO CausExte (CodiMoti, NombMoti, ValoDefe) VALUES ('01', 'Accidente de Trabajo', 0), ('02', 'Accidente de Transito', 0),
+ ('05', 'Otro tipo de Accidente', 0), ('13', 'Enfermedad General.', 0), ('15', 'Pym - intevenciones individual', 0);
+REPLACE INTO CondUsua (CodiCond, NombCond, ValoDefe) VALUES (1, 'Trimestre1', 0), (2, 'Trimestre2', 0), (3, 'Trimestre3', 0),
+ (4, 'No Embarazada', 1), (5, 'No Aplica', 1);
+REPLACE INTO GrupAten (CodiGrup, NombGrup, ValoDefe) VALUES ('O', 'Otros Grupos Poblacionales', 0), ('D', 'Desplazados', 0),
+ ('G', 'Gestantes', 0), ('I', 'Indigena', 0), ('M', 'Migrantes', 0);
+REPLACE INTO TipoAcom (CodiTipo, NombTipo, ValoDefe) VALUES (1, 'Solo', 1), (2, 'Familiar', 0), (3, 'Policia', 0), (4, 'Otro', 0);
+REPLACE INTO Parentes (CodiPare, codigo, NombPare, activo) VALUES (1, '01', 'Padres', 1), (2, '02', 'Madre', 1), (5, '05', 'Hijo (a)', 1);
+REPLACE INTO ClasTria (CodiTria, NombTria) VALUES (1, 'Triage I'), (2, 'Triage II'), (3, 'Triage III'), (4, 'Triage IV'), (5, 'Triage V');
+REPLACE INTO CondTria (CodiTipo, NombTipo) VALUES (1, 'Urgencias'), (2, 'Prioritaria'), (3, 'Manejo en casa'), (4, 'Consulta Externa');
+REPLACE INTO CodiCama (CodiInst, CodiCama, NombCama, CodiServ, Activa) VALUES
+ ('868650001001', 'HOSP09', 'CAMA HOSPITALIZACION 9', '008', 1), ('868650001001', 'HOSP10', 'HOSPITALIZACION CAMA 10', '008', 1),
+ ('868650001001', 'PED01', 'PEDIATRIA 1', '008', 1);
+REPLACE INTO CausMorb (CodiDiag, NombCaus, Activo) VALUES ('R101', 'DOLOR ABDOMINAL LOCALIZADO EN PARTE SUPERIOR', 1),
+ ('R103', 'DOLOR LOCALIZADO EN OTRAS PARTES INFERIORES DEL ABDOMEN', 1), ('K529', 'COLITIS Y GASTROENTERITIS NO INFECCIOSAS, NO ESPECIFICADAS', 1),
+ ('R509', 'FIEBRE, NO ESPECIFICADA', 1), ('J00X', 'RINOFARINGITIS AGUDA (RESFRIADO COMUN)', 1), ('A09X', 'DIARREA Y GASTROENTERITIS DE PRESUNTO ORIGEN INFECCIOSO', 1),
+ ('R51X', 'CEFALEA', 1), ('I10X', 'HIPERTENSION ESENCIAL (PRIMARIA)', 1), ('Z000', 'EXAMEN MEDICO GENERAL', 1);
+
+-- --- Catalogos para las pestañas de la historia (fase 2, bloque 2) ---------
+-- Filas INVENTADAS con codigos plausibles (RIPS / CUPS / CUM de ejemplo). En produccion
+-- estos catalogos se copian de SIHOS con "Actualizar catalogos".
+REPLACE INTO FinaCons (CodiFina, NombFina, Formular, Activo) VALUES
+ ('10', 'NO APLICA', '', 1), ('01', 'ATENCION DEL PARTO (PUERPERIO)', '', 1),
+ ('07', 'DETECCION DE ALTERACIONES DEL ADULTO', '', 1);
+REPLACE INTO TipoDiag (CodiDiag, NombDiag) VALUES (1, 'IMPRESION DIAGNOSTICA'), (2, 'CONFIRMADO NUEVO'), (3, 'CONFIRMADO REPETIDO');
+REPLACE INTO CodiProc (CodiProc, NombProc, CodiCups, CodiSoat, CodiISS, TipoServ, TrasCheck, TrasChek, Activo) VALUES
+ ('890201', 'CONSULTA DE PRIMERA VEZ POR MEDICINA GENERAL', '890201', '', '', 1, 0, 0, 1),
+ ('890701', 'CONSULTA DE URGENCIAS POR MEDICINA GENERAL', '890701', '', '', 1, 0, 0, 1),
+ ('890601', 'CUIDADO (MANEJO) INTRAHOSPITALARIO POR MEDICINA GENERAL', '890601', '', '', 1, 0, 0, 1),
+ ('89060102', 'CONSULTA DE CONTROL EN OBSERVACION POR MEDICINA GENERAL', '89060102', '', '', 1, 0, 0, 1),
+ ('890301', 'CONSULTA DE CONTROL POR MEDICINA GENERAL', '890301', '', '', 1, 0, 0, 1),
+ ('890208', 'CONSULTA DE PRIMERA VEZ POR ENFERMERIA', '890208', '', '', 1, 0, 0, 1),
+ ('902210', 'HEMOGRAMA IV (HEMOGLOBINA HEMATOCRITO RECUENTO DE ERITROCITOS...)', '902210', '', '', 2, 0, 0, 1),
+ ('903841', 'GLUCOSA EN SUERO U OTRO FLUIDO DIFERENTE A ORINA', '903841', '', '', 2, 0, 0, 1),
+ ('907106', 'UROANALISIS', '907106', '', '', 2, 0, 0, 1),
+ ('871121', 'RADIOGRAFIA DE TORAX (P.A. O A.P. Y LATERAL)', '871121', '', '', 3, 0, 0, 1),
+ ('939403', 'TERAPIA RESPIRATORIA (NEBULIZACION)', '939403', '', '', 4, 0, 0, 1),
+ ('869500', 'CURACION DE HERIDA', '869500', '', '', 4, 0, 0, 1);
+REPLACE INTO CodiSumi (CodiSumi, NombSumi, CodiGrup, UnidMedi, SumiActi, NumeSeri, ModeDevo, RotuDevo, FechComp, UltiDepr,
+                       BodeActu, CodiServ, TiDoReSe, NuDoReSe, CodiDocu, NumeDocu, ConsDevo, EstaDevo, CodiTerc, NumeTerc,
+                       NumeFact, FechVida, MeDeprec, MeseDepr, DiasDepr) VALUES
+ ('MP0001', 'ACETAMINOFEN 500 MG TABLETA', 'MED', 3, 1, '', '', '', '0000-00-00', '0000-00-00', 0, '', '', '', '', 0, 0, 0, '', '', '', '0000-00-00', 0, 0, 0),
+ ('MP0002', 'DIPIRONA 1 G / 2 ML SOLUCION INYECTABLE', 'MED', 4, 1, '', '', '', '0000-00-00', '0000-00-00', 0, '', '', '', '', 0, 0, 0, '', '', '', '0000-00-00', 0, 0, 0),
+ ('MP0003', 'CLORURO DE SODIO 0.9% SOLUCION 500 ML', 'MED', 2, 1, '', '', '', '0000-00-00', '0000-00-00', 0, '', '', '', '', 0, 0, 0, '', '', '', '0000-00-00', 0, 0, 0),
+ ('MP0004', 'OMEPRAZOL 20 MG CAPSULA', 'MED', 3, 1, '', '', '', '0000-00-00', '0000-00-00', 0, '', '', '', '', 0, 0, 0, '', '', '', '0000-00-00', 0, 0, 0),
+ ('MP0005', 'METOCLOPRAMIDA 10 MG / 2 ML SOLUCION INYECTABLE', 'MED', 4, 1, '', '', '', '0000-00-00', '0000-00-00', 0, '', '', '', '', 0, 0, 0, '', '', '', '0000-00-00', 0, 0, 0);
+REPLACE INTO ViaAdmi (CodiVia, codigo, NombVia, activo) VALUES (1, '048', 'ORAL', 1), (2, '042', 'INTRAVENOSA', 1),
+ (3, '030', 'INTRAMUSCULAR', 1), (4, '058', 'SUBCUTANEA', 1), (5, '067', 'TOPICA', 1);
+REPLACE INTO UnidMedi (CodiUnid, NombUnid, ViaAdmi) VALUES (1, 'MG', 1), (2, 'ML', 2), (3, 'TABLETA', 1), (4, 'AMPOLLA', 2), (5, 'GOTAS', 1);
+REPLACE INTO CodiTiem (CodiTiem, codigo, NombTiem, activo) VALUES (1, '1', 'HORA(S)', 1), (2, '2', 'DIA(S)', 1), (3, '3', 'MES(ES)', 1);
+REPLACE INTO FinaProc (CodiFina, NombFina, FinaProcSispro, Activo) VALUES (1, 'DIAGNOSTICO', 15, 1), (2, 'TERAPEUTICO', 16, 1),
+ (3, 'PROTECCION ESPECIFICA', 17, 1), (4, 'DETECCION TEMPRANA', 18, 1);
+-- Consultorios (inventados) para "Continuar en el consultorio" del triage
+REPLACE INTO CodiCons (CodiCons, NombCons, UrgeCons, EstaCons) VALUES
+  ('U01', 'CONSULTORIO URGENCIAS 1', 1, 1), ('U02', 'CONSULTORIO URGENCIAS 2', 1, 1), ('P01', 'SALA DE PROCEDIMIENTOS', 1, 1);
+-- Catalogos de sql/04_listas_permisos.sql (valores de docs/RESULTADO_CONSULTAS_SIHOS.md; son catalogos, no pacientes)
+REPLACE INTO EstaIngr (CodiEsta, NombEsta, ValoDefe) VALUES (1, 'Conciente', 1), (2, 'Inconsciente', 0), (3, 'Muerto', 0);
+REPLACE INTO InstRemi (CodiInst, CodInsRe, NombInst) VALUES ('868650001001', '01', 'HOSPITAL LOCAL PUERTO ASIS'),
+ ('868650001001', '02', 'OTRAS INSTITUCIONES'), ('868650001001', '03', 'ESE HOSPITAL JOSE MARIA HERNANDEZ DE MOCOA'),
+ ('868650001001', '04', 'ESE HOSPITAL UNIVERSITARIO DEPTAL DE NARIÑO'), ('868650001001', '05', 'ESE HOSPITAL UNIVERSITARIO DPTAL DE NEIVA'),
+ ('868650001001', '06', 'ESE HOSPITAL SAGRADO CORAZON DE JESUS'), ('868650001001', '07', 'HOSPITAL DE ALTA COMPLEJIDAD DEL PUTUMAYO SAS ZOMAC');
+REPLACE INTO priv_listas_tipos (id, nombre) VALUES (12, 'Entornos de atencion'), (13, 'Tipos de alergias'), (14, 'Factores de riesgo'),
+ (15, 'Tipo antecedente'), (33, 'Tipo de conducta'), (45, 'Preguntas de antecedentes'), (46, 'Codigo Dorado'),
+ (47, 'Estados de riesgo Codigo Dorado');
+-- ids reales: tipos de alergia 21-26, factores de riesgo 27-32, conducta 121-127, preguntas 502-510 (el orden de las
+-- preguntas dentro de 502-510 es un supuesto por confirmar), respuestas 98 SI / 99 NO. Codigo Dorado (46, 47): ids inventados.
+REPLACE INTO priv_listas_elementos (id, codigo, nombre, prv_lista_tipo_id, activo) VALUES
+ (21, '01', 'Medicamento', 13, 1), (22, '02', 'Alimento', 13, 1), (23, '03', 'Sustancia del ambiente', 13, 1),
+ (24, '04', 'Sustancia que entran en contacto', 13, 1), (25, '05', 'Picadura de insectos', 13, 1), (26, '06', 'Otra', 13, 1),
+ (27, '01', 'Químicos', 14, 1), (28, '02', 'Físicos', 14, 1), (29, '03', 'Biomecánicos', 14, 1),
+ (30, '04', 'Psicosociales', 14, 1), (31, '05', 'Biológicos', 14, 1), (32, '06', 'Otro', 14, 1),
+ (121, '1', 'OBSERVACIÓN EN URGENCIAS', 33, 1), (122, '2', 'ATENCIÓN EN EL AMBIENTE DE TRANSICIÓN', 33, 1),
+ (123, '3', 'ATENCIÓN EN SALA DE PARTOS', 33, 1), (124, '4', 'ATENCIÓN EN SALA DE CIRUGÍA', 33, 1),
+ (125, '5', 'HOSPITALIZACIÓN', 33, 1), (126, '6', 'MANEJO AMBULATORIO', 33, 1), (127, '7', 'SALIDA VOLUNTARIA O ABANDONO', 33, 1),
+ (502, '1', 'Hipertensión crónica', 45, 1), (503, '2', 'Diabetes', 45, 1), (504, '3', 'LES / Enfermedad autoinmune', 45, 1),
+ (505, '4', 'Síndrome metabólico', 45, 1), (506, '5', 'Enfermedad renal crónica', 45, 1), (507, '6', 'Trombofilia / TVP', 45, 1),
+ (508, '7', 'Anemia de células falciformes', 45, 1), (509, '8', 'Preeclampsia en gestación previa', 45, 1),
+ (510, '9', 'Sepsis en gestaciones previas', 45, 1),
+ (98, 'SI', 'SI', NULL, 1), (99, 'NO', 'NO', NULL, 1),
+ (4601, '01', 'Psicología', 46, 1), (4602, '02', 'Psiquiatría', 46, 1), (4603, '03', 'Trabajo Social', 46, 1),
+ (4604, '04', 'Hospitalización', 46, 1), (4605, '05', 'Tele orientación', 46, 1), (4606, '06', 'Control por Psicología', 46, 1),
+ (4607, '07', 'Control por Psiquiatría', 46, 1), (4608, '08', 'Seguimiento telefónico', 46, 1),
+ (4609, '09', 'Educación a familiar o red de apoyo', 46, 1), (4610, '10', 'Otro', 46, 1),
+ (4701, '01', 'Riesgo Alto', 47, 1), (4702, '02', 'Riesgo Moderado', 47, 1), (4703, '03', 'Riesgo Bajo', 47, 1),
+ (4704, '04', 'Seguimiento', 47, 1), (4705, '05', 'Cerrado', 47, 1);
+-- id del medicamento para comu_antecedentes_multiples (CodiSumi.IdenUniMedi_id; valores inventados)
+UPDATE CodiSumi SET IdenUniMedi_id = 100 + CAST(SUBSTRING(CodiSumi, 3) AS UNSIGNED) WHERE CodiSumi LIKE 'MP%';
+-- Vía de administración de los inyectables de prueba (el buscador de medicamentos llena unidad y vía de la fila)
+UPDATE CodiSumi SET ViaAdmin = 2 WHERE CodiSumi IN ('MP0002', 'MP0003', 'MP0005');
+-- Parametrizacion para el calculo de la prescripcion (CodiSumi.Contenid en unidades de UnidMedi; valores inventados
+-- que reproducen los ejemplos de docs/REVISION_CLAUDE_LOCAL.md): acetaminofen 500 MG por tableta y diclofenaco
+-- 75 MG por ampolla
+UPDATE CodiSumi SET UnidMedi = 1, Contenid = '500' WHERE CodiSumi = 'MP0001';
+REPLACE INTO CodiSumi (CodiSumi, NombSumi, CodiGrup, UnidMedi, Contenid, ViaAdmin, SumiActi, NumeSeri, ModeDevo, RotuDevo, FechComp, UltiDepr,
+                       BodeActu, CodiServ, TiDoReSe, NuDoReSe, CodiDocu, NumeDocu, ConsDevo, EstaDevo, CodiTerc, NumeTerc,
+                       NumeFact, FechVida, MeDeprec, MeseDepr, DiasDepr) VALUES
+ ('MP0006', 'DICLOFENACO 75 MG / 3 ML SOLUCION INYECTABLE', 'MED', 1, '75', 3, 1, '', '', '', '0000-00-00', '0000-00-00', 0, '', '', '', '', 0, 0, 0, '', '', '', '0000-00-00', 0, 0, 0);
+-- Codigos fijos de SIHOS: 1 = enfermeria, 2 = medica, 5 = consentimiento
+DELETE FROM TipoNota WHERE CodiTipo NOT IN (1, 2, 5);
+REPLACE INTO TipoNota (CodiTipo, NombTipo) VALUES (1, 'NOTA ENFERMERIA'), (2, 'NOTA MEDICA'), (5, 'CONSENTIMIENTO');
+REPLACE INTO CausSali (CodiCaus, NombCaus) VALUES (1, 'ALTA MEDICA'), (2, 'REMISION'), (3, 'ALTA VOLUNTARIA'), (4, 'FUGA'), (5, 'MUERTE');
+REPLACE INTO DestSali (CodiDest, NombDest, Activo) VALUES ('01', 'DOMICILIO', 1), ('02', 'REMITIDO A OTRA INSTITUCION', 1),
+ ('03', 'HOSPITALIZACION', 1), ('04', 'OBSERVACION', 1);
+REPLACE INTO EstaSali (Codigo, EstaSaliSisPro, EstaSali) VALUES (1, '01', 'VIVO'), (2, '02', 'MUERTO');
+REPLACE INTO TipoEgre (CodiTipo, NombTipo, FechDigi, HoraDigi, FechModi, HoraModi) VALUES
+ (1, 'ALTA', CURDATE(), CURTIME(), CURDATE(), CURTIME()), (2, 'REMISION', CURDATE(), CURTIME(), CURDATE(), CURTIME()),
+ (3, 'MUERTE', CURDATE(), CURTIME(), CURDATE(), CURTIME());
+REPLACE INTO CodiUnid (CodiUnid, NombUnid, TipoUnid, ViaAdmi) VALUES ('01', 'UNIDAD', 1, 1), ('02', 'PAR', 1, 1),
+ ('03', 'CAJA', 1, 1), ('04', 'METRO', 1, 1);
+REPLACE INTO CodiSumi (CodiSumi, NombSumi, CodiGrup, UnidMedi, SumiActi, NumeSeri, ModeDevo, RotuDevo, FechComp, UltiDepr,
+                       BodeActu, CodiServ, TiDoReSe, NuDoReSe, CodiDocu, NumeDocu, ConsDevo, EstaDevo, CodiTerc, NumeTerc,
+                       NumeFact, FechVida, MeDeprec, MeseDepr, DiasDepr) VALUES
+ ('MQ0001', 'GUANTES DE EXAMEN TALLA M (PAR)', 'MQX', 1, 1, '', '', '', '0000-00-00', '0000-00-00', 0, '', '', '', '', 0, 0, 0, '', '', '', '0000-00-00', 0, 0, 0),
+ ('MQ0002', 'CATETER INTRAVENOSO No. 20', 'MQX', 1, 1, '', '', '', '0000-00-00', '0000-00-00', 0, '', '', '', '', 0, 0, 0, '', '', '', '0000-00-00', 0, 0, 0),
+ ('MQ0003', 'EQUIPO DE VENOCLISIS MACROGOTEO', 'MQX', 1, 1, '', '', '', '0000-00-00', '0000-00-00', 0, '', '', '', '', 0, 0, 0, '', '', '', '0000-00-00', 0, 0, 0);
+REPLACE INTO MotiRemi (CodiMoti, NombMoti) VALUES (1, 'NO DISPONIBILIDAD DEL SERVICIO'), (2, 'FALTA DE ESPECIALISTA'),
+ (3, 'FALTA DE EQUIPOS'), (4, 'SOLICITUD DEL PACIENTE');
+REPLACE INTO ModaSoli (CodiModa, NombModa) VALUES (1, 'URGENCIAS'), (2, 'PRIORITARIA'), (3, 'AMBULATORIA');
+REPLACE INTO TipoInca (CodiTipo, NombTipo) VALUES (1, 'ENFERMEDAD GENERAL'), (2, 'ACCIDENTE DE TRABAJO'), (3, 'LICENCIA DE MATERNIDAD');
+REPLACE INTO CausMorb (CodiDiag, NombCaus, Activo) VALUES ('K297', 'GASTRITIS, NO ESPECIFICADA', 1), ('E86X', 'DEPLECION DEL VOLUMEN', 1);
+-- Z001 normal y Z002 con un salto de linea al final del codigo, como puede venir de un catalogo copiado de SIHOS:
+-- el buscador lo mostraba pero la validacion exacta lo rechazaba (ver BUSCADORES en src/listas.php)
+DELETE FROM CausMorb WHERE CodiDiag LIKE 'Z001%' OR CodiDiag LIKE 'Z002%';
+INSERT INTO CausMorb (CodiDiag, NombCaus, Activo, SexoCaus) VALUES ('Z001', 'CONTROL DE SALUD DE RUTINA DEL NINO', 1, 'A'),
+ (CONCAT('Z002', CHAR(13)), 'EXAMEN DURANTE EL PERIODO DE CRECIMIENTO RAPIDO EN LA INFANCIA', 1, 'A');
+
 -- --- Pacientes (inventados) ---------------------------------------------
 REPLACE INTO Paciente (TipoDocu, NumeUsua, NombUsua, NombUsu1, Ape1Usua, Ape2Usua, CodiAdmi, TipoUsua, TipoAfil,
                        NumeCont, FechNaci, SexoUsua, ResiDepa, ResiMuni, ResiZona, DireResi, TeleCelu, FechDigi, UsuaDigi) VALUES
- ('CC', '99000001', 'JUAN',   'CARLOS', 'PRUEBA',  'UNO',    'EPSP01', 2, 'S', 'PRU-001', '1980-05-10', 'M', '86', '865', 'U', 'CALLE FALSA 1', '3000000001', CURDATE(), 'PRUEBA'),
+ ('CC', '99000001', 'JUAN',   'CARLOS', 'PRUEBA',  'UNO',    'EPSP01', 2, 'D', 'PRU-001', '1980-05-10', 'M', '86', '865', 'U', 'CALLE FALSA 1', '3000000001', CURDATE(), 'PRUEBA'),
  ('CC', '99000002', 'MARIA',  'LUISA',  'PRUEBA',  'DOS',    'EPSP02', 1, 'C', 'PRU-002', '1992-11-23', 'F', '86', '865', 'U', 'CALLE FALSA 2', '3000000002', CURDATE(), 'PRUEBA'),
- ('TI', '99000003', 'PEDRO',  '',       'PRUEBA',  'TRES',   'EPSP01', 2, 'S', 'PRU-001', '2012-02-01', 'M', '86', '865', 'R', 'VEREDA FALSA',  '3000000003', CURDATE(), 'PRUEBA'),
- ('CC', '99000004', 'ANA',    'SOFIA',  'PRUEBA',  'CUATRO', 'EPSP01', 2, 'S', 'PRU-001', '1975-08-30', 'F', '86', '865', 'U', 'CALLE FALSA 4', '3000000004', CURDATE(), 'PRUEBA'),
- ('RC', '99000005', 'LUCAS',  '',       'PRUEBA',  'CINCO',  'EPSP02', 1, 'B', 'PRU-002', '2023-03-15', 'M', '86', '865', 'U', 'CALLE FALSA 5', '3000000005', CURDATE(), 'PRUEBA');
+ ('TI', '99000003', 'PEDRO',  '',       'PRUEBA',  'TRES',   'EPSP01', 2, 'D', 'PRU-001', '2012-02-01', 'M', '86', '865', 'R', 'VEREDA FALSA',  '3000000003', CURDATE(), 'PRUEBA'),
+ ('CC', '99000004', 'ANA',    'SOFIA',  'PRUEBA',  'CUATRO', 'EPSP01', 2, 'D', 'PRU-001', '1975-08-30', 'F', '86', '865', 'U', 'CALLE FALSA 4', '3000000004', CURDATE(), 'PRUEBA'),
+ ('RC', '99000005', 'LUCAS',  '',       'PRUEBA',  'CINCO',  'EPSP02', 1, 'B', 'PRU-002', '2023-03-15', 'M', '86', '865', 'U', 'CALLE FALSA 5', '3000000005', CURDATE(), 'PRUEBA'),
+ -- Pacientes SIN admision: para probar "Nueva admision" en cualquier modulo
+ ('CC', '99000006', 'ROSA',   'ELENA',  'PRUEBA',  'SEIS',   'EPSP01', 2, 'D', 'PRU-001', '1968-01-17', 'F', '86', '865', 'U', 'CALLE FALSA 6', '3000000006', CURDATE(), 'PRUEBA'),
+ ('CC', '99000007', 'ANDRES', '',       'PRUEBA',  'SIETE',  'EPSP02', 1, 'C', 'PRU-002', '2001-06-05', 'M', '86', '865', 'U', 'CALLE FALSA 7', '3000000007', CURDATE(), 'PRUEBA'),
+ ('TI', '99000008', 'VALERIA', '',      'PRUEBA',  'OCHO',   'EPSP01', 2, 'D', 'PRU-001', '2014-10-09', 'F', '86', '865', 'R', 'VEREDA FALSA 8', '3000000008', CURDATE(), 'PRUEBA');
 
 -- --- Admisiones (ConsAdmi con prefijo PRUEBA para distinguirlas) ---------
 DELETE FROM Admision WHERE ConsAdmi LIKE 'PRUEBA%';
@@ -75,18 +219,18 @@ INSERT INTO Admision (CodiInst, ConsAdmi, TipoDocu, NumeUsua, ValoEdad, UnidEdad
                       NumePoli, FechIngr, HoraIngr, TipoAten, CodiServ, CentCost, ServEgre, CentEgre, MotiCons,
                       Cerrado, Anulado, FechDigi, HoraDigi, UsuaDigi) VALUES
  -- Urgencias (007): 3 abiertas (2 de hoy) y 1 cerrada de hoy
- ('868650001001', 'PRUEBA000001', 'CC', '99000001', 46, 'A', 'EPSP01', 2, 'S', 'PRU-001', '', CURDATE(), '07:15:00', 3, '007', '0701', '007', '0701', 'DOLOR ABDOMINAL', 2, 2, CURDATE(), '07:15:00', 'MEDPRUEBA'),
+ ('868650001001', 'PRUEBA000001', 'CC', '99000001', 46, 'A', 'EPSP01', 2, 'D', 'PRU-001', '', CURDATE(), '07:15:00', 3, '007', '0701', '007', '0701', 'DOLOR ABDOMINAL', 2, 2, CURDATE(), '07:15:00', 'MEDPRUEBA'),
  ('868650001001', 'PRUEBA000002', 'CC', '99000002', 33, 'A', 'EPSP02', 1, 'C', 'PRU-002', '', CURDATE(), '09:40:00', 3, '007', '0701', '007', '0701', 'FIEBRE',          2, 2, CURDATE(), '09:40:00', 'MEDPRUEBA'),
- ('868650001001', 'PRUEBA000003', 'TI', '99000003', 14, 'A', 'EPSP01', 2, 'S', 'PRU-001', '', CURDATE() - INTERVAL 1 DAY, '22:05:00', 3, '007', '0701', '007', '0701', 'TRAUMA MANO', 2, 2, CURDATE() - INTERVAL 1 DAY, '22:05:00', 'MEDPRUEBA'),
- ('868650001001', 'PRUEBA000004', 'CC', '99000004', 51, 'A', 'EPSP01', 2, 'S', 'PRU-001', '', CURDATE(), '06:00:00', 3, '007', '0701', '007', '0701', 'CEFALEA',         1, 2, CURDATE(), '06:00:00', 'MEDPRUEBA'),
+ ('868650001001', 'PRUEBA000003', 'TI', '99000003', 14, 'A', 'EPSP01', 2, 'D', 'PRU-001', '', CURDATE() - INTERVAL 1 DAY, '22:05:00', 3, '007', '0701', '007', '0701', 'TRAUMA MANO', 2, 2, CURDATE() - INTERVAL 1 DAY, '22:05:00', 'MEDPRUEBA'),
+ ('868650001001', 'PRUEBA000004', 'CC', '99000004', 51, 'A', 'EPSP01', 2, 'D', 'PRU-001', '', CURDATE(), '06:00:00', 3, '007', '0701', '007', '0701', 'CEFALEA',         1, 2, CURDATE(), '06:00:00', 'MEDPRUEBA'),
  -- Observacion (008): 2 abiertas de dias anteriores
- ('868650001001', 'PRUEBA000005', 'CC', '99000004', 51, 'A', 'EPSP01', 2, 'S', 'PRU-001', '', CURDATE() - INTERVAL 1 DAY, '15:30:00', 3, '008', '0801', '008', '0801', 'DOLOR TORACICO', 2, 2, CURDATE() - INTERVAL 1 DAY, '15:30:00', 'MEDPRUEBA'),
- ('868650001001', 'PRUEBA000006', 'CC', '99000001', 46, 'A', 'EPSP01', 2, 'S', 'PRU-001', '', CURDATE() - INTERVAL 2 DAY, '11:10:00', 3, '008', '0801', '008', '0801', 'DESHIDRATACION', 2, 2, CURDATE() - INTERVAL 2 DAY, '11:10:00', 'MEDPRUEBA'),
+ ('868650001001', 'PRUEBA000005', 'CC', '99000004', 51, 'A', 'EPSP01', 2, 'D', 'PRU-001', '', CURDATE() - INTERVAL 1 DAY, '15:30:00', 3, '008', '0801', '008', '0801', 'DOLOR TORACICO', 2, 2, CURDATE() - INTERVAL 1 DAY, '15:30:00', 'MEDPRUEBA'),
+ ('868650001001', 'PRUEBA000006', 'CC', '99000001', 46, 'A', 'EPSP01', 2, 'D', 'PRU-001', '', CURDATE() - INTERVAL 2 DAY, '11:10:00', 3, '008', '0801', '008', '0801', 'DESHIDRATACION', 2, 2, CURDATE() - INTERVAL 2 DAY, '11:10:00', 'MEDPRUEBA'),
  -- Consulta externa (001 y 013): 3 abiertas de hoy y 1 anulada de hoy
  ('868650001001', 'PRUEBA000007', 'RC', '99000005', 3,  'A', 'EPSP02', 1, 'B', 'PRU-002', '', CURDATE(), '08:00:00', 1, '001', '0101', '001', '0101', 'CONTROL',         2, 2, CURDATE(), '08:00:00', 'MEDPRUEBA'),
  ('868650001001', 'PRUEBA000008', 'CC', '99000002', 33, 'A', 'EPSP02', 1, 'C', 'PRU-002', '', CURDATE(), '08:20:00', 1, '001', '0101', '001', '0101', 'CONSULTA GENERAL', 2, 2, CURDATE(), '08:20:00', 'MEDPRUEBA'),
- ('868650001001', 'PRUEBA000009', 'CC', '99000001', 46, 'A', 'EPSP01', 2, 'S', 'PRU-001', '', CURDATE(), '10:00:00', 1, '013', '0101', '013', '0101', 'CONTROL ESPECIALISTA', 2, 2, CURDATE(), '10:00:00', 'MEDPRUEBA'),
- ('868650001001', 'PRUEBA000010', 'CC', '99000004', 51, 'A', 'EPSP01', 2, 'S', 'PRU-001', '', CURDATE(), '10:30:00', 1, '001', '0101', '001', '0101', 'ERROR DE DIGITACION', 2, 1, CURDATE(), '10:30:00', 'MEDPRUEBA');
+ ('868650001001', 'PRUEBA000009', 'CC', '99000001', 46, 'A', 'EPSP01', 2, 'D', 'PRU-001', '', CURDATE(), '10:00:00', 1, '013', '0101', '013', '0101', 'CONTROL ESPECIALISTA', 2, 2, CURDATE(), '10:00:00', 'MEDPRUEBA'),
+ ('868650001001', 'PRUEBA000010', 'CC', '99000004', 51, 'A', 'EPSP01', 2, 'D', 'PRU-001', '', CURDATE(), '10:30:00', 1, '001', '0101', '001', '0101', 'ERROR DE DIGITACION', 2, 1, CURDATE(), '10:30:00', 'MEDPRUEBA');
 
 -- --- Control de cargas a SIHOS ------------------------------------------
 DELETE FROM cont_carga_sihos WHERE ConsAdmiTemp LIKE 'PRUEBA%';

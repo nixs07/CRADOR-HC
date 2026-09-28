@@ -80,3 +80,18 @@ CREATE TABLE IF NOT EXISTS `cont_acceso` (
   KEY `idx_cont_acceso_login` (`login`,`fecha`),
   KEY `idx_cont_acceso_ip` (`ip`,`fecha`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COMMENT='CRADOR: registro de ingresos';
+
+-- ---------------------------------------------------------------------
+-- Pacientes creados o modificados en la contingencia (fase 2).
+-- Al cargar a SIHOS (fase 3): 'nuevo' -> INSERT en Paciente si no existe en SIHOS.
+-- ---------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS `cont_paciente` (
+  `id`       int(11) unsigned NOT NULL AUTO_INCREMENT,
+  `TipoDocu` char(2) NOT NULL,
+  `NumeUsua` varchar(20) NOT NULL,
+  `accion`   varchar(10) NOT NULL DEFAULT 'nuevo' COMMENT 'nuevo / modificado',
+  `fecha`    datetime NOT NULL,
+  `usuario`  varchar(12) NOT NULL DEFAULT '',
+  PRIMARY KEY (`id`),
+  KEY `idx_cont_paciente_doc` (`TipoDocu`,`NumeUsua`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8 COMMENT='CRADOR: pacientes creados en la contingencia';

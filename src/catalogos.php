@@ -42,12 +42,13 @@ const CATALOGO_CANDADO = 'crador_actualizar_catalogos';
 function catalogo_tablas(): array
 {
     $tablas = [];
-    foreach (['02_catalogos.sql', '03_catalogos_listas.sql'] as $archivo) {
+    // 04_listas_permisos.sql: permisos, listas genericas (priv_listas_*), EstaIngr e InstRemi
+    foreach (['02_catalogos.sql', '03_catalogos_listas.sql', '04_listas_permisos.sql'] as $archivo) {
         $sql = @file_get_contents(RAIZ . '/sql/' . $archivo);
         if ($sql === false) {
             throw new RuntimeException("No se encontró sql/$archivo");
         }
-        preg_match_all('/CREATE TABLE `([A-Za-z0-9_]+)`/', $sql, $m);
+        preg_match_all('/CREATE TABLE (?:IF NOT EXISTS )?`([A-Za-z0-9_]+)`/', $sql, $m);
         foreach ($m[1] as $t) {
             $tablas[] = $t;
         }

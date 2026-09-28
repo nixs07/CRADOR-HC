@@ -10,7 +10,9 @@ RUN sed -ri -e 's!/var/www/html!${APACHE_DOCUMENT_ROOT}!g' \
         /etc/apache2/apache2.conf \
         /etc/apache2/conf-available/*.conf \
     && echo "ServerTokens Prod"   >> /etc/apache2/conf-available/security.conf \
-    && echo "ServerSignature Off" >> /etc/apache2/conf-available/security.conf
+    && echo "ServerSignature Off" >> /etc/apache2/conf-available/security.conf \
+    && echo "ServerName localhost" >  /etc/apache2/conf-available/servername.conf \
+    && a2enconf servername
 
 # Configuracion de PHP
 RUN cp "$PHP_INI_DIR/php.ini-production" "$PHP_INI_DIR/php.ini" \

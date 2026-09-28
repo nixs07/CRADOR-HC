@@ -1,6 +1,6 @@
 # Instalación en Windows con Docker Desktop
 
-Guía para instalar CRADOR-HC en el computador de sistemas (o en cualquier equipo/servidor Windows).
+Guía para instalar HSCJ (repositorio y carpeta CRADOR-HC) en el computador de sistemas (o en cualquier equipo/servidor Windows).
 La app queda en dos contenedores: `crador_db` (MySQL 5.6, igual que SIHOS) y `crador_app` (PHP 8 + Apache).
 
 ## 1. Requisitos
@@ -166,3 +166,37 @@ Los datos de MySQL viven en el volumen de Docker `db_datos` (no en la carpeta), 
 | Tarjeta "Conexión con SIHOS: Caída" | SIHOS apagado, sin red, o datos `SIHOS_*` del `.env` errados. El mensaje dice cuál. Tras cambiar el `.env`: `docker compose up -d` (recrea la app con los nuevos valores). |
 | Error al crear la base "Invalid default value" | MySQL sin `explicit_defaults_for_timestamp`: usar el `docker-compose.yml` del proyecto sin cambios. |
 | Se quiere empezar de cero (borra TODO) | `docker compose down -v` y luego `docker compose up -d`. |
+
+## Actualizar una instalación que ya existía
+
+Los scripts de `sql/` solo se ejecutan solos la primera vez. Si la base ya estaba creada y una versión nueva
+agrega tablas de control (por ejemplo `cont_paciente` en la fase 2), ejecute de nuevo `sql/00_control.sql`
+(usa `CREATE TABLE IF NOT EXISTS`, no borra nada):
+
+```powershell
+Get-Content sql/00_control.sql | docker compose exec -T db sh -c 'mysql -uroot -p"$MYSQL_ROOT_PASSWORD" "$MYSQL_DATABASE"'
+```
+
+
+### Catálogos reales y tablas nuevas (septiembre 2026)
+
+La versión con los catálogos reales de SIHOS agrega `sql/04_listas_permisos.sql` (permisos, listas genéricas,
+`EstaIngr`, `InstRemi`) y `sql/05_tablas_clinicas_nuevas.sql` (`RecoMedi`, `comu_antecedentes_multiples`). Si la base
+ya tenía las tablas **provisionales** anteriores, bórrelas primero (son catálogos: se vuelven a copiar de SIHOS) y
+luego ejecute los dos archivos y "Actualizar catálogos":
+
+```powershell
+docker compose exec -T db sh -c 'mysql -uroot -p"$MYSQL_ROOT_PASSWORD" "$MYSQL_DATABASE" -e "DROP TABLE IF EXISTS UsuaGrup, Permisos, ModuObje, Objetos, InstRemision"'
+Get-Content sql/04_listas_permisos.sql | docker compose exec -T db sh -c 'mysql -uroot -p"$MYSQL_ROOT_PASSWORD" "$MYSQL_DATABASE"'
+Get-Content sql/05_tablas_clinicas_nuevas.sql | docker compose exec -T db sh -c 'mysql -uroot -p"$MYSQL_ROOT_PASSWORD" "$MYSQL_DATABASE"'
+```
+
+### Catálogo HoraApli (28/09/2026)
+
+La prescripción hospitalaria usa el catálogo `HoraApli` ("Cada": 0 = AHORA, 1..24 horas) en `sql/06_hora_apli.sql`
+(estructura provisional, no se copia de SIHOS hasta confirmarla). En una base que ya existía, ejecútelo una vez (no
+borra nada; si no se ejecuta, la app usa la lista 0..24 igual):
+
+```powershell
+Get-Content sql/06_hora_apli.sql | docker compose exec -T db sh -c 'mysql -uroot -p"$MYSQL_ROOT_PASSWORD" "$MYSQL_DATABASE"'
+```
