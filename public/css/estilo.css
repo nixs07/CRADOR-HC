@@ -804,10 +804,11 @@ tr[data-href] { cursor: pointer; }
 .etiqueta-abierta { background: var(--ok-fondo); color: var(--ok); }
 .etiqueta-cerrada { background: var(--superficie-3); color: var(--texto-2); }
 .filtros .filtro-servicio { width: auto; min-width: 220px; min-height: 44px; }
+.filtros .filtro-estado { width: auto; min-width: 150px; min-height: 44px; }
 .cabecera-pagina + .buscador, .triage-resumen + .buscador { margin-top: 0; }
 .triage-resumen { margin-bottom: 20px; }
 @media (max-width: 767px) {
-    .filtros .filtro-servicio { width: 100%; }
+    .filtros .filtro-servicio, .filtros .filtro-estado { width: 100%; }
 }
 .tabla-historias th, .tabla-historias td { padding-left: 12px; padding-right: 12px; }
 .tabla-historias th:first-child, .tabla-historias td:first-child { padding-left: 18px; }
@@ -1324,6 +1325,7 @@ tr[data-href] { cursor: pointer; }
 .tabla-historias tr.fila-triage-3 td { background: var(--t3-fondo); }
 .tabla-historias tr.fila-triage-4 td { background: var(--t4-fondo); }
 .tabla-historias tr.fila-triage-5 td { background: var(--t5-fondo); }
+.tabla-historias tr.fila-cerrada td { color: var(--texto-2); }
 .punto-triage { display: inline-block; width: 14px; height: 14px; border-radius: 50%; padding: 0; border: 2px solid currentColor; }
 /* Med / Ord de Historias abiertas: indicadores con ícono (como SIHOS) */
 .indicador { display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px; border-radius: 50%; }
@@ -1396,6 +1398,16 @@ tr[data-href] { cursor: pointer; }
 
 /* Punto 8: admisiones del paciente (abiertas y cerradas) */
 .tabla-admisiones .etiqueta { white-space: nowrap; }
+/* Pantalla Admisiones: filtros en una fila que se reparte en celular; paginación */
+.filtros-admisiones { flex-wrap: wrap; align-items: center; }
+.filtros-admisiones label { display: inline-flex; align-items: center; gap: 6px; margin: 0; font-weight: 500; white-space: nowrap; }
+.filtros-admisiones input[type=date], .filtros-admisiones select { width: auto; min-height: 44px; }
+.etiqueta-cargada { background: var(--ok-fondo); color: var(--ok); }
+.paginacion { display: flex; align-items: center; justify-content: center; gap: 12px; margin: 16px 0; color: var(--texto-2); }
+@media (max-width: 767px) {
+    .filtros-admisiones label, .filtros-admisiones select, .filtros-admisiones .boton { width: 100%; }
+    .filtros-admisiones input[type=date] { flex: 1; }
+}
 .et-buscar-admision { display: flex; align-items: center; gap: 8px; margin: 0; }
 .et-buscar-admision input {
     width: 172px; min-height: 38px; padding: 4px 10px; font-size: 19px; font-weight: 700; font-variant-numeric: tabular-nums;

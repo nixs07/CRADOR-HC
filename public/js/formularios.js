@@ -209,7 +209,7 @@
             }
             if (ev.key === 'ArrowDown') { ev.preventDefault(); marcar(activo + 1); }
             else if (ev.key === 'ArrowUp') { ev.preventDefault(); marcar(activo - 1); }
-            else if (ev.key === 'Enter') { ev.preventDefault(); escoger(activo >= 0 ? activo : 0); }
+            else if (ev.key === 'Enter') { if (!datos.length) { cerrar(); return; } ev.preventDefault(); escoger(activo >= 0 ? activo : 0); }   // sin resultados: Enter envía el formulario
             else if (ev.key === 'Escape') { ev.preventDefault(); ev.stopPropagation(); cerrar(); }
             else if (ev.key === 'Tab') { if (activo >= 0) { escoger(activo); } else { cerrar(); } }
         });

@@ -365,6 +365,56 @@ function admision_crear(array $mod, array $pac, array $d, string $login): string
     }
 }
 
+/**
+ * Pantalla "Admisiones": todas las admisiones de los 3 módulos con filtros. $f: desde, hasta (FechIngr), modulo
+ * ('' | urg | obs | ce), estado ('' | abierta | cerrada | anulada), serv (CodiServ), q (admisión, documento o nombre).
+ * Devuelve [filas, total]. $porPagina = 0: sin paginar (exportar CSV, máximo 5000).
+ */
+function admisiones_listado(array $f, int $pagina = 1, int $porPagina = 50): array
+{
+    $where = ['a.CodiInst = ?'];
+    $params = [CODI_INST];
+    if ($f['desde'] !== '') { $where[] = 'a.FechIngr >= ?'; $params[] = $f['desde']; }
+    if ($f['hasta'] !== '') { $where[] = 'a.FechIngr <= ?'; $params[] = $f['hasta']; }
+    $servicios = $f['serv'] !== '' ? [$f['serv']] : ($f['modulo'] !== '' ? MODULOS_DETALLE[$f['modulo']]['servicios'] : []);
+    if ($servicios) {
+        $where[] = 'a.ServEgre IN (' . implode(',', array_fill(0, count($servicios), '?')) . ')';
+        array_push($params, ...$servicios);
+    }
+    $estados = ['abierta' => 'a.Anulado = 2 AND a.Cerrado = 2', 'cerrada' => 'a.Anulado = 2 AND a.Cerrado = 1',
+                'anulada' => 'a.Anulado = 1'];
+    if (isset($estados[$f['estado']])) $where[] = $estados[$f['estado']];
+    $q = trim($f['q']);
+    if ($q !== '') {
+        if (preg_match('/^[0-9A-Za-z]+$/', $q)) {
+            // Número de admisión (C… o de SIHOS) o documento
+            $where[] = '(a.ConsAdmi LIKE ? OR a.NumeUsua LIKE ?)';
+            array_push($params, strtoupper($q) . '%', $q . '%');
+        } else {
+            foreach (array_slice(preg_split('/\s+/', $q), 0, 4) as $palabra) {
+                $where[] = '(p.NombUsua LIKE ? OR p.NombUsu1 LIKE ? OR p.Ape1Usua LIKE ? OR p.Ape2Usua LIKE ?)';
+                array_push($params, $palabra . '%', $palabra . '%', $palabra . '%', $palabra . '%');
+            }
+        }
+    }
+    $desde = 'FROM Admision a
+              LEFT JOIN Paciente p ON p.TipoDocu = a.TipoDocu AND p.NumeUsua = a.NumeUsua
+              LEFT JOIN CodiAdmi c ON c.CodiAdmi = a.CodiAdmi
+              LEFT JOIN CodiServ s ON s.CodiServ = a.ServEgre
+              LEFT JOIN cont_carga_sihos cc ON cc.CodiInst = a.CodiInst AND cc.ConsAdmiTemp = a.ConsAdmi
+             WHERE ' . implode(' AND ', $where);
+    $st = db()->prepare("SELECT COUNT(*) $desde");
+    $st->execute($params);
+    $total = (int) $st->fetchColumn();
+    $limite = $porPagina > 0 ? ' LIMIT ' . (int) $porPagina . ' OFFSET ' . max(0, ($pagina - 1) * $porPagina) : ' LIMIT 5000';
+    $st = db()->prepare("SELECT a.ConsAdmi, a.FechIngr, a.HoraIngr, a.ServEgre, a.TipoDocu, a.NumeUsua, a.ValoEdad, a.UnidEdad,
+                                a.DiagIngr, a.UsuaDigi, a.Cerrado, a.Anulado, a.CodiAdmi,
+                                p.NombUsua, p.NombUsu1, p.Ape1Usua, p.Ape2Usua, c.NombAdmi, s.NombServ, cc.estado AS estado_carga
+                         $desde ORDER BY a.FechIngr DESC, a.HoraIngr DESC, a.ConsAdmi DESC$limite");
+    $st->execute($params);
+    return [$st->fetchAll(), $total];
+}
+
 /** Admision con datos del paciente, o null. */
 function admision_obtener(string $cons): ?array
 {
@@ -423,9 +473,19 @@ function admision_editable(array $a): bool
 /** Admisiones abiertas de un modulo (por servicio actual ServEgre), con ultimo triage. */
 function admisiones_abiertas(array $mod): array
 {
+    return admisiones_del_modulo($mod, 'abiertas');
+}
+
+/**
+ * Admisiones del módulo para la ventana "Historias" (sin anuladas). $estado: 'todas' | 'abiertas' | 'cerradas'.
+ * Orden: abiertas primero (por triage y fecha de ingreso, como SIHOS), luego cerradas por fecha descendente.
+ */
+function admisiones_del_modulo(array $mod, string $estado = 'todas'): array
+{
+    $filtro = ['abiertas' => ' AND a.Cerrado = 2', 'cerradas' => ' AND a.Cerrado = 1'][$estado] ?? '';
     $marcas = implode(',', array_fill(0, count($mod['servicios']), '?'));
     $st = db()->prepare("SELECT a.ConsAdmi, a.TipoDocu, a.NumeUsua, a.ValoEdad, a.UnidEdad, a.FechIngr, a.HoraIngr,
-                                a.ServEgre, a.CamaActu, a.ClasTria, a.DiagIngr, a.UsuaDigi,
+                                a.ServEgre, a.CamaActu, a.ClasTria, a.DiagIngr, a.UsuaDigi, a.Cerrado, a.Anulado,
                                 p.NombUsua, p.NombUsu1, p.Ape1Usua, p.Ape2Usua, p.SexoUsua, c.NombAdmi, s.NombServ,
                                 (SELECT COUNT(*) FROM SignVita v WHERE v.CodiInst = a.CodiInst AND v.ConsAdmi = a.ConsAdmi) AS signos,
                                 a.NumeAuto,
@@ -444,8 +504,12 @@ function admisiones_abiertas(array $mod): array
                            LEFT JOIN CodiAdmi c ON c.CodiAdmi = a.CodiAdmi
                            LEFT JOIN CodiServ s ON s.CodiServ = a.ServEgre
                            LEFT JOIN Contrato ct ON ct.CodiInst = a.CodiInst AND ct.CodiAdmi = a.CodiAdmi AND ct.NumeCont = a.NumeCont
-                          WHERE a.CodiInst = ? AND a.ServEgre IN ($marcas) AND a.Cerrado = 2 AND a.Anulado = 2
-                          ORDER BY IFNULL(a.ClasTria, 9), a.FechIngr, a.HoraIngr");
+                          WHERE a.CodiInst = ? AND a.ServEgre IN ($marcas) AND a.Anulado = 2$filtro
+                          ORDER BY a.Cerrado = 1,
+                                   CASE WHEN a.Cerrado = 1 THEN 0 ELSE IFNULL(a.ClasTria, 9) END,
+                                   CASE WHEN a.Cerrado = 1 THEN '' ELSE CONCAT(a.FechIngr, ' ', a.HoraIngr) END,
+                                   a.FechIngr DESC, a.HoraIngr DESC
+                          LIMIT 2000");
     $st->execute(array_merge([CODI_INST], $mod['servicios']));
     return $st->fetchAll();
 }

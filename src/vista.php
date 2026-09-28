@@ -79,9 +79,10 @@ function vista_inicio(string $titulo, bool $avisos = true): void
                 <span class="tarjeta-icono icono-<?= e($modulo) ?>"><?= icono(MODULOS_ICONO[$modulo]) ?></span>
                 <span><small>Módulo</small><strong><?= e(MODULOS_DETALLE[$modulo]['nombre']) ?></strong></span>
             </div>
-            <a href="atencion.php?modulo=<?= e($modulo) ?>&amp;historias=1"<?= $activo($pagina === 'atencion.php' && !isset($_GET['nueva'])) ?> data-abrir-ventana="historias"><?= icono('clipboard-list') ?><span>Historias abiertas</span></a>
+            <a href="atencion.php?modulo=<?= e($modulo) ?>&amp;historias=1"<?= $activo($pagina === 'atencion.php' && !isset($_GET['nueva'])) ?> data-abrir-ventana="historias"><?= icono('clipboard-list') ?><span>Historias</span></a>
             <a href="atencion.php?modulo=<?= e($modulo) ?>&amp;nueva=1"<?= $activo($pagina === 'atencion.php' && isset($_GET['nueva'])) ?>><?= icono('user-plus') ?><span>Nueva admisión</span></a>
         <?php endif; ?>
+        <a href="admisiones.php?filtrar=1"<?= $activo($pagina === 'admisiones.php') ?>><?= icono('history') ?><span>Admisiones</span></a>
         <a href="pacientes.php"<?= $activo(in_array($pagina, ['pacientes.php', 'paciente_nuevo.php'], true)) ?>><?= icono('users') ?><span>Pacientes</span></a>
         <a href="modulo.php"<?= $activo($pagina === 'modulo.php') ?>><?= icono('hospital') ?><span><?= $modulo ? 'Cambiar módulo' : 'Elegir módulo' ?></span></a>
 
