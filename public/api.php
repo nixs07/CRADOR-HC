@@ -7,7 +7,8 @@
  *   api.php?que=camas&serv=008
  *   api.php?que=diagnosticos&q=R10
  *   api.php?que=procedimientos&q=8902   (CodiProc activos, por código o nombre)
- *   api.php?que=suministros&q=ACETA    (CodiSumi activos, por código o nombre)
+ *   api.php?que=suministros&q=ACETA    (CodiSumi activos, por código o nombre; con unidad y vía)
+ *   api.php?que=pacientes&q=1006        (Paciente por documento o nombre, desde 3 caracteres, máximo 30)
  * Solo lectura y solo con sesion iniciada.
  */
 require __DIR__ . '/../src/inicio.php';
@@ -54,6 +55,12 @@ switch ($_GET['que'] ?? '') {
         break;
     case 'procedimientos':
         $r = procedimientos_buscar($g('q', 60));
+        break;
+    case 'pacientes':
+        // Autocompletar del documento en el encabezado: "TIPO NÚMERO · NOMBRE"
+        $q = $g('q', 60);
+        $r = mb_strlen($q) < 3 ? [] : array_map(fn ($p) => ['c' => $p['TipoDocu'] . ' ' . $p['NumeUsua'], 'n' => paciente_nombre($p),
+            't' => (string) $p['TipoDocu'], 'd' => (string) $p['NumeUsua']], pacientes_buscar($q, 30));
         break;
     case 'suministros':
         $r = suministros_buscar($g('q', 60));

@@ -97,6 +97,7 @@
         var nombre = (inp.id && document.getElementById(inp.id + '-nombre')) || inp.parentNode.querySelector('.nota-campo')
                   || (inp.closest('tr') && inp.closest('tr').querySelector('.nota-campo'));
         var espera = null, datos = [], activo = -1, pedido = 0;
+        var minimo = parseInt(inp.dataset.minimo || '2', 10);   // caracteres para empezar a buscar
 
         function ponerNombre(t) { if (nombre) { nombre.textContent = t || ''; } }
         function colocar() {
@@ -121,6 +122,14 @@
             items[activo].scrollIntoView({ block: 'nearest' });
         }
         function llenar(d) {
+            // Documento del encabezado: pone tipo y número y carga el paciente (y su admisión abierta si tiene)
+            if (que === 'pacientes') {
+                var tipo = inp.form && inp.form.querySelector('[name="TipoDocu"]');
+                if (tipo) { tipo.value = d.t; }
+                inp.value = d.d;
+                if (inp.form) { inp.form.submit(); }
+                return;
+            }
             // data-valor="n": el campo guarda el nombre (Reconciliación); si no, el código
             inp.value = inp.dataset.valor === 'n' ? d.n : d.c;
             ponerNombre(d.n);
@@ -170,7 +179,7 @@
         }
         function buscar() {
             var q = inp.value.trim();
-            if (q.length < 2) { datos = []; cerrar(); return; }
+            if (q.length < minimo) { datos = []; cerrar(); return; }
             var n = ++pedido;
             fetch('api.php?que=' + que + '&q=' + encodeURIComponent(q), { credentials: 'same-origin' })
                 .then(function (r) { return r.json(); })
@@ -195,7 +204,7 @@
         });
         inp.addEventListener('keydown', function (ev) {
             if (caja.hidden) {
-                if (ev.key === 'ArrowDown' && inp.value.trim().length >= 2) { ev.preventDefault(); buscar(); }
+                if (ev.key === 'ArrowDown' && inp.value.trim().length >= minimo) { ev.preventDefault(); buscar(); }
                 return;
             }
             if (ev.key === 'ArrowDown') { ev.preventDefault(); marcar(activo + 1); }

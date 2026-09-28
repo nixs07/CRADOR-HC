@@ -429,3 +429,13 @@ número definitivo.
   `sql/05_tablas_clinicas_nuevas.sql` (usan `CREATE TABLE IF NOT EXISTS` y no cambian una tabla que ya existe). Ver
   `docs/INSTALACION.md`, "Actualizar una instalación que ya existía".
 
+
+## Ajustes de las pruebas en el hospital (28/09/2026)
+
+- **Documento del encabezado con autocompletar**: desde 3 caracteres, el campo Documento muestra los pacientes que
+  coinciden por documento o por nombre ("TIPO NÚMERO · NOMBRE", máximo 30, `api.php?que=pacientes`). Al escoger se
+  carga el paciente (o su admisión abierta, si tiene). Si se pulsa Buscar con parte del documento o del nombre y hay
+  un solo paciente, se carga ese.
+- **Barra de pestañas sin repetidos**: con los permisos reales, Consulta Externa trae objetos distintos (otro
+  `CodiObje`) con el mismo nombre (dos "Procedimientos", dos "Imagenes"). `pestanas_usuario()` deja solo el primero
+  por orden, por nombre y por panel, como SIHOS (el mismo `CodiObje` por varios grupos ya sale una vez).

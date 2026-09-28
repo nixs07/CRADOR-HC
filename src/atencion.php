@@ -112,16 +112,17 @@ function paciente_obtener(string $tipo, string $numero): ?array
     return $st->fetch() ?: null;
 }
 
-/** Busca pacientes por numero de documento o por nombre/apellido (maximo 50). */
-function pacientes_buscar(string $texto): array
+/** Busca pacientes por numero de documento o por nombre/apellido (maximo $limite, 50 por defecto). */
+function pacientes_buscar(string $texto, int $limite = 50): array
 {
+    $limite = max(1, min(50, $limite));
     $texto = trim($texto);
     if ($texto === '') {
         return [];
     }
     $cols = 'TipoDocu, NumeUsua, NombUsua, NombUsu1, Ape1Usua, Ape2Usua, FechNaci, SexoUsua, CodiAdmi';
     if (preg_match('/^[0-9A-Za-z]+$/', $texto) && preg_match('/[0-9]/', $texto)) {
-        $st = db()->prepare("SELECT $cols FROM Paciente WHERE NumeUsua LIKE ? ORDER BY NumeUsua LIMIT 50");
+        $st = db()->prepare("SELECT $cols FROM Paciente WHERE NumeUsua LIKE ? ORDER BY NumeUsua LIMIT $limite");
         $st->execute([$texto . '%']);
         return $st->fetchAll();
     }
@@ -132,7 +133,7 @@ function pacientes_buscar(string $texto): array
         $where[] = '(NombUsua LIKE ? OR NombUsu1 LIKE ? OR Ape1Usua LIKE ? OR Ape2Usua LIKE ?)';
         array_push($params, $palabra . '%', $palabra . '%', $palabra . '%', $palabra . '%');
     }
-    $st = db()->prepare("SELECT $cols FROM Paciente WHERE " . implode(' AND ', $where) . ' ORDER BY Ape1Usua, Ape2Usua, NombUsua LIMIT 50');
+    $st = db()->prepare("SELECT $cols FROM Paciente WHERE " . implode(' AND ', $where) . " ORDER BY Ape1Usua, Ape2Usua, NombUsua LIMIT $limite");
     $st->execute($params);
     return $st->fetchAll();
 }

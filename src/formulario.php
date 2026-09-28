@@ -203,12 +203,20 @@ function pestanas_usuario(string $login, array $mod): array
     foreach ($fija as [$id, $nombre, $nota]) {
         $porNombre[nombre_objeto($nombre)] = [$id, $nota];
     }
+    // Sin repetidos, como SIHOS: con los permisos reales hay objetos DISTINTOS (otro CodiObje) con el mismo nombre
+    // (p. ej. dos "Procedimientos" o dos "Imagenes" en Consulta Externa). Se deja solo el primero por orden, tanto
+    // por nombre como por panel (el mismo CodiObje ya viene una sola vez por el GROUP BY).
     $barra = [];
+    $vistos = [];
     $n = 0;
     foreach ($objetos as $o) {
-        $n++;
-        [$id, $nota] = $porNombre[nombre_objeto((string) $o['NombObje'])] ?? ['obj' . (int) $o['CodiObje'], NO_DISPONIBLE];
-        $barra[$n] = [$id, (string) $o['NombObje'], $nota];
+        $clave = nombre_objeto((string) $o['NombObje']);
+        [$id, $nota] = $porNombre[$clave] ?? ['obj' . (int) $o['CodiObje'], NO_DISPONIBLE];
+        if (isset($vistos['n:' . $clave]) || isset($vistos['p:' . $id])) {
+            continue;
+        }
+        $vistos['n:' . $clave] = $vistos['p:' . $id] = true;
+        $barra[++$n] = [$id, (string) $o['NombObje'], $nota];
     }
     return $barra;
 }

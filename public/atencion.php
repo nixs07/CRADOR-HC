@@ -44,6 +44,14 @@ $pac = null;
 $buscado = !$a && $docNum !== '';
 if ($buscado) {
     $pac = paciente_obtener($docTipo, $docNum);
+    if (!$pac) {
+        // Se escribió parte del documento o el nombre y se pulsó Buscar: si hay UN solo paciente, se carga
+        $candidatos = pacientes_buscar($docNum, 2);
+        if (count($candidatos) === 1) {
+            $pac = paciente_obtener($candidatos[0]['TipoDocu'], $candidatos[0]['NumeUsua']);
+            [$docTipo, $docNum] = [$candidatos[0]['TipoDocu'], $candidatos[0]['NumeUsua']];
+        }
+    }
     if ($pac) {
         $abierta = admision_abierta_de_paciente($pac['TipoDocu'], $pac['NumeUsua']);
         if ($abierta) {
@@ -296,7 +304,8 @@ vista_inicio($a ? 'Admisión ' . $a['ConsAdmi'] : $mod['nombre']);
                 <select id="TipoDocu" name="TipoDocu" aria-label="Tipo de documento">
                     <?php foreach (lista('TipoDocu') as $c => $n): ?><option value="<?= e($c) ?>" title="<?= e($n) ?>"<?= (string) $c === (string) $docTipo ? ' selected' : '' ?>><?= e($c) ?></option><?php endforeach; ?>
                 </select>
-                <input type="text" id="NumeUsua" name="NumeUsua" value="<?= e($docNum) ?>" maxlength="20" placeholder="Número" autocomplete="off"<?= (!$a && !$pac) ? ' autofocus' : '' ?>>
+                <input type="text" id="NumeUsua" name="NumeUsua" value="<?= e($docNum) ?>" maxlength="60" placeholder="Número o nombre" autocomplete="off"
+                       data-buscar="pacientes" data-minimo="3" title="Escriba el documento o el nombre (desde 3 caracteres)"<?= (!$a && !$pac) ? ' autofocus' : '' ?>>
                 <button type="submit" class="boton boton-primario" title="Buscar paciente"><?= icono('search') ?><span>Buscar</span></button>
                 <a href="pacientes.php" class="boton boton-claro boton-puntos" title="Buscar por nombre" aria-label="Buscar paciente por nombre">…</a>
             </div>
