@@ -90,6 +90,17 @@ if ($pac) {
 
 // --- Datos de la admision cargada ---------------------------------------
 $editable = $a ? admision_editable($a) : false;
+// "Modificar" (como SIHOS): el encabezado de la admisión abierta se vuelve editable y se guarda con "Guardar"
+$modificando = $a && $editable && (isset($_GET['modificar']) || ($_POST['accion'] ?? '') === 'admision_modificar');
+if ($modificando) {
+    $d = [
+        'CodiServ' => $a['CodiServ'], 'FechIngr' => $a['FechIngr'], 'HoraIngr' => substr($a['HoraIngr'], 0, 5),
+        'NumeAuto' => $a['NumeAuto'], 'NumePoli' => $a['NumePoli'], 'CodiAdmi' => $a['CodiAdmi'], 'NumeCont' => $a['NumeCont'],
+        'TipoUsua' => $a['TipoUsua'], 'TipoAfil' => $a['TipoAfil'], 'CodiEstr' => $a['CodiEstr'], 'ViaIngre' => $a['ViaIngre'],
+        'CausExte' => $a['CausExte'], 'GrupoAte' => $a['GrupoAte'], 'CondUsua' => $a['CondUsua'], 'TipoAcom' => $a['TipoAcom'],
+        'NombAcom' => $a['NombAcom'], 'Parentes' => $a['Parentes'], 'TeleAcom' => $a['TeleAcom'], 'CodiCama' => $a['CamaActu'],
+    ];
+}
 $aqui = $a ? 'atencion.php?id=' . urlencode($a['ConsAdmi']) : $base;
 $triage = $a ? triage_de_admision($a['ConsAdmi']) : null;
 $signos = $a ? signos_de_admision($a['ConsAdmi']) : [];
@@ -174,6 +185,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $cons = admision_crear($mod, $pac, $d, $u['Login']);
             flash('ok', "Admisión $cons creada.");
             redirigir('atencion.php?id=' . urlencode($cons));
+        }
+    } elseif ($accion === 'admision_modificar' && $a) {
+        if (!$editable) {
+            flash('error', 'La admisión está cerrada, anulada o ya se cargó a SIHOS: no se puede modificar.');
+            redirigir($aqui);
+        }
+        [$d, $eA] = admision_validar($mod, $a, $a);
+        if (!$eA) {
+            admision_modificar($a, $mod, $d, $u['Login']);
+            flash('ok', 'Admisión ' . $a['ConsAdmi'] . ' modificada.');
+            redirigir($aqui);
         }
     } elseif ($a && isset(ACCIONES_HISTORIA[$accion])) {
         // Pestanas de la historia: validar en src/historia.php, guardar en una transaccion y volver a la pestana
@@ -328,7 +350,7 @@ vista_inicio($a ? 'Admisión ' . $a['ConsAdmi'] : $mod['nombre'], false);
                 <span class="etiqueta" title="Número temporal: al cargar a SIHOS se asigna el definitivo">Temporal</span>
             <?php endif; ?>
         </div>
-        <?php if ($a): ?>
+        <?php if ($a && !$modificando): ?>
         <div class="et-barra-campos">
             <?= campo_lectura('Fecha', date('d/m/Y', strtotime($a['FechIngr'])), 'c-fecha') ?>
             <?= campo_lectura('Hora', substr($a['HoraIngr'], 0, 5), 'c-hora') ?>
@@ -340,8 +362,8 @@ vista_inicio($a ? 'Admisión ' . $a['ConsAdmi'] : $mod['nombre'], false);
             <?= campo_lectura('SOAT', $a['NumePoli'], 'c-auto') ?>
             <span class="etiqueta etiqueta-<?= e($claseEstado) ?> et-estado"><?= e($estado) ?></span>
         </div>
-        <?php elseif ($pac): ?>
-        <!-- Nueva admisión: los campos de la barra pertenecen al formulario de la admisión (atributo form) -->
+        <?php elseif ($pac || $modificando): ?>
+        <!-- Nueva admisión o Modificar: los campos de la barra pertenecen al formulario de la admisión (atributo form) -->
         <div class="et-barra-campos et-barra-edicion">
             <div class="c-fecha"><label for="FechIngr">Fecha</label>
                 <input type="date" id="FechIngr" name="FechIngr" form="form-admision" value="<?= v($d, 'FechIngr') ?>" max="<?= date('Y-m-d') ?>" class="<?= ce($eA, 'FechIngr') ?>" required></div>
@@ -389,7 +411,7 @@ vista_inicio($a ? 'Admisión ' . $a['ConsAdmi'] : $mod['nombre'], false);
         </div>
     <?php endif; ?>
 
-    <?php if ($a): ?>
+    <?php if ($a && !$modificando): ?>
         <!-- Admision cargada: filas del encabezado de SIHOS en modo lectura -->
         <div class="et-fila">
             <?= campo_lectura('Servicio Origen (C.Costos)', trim(($a['NombServOrig'] ?? $a['CodiServ']) . ($a['CentCost'] !== '' ? ' (' . $a['CentCost'] . ')' : '')), 'c-3') ?>
@@ -415,34 +437,19 @@ vista_inicio($a ? 'Admisión ' . $a['ConsAdmi'] : $mod['nombre'], false);
             <?= campo_lectura('Afiliación', lista_nombre('TipoAfil', $a['TipoAfil']), 'c-2') ?>
             <?= campo_lectura('Categoría', $a['CodiEstr'], 'c-2') ?>
         </div>
-        <!-- Botones del encabezado de SIHOS (los que no aplican en contingencia, deshabilitados) -->
-        <div class="et-acciones-sihos">
-            <a href="<?= e($base) ?>&amp;nueva=1" class="boton boton-nuevo-sihos"><?= icono('user-plus') ?>Nuevo</a>
-            <button type="button" class="boton boton-claro" disabled title="No disponible"><?= icono('pencil') ?>Modificar</button>
-            <button type="button" class="boton boton-claro" disabled title="No disponible"><?= icono('trash-2') ?>Eliminar</button>
-            <a href="<?= e($aqui) ?>&amp;buscar=1" class="boton boton-claro" data-abrir-ventana="buscar-historia"><?= icono('search') ?>Buscar</a>
-            <button type="button" class="boton boton-claro" disabled title="No disponible"><?= icono('printer') ?>Imprimir</button>
-            <a href="<?= e($base) ?>&amp;nueva=1" class="boton boton-claro" title="Vaciar el encabezado"><?= icono('x') ?>Limpiar</a>
-            <button type="button" class="boton boton-claro" disabled title="No disponible"><?= icono('ban') ?>Anular</button>
-            <?php if ($editable): ?>
-                <a href="<?= e($aqui) ?>&amp;tab=<?= e($tab) ?>&amp;cerrar=1" class="boton boton-peligro" data-abrir-ventana="cerrar-historia"><?= icono('log-out') ?>Cerrar Historia</a>
-            <?php else: ?>
-                <button type="button" class="boton boton-peligro" disabled title="<?= $a ? 'La historia ya está cerrada' : 'Cargue una historia' ?>"><?= icono('log-out') ?>Cerrar Historia</button>
-            <?php endif; ?>
-            <span class="et-sep"></span>
-            <a href="<?= e($base) ?>&amp;historias=1" class="boton boton-claro" data-abrir-ventana="historias"><?= icono('clipboard-list') ?>Historias <span class="contador" title="Abiertas"><?= $abiertasModulo ?></span></a>
-        </div>
 
-    <?php elseif ($pac): ?>
-        <!-- Paciente sin admision abierta: el encabezado queda editable para crearla aqui mismo -->
-        <form method="post" action="<?= e($urlBusqueda) ?>" class="formulario et-form" id="form-admision" data-una-vez>
+    <?php elseif ($pac || $modificando): ?>
+        <!-- Paciente sin admision abierta (o "Modificar" de la admisión cargada): el encabezado queda editable para crearla aqui mismo -->
+        <form method="post" action="<?= e($modificando ? $aqui : $urlBusqueda) ?>" class="formulario et-form" id="form-admision" data-una-vez>
             <?= csrf_campo() ?>
-            <input type="hidden" name="accion" value="admision">
+            <input type="hidden" name="accion" value="<?= $modificando ? 'admision_modificar' : 'admision' ?>">
             <?= errores_resumen($eA) ?>
             <div class="et-fila">
                 <div class="c-3"><label for="CodiServ">Servicio</label>
                     <select id="CodiServ" name="CodiServ" class="<?= ce($eA, 'CodiServ') ?>" required><?= opciones_arreglo($servicios, $d['CodiServ'], false) ?></select><?= me($eA, 'CodiServ') ?></div>
-                <?php if ($mod['cama']): ?>
+                <?php if ($mod['cama'] && $modificando): ?>
+                <?= campo_lectura('Cama', $a['CamaActu'] . ' (se cambia en Cambio de Atención)', 'c-3') ?>
+                <?php elseif ($mod['cama']): ?>
                 <div class="c-3"><label for="CodiCama">Cama</label>
                     <select id="CodiCama" name="CodiCama" class="<?= ce($eA, 'CodiCama') ?>" required
                             data-depende="api.php?que=camas" data-de="CodiServ" data-param="serv">
@@ -496,11 +503,6 @@ vista_inicio($a ? 'Admisión ' . $a['ConsAdmi'] : $mod['nombre'], false);
                 <div class="c-2"><label for="TeleAcom">Teléfono</label>
                     <input type="text" id="TeleAcom" name="TeleAcom" value="<?= v($d, 'TeleAcom') ?>" maxlength="10" inputmode="tel"></div>
             </div>
-            <div class="acciones et-acciones">
-                <button type="submit" class="boton boton-nuevo-sihos"><?= icono('save') ?>Crear admisión</button>
-                <a href="<?= e($base) ?>&amp;nueva=1" class="boton boton-claro"><?= icono('x') ?>Cancelar</a>
-                <a href="<?= e($base) ?>&amp;historias=1" class="boton boton-claro" data-abrir-ventana="historias"><?= icono('clipboard-list') ?>Historias</a>
-            </div>
         </form>
 
     <?php else: ?>
@@ -512,23 +514,33 @@ vista_inicio($a ? 'Admisión ' . $a['ConsAdmi'] : $mod['nombre'], false);
             <?= campo_lectura('Discapacidad', '', 'c-2') ?><?= campo_lectura('Diagnóstico', '', 'c-4') ?>
         </div>
         <p class="et-ayuda"><?= icono('info') ?><span>Para una admisión nueva escriba el <strong>documento</strong> del paciente. Para abrir una historia escriba su <strong>número de admisión</strong> y pulse <strong>Enter</strong>, o use <strong>Buscar</strong> (por admisión, documento o nombre) o <strong>Historias</strong>.</span></p>
-        <div class="et-acciones-sihos">
-            <a href="<?= e($base) ?>&amp;nueva=1" class="boton boton-nuevo-sihos"><?= icono('user-plus') ?>Nuevo</a>
-            <button type="button" class="boton boton-claro" disabled title="No disponible"><?= icono('pencil') ?>Modificar</button>
-            <button type="button" class="boton boton-claro" disabled title="No disponible"><?= icono('trash-2') ?>Eliminar</button>
-            <a href="<?= e($aqui) ?>&amp;buscar=1" class="boton boton-claro" data-abrir-ventana="buscar-historia"><?= icono('search') ?>Buscar</a>
-            <button type="button" class="boton boton-claro" disabled title="No disponible"><?= icono('printer') ?>Imprimir</button>
-            <a href="<?= e($base) ?>&amp;nueva=1" class="boton boton-claro" title="Vaciar el encabezado"><?= icono('x') ?>Limpiar</a>
-            <button type="button" class="boton boton-claro" disabled title="No disponible"><?= icono('ban') ?>Anular</button>
-            <?php if ($editable): ?>
-                <a href="<?= e($aqui) ?>&amp;tab=<?= e($tab) ?>&amp;cerrar=1" class="boton boton-peligro" data-abrir-ventana="cerrar-historia"><?= icono('log-out') ?>Cerrar Historia</a>
-            <?php else: ?>
-                <button type="button" class="boton boton-peligro" disabled title="<?= $a ? 'La historia ya está cerrada' : 'Cargue una historia' ?>"><?= icono('log-out') ?>Cerrar Historia</button>
-            <?php endif; ?>
-            <span class="et-sep"></span>
-            <a href="<?= e($base) ?>&amp;historias=1" class="boton boton-claro" data-abrir-ventana="historias"><?= icono('clipboard-list') ?>Historias <span class="contador" title="Abiertas"><?= $abiertasModulo ?></span></a>
-        </div>
     <?php endif; ?>
+    <!-- Botones del encabezado de SIHOS (los que no aplican en contingencia, deshabilitados).
+         La admisión se crea o se modifica SOLO con "Guardar" (Enter no envía el formulario). -->
+    <div class="et-acciones-sihos">
+        <a href="<?= e($base) ?>&amp;nueva=1" class="boton boton-nuevo-sihos"><?= icono('user-plus') ?>Nuevo</a>
+        <?php if ($pac || $modificando): ?>
+            <button type="submit" form="form-admision" class="boton boton-primario boton-guardar-sihos"><?= icono('save') ?>Guardar</button>
+            <a href="<?= e($modificando ? $aqui : $base . '&nueva=1') ?>" class="boton boton-claro"><?= icono('x') ?>Cancelar</a>
+        <?php endif; ?>
+        <?php if ($a && $editable && !$modificando): ?>
+            <a href="<?= e($aqui) ?>&amp;modificar=1" class="boton boton-claro"><?= icono('pencil') ?>Modificar</a>
+        <?php elseif (!$modificando): ?>
+            <button type="button" class="boton boton-claro" disabled title="<?= $a ? 'La historia no se puede modificar' : 'Cargue una historia' ?>"><?= icono('pencil') ?>Modificar</button>
+        <?php endif; ?>
+        <button type="button" class="boton boton-claro" disabled title="No disponible"><?= icono('trash-2') ?>Eliminar</button>
+        <a href="<?= e($aqui) ?>&amp;buscar=1" class="boton boton-claro" data-abrir-ventana="buscar-historia"><?= icono('search') ?>Buscar</a>
+        <button type="button" class="boton boton-claro" disabled title="No disponible"><?= icono('printer') ?>Imprimir</button>
+        <a href="<?= e($base) ?>&amp;nueva=1" class="boton boton-claro" title="Vaciar el encabezado"><?= icono('x') ?>Limpiar</a>
+        <button type="button" class="boton boton-claro" disabled title="No disponible"><?= icono('ban') ?>Anular</button>
+        <?php if ($a && $editable && !$modificando): ?>
+            <a href="<?= e($aqui) ?>&amp;tab=<?= e($tab) ?>&amp;cerrar=1" class="boton boton-peligro" data-abrir-ventana="cerrar-historia"><?= icono('log-out') ?>Cerrar Historia</a>
+        <?php else: ?>
+            <button type="button" class="boton boton-peligro" disabled title="<?= $a ? ($modificando ? 'Termine de modificar' : 'La historia ya está cerrada') : 'Cargue una historia' ?>"><?= icono('log-out') ?>Cerrar Historia</button>
+        <?php endif; ?>
+        <span class="et-sep"></span>
+        <a href="<?= e($base) ?>&amp;historias=1" class="boton boton-claro" data-abrir-ventana="historias"><?= icono('clipboard-list') ?>Historias <span class="contador" title="Abiertas"><?= $abiertasModulo ?></span></a>
+    </div>
 </section>
 
 <?php if ($a && !$editable): ?>
@@ -895,6 +907,12 @@ if ($erroresPantalla) {
         </div>
     </div>
 </div>
+<script>
+// La admisión se crea o se modifica solo con el botón "Guardar": Enter en un campo no envía el formulario
+document.querySelectorAll('#form-admision input, input[form="form-admision"]').forEach(function (campo) {
+    campo.addEventListener('keydown', function (ev) { if (ev.key === 'Enter') { ev.preventDefault(); } });
+});
+</script>
 <script src="js/formularios.js"></script>
 <?php
 vista_fin();

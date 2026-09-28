@@ -241,10 +241,11 @@ function admision_abierta_de_paciente(string $tipo, string $numero): ?array
 }
 
 /**
- * Valida el formulario de nueva admision. Devuelve [datos, errores].
- * $mod = MODULOS_DETALLE[...] + clave, $pac = fila de Paciente.
+ * Valida el formulario de la admision (nueva o "Modificar"). Devuelve [datos, errores].
+ * $mod = MODULOS_DETALLE[...] + clave, $pac = fila de Paciente (o la admision cargada al modificar).
+ * $actual = admision que se modifica (null = admision nueva).
  */
-function admision_validar(array $mod, array $pac): array
+function admision_validar(array $mod, array $pac, ?array $actual = null): array
 {
     $d = [
         'CodiServ' => campo('CodiServ', 3),
@@ -303,7 +304,10 @@ function admision_validar(array $mod, array $pac): array
     if (!lista_valida('CausExte', $d['CausExte'])) $e['CausExte'] = 'Seleccione la causa externa.';
     if (!lista_valida('GrupAten', $d['GrupoAte'])) $e['GrupoAte'] = 'Seleccione el grupo poblacional.';
     if (!lista_valida('CondUsua', $d['CondUsua'])) $e['CondUsua'] = 'Seleccione la condición de la usuaria.';
-    if ($mod['cama']) {
+    if ($mod['cama'] && $actual) {
+        // Al modificar no se cambia la cama: el cambio de cama es la pestaña "Cambio de Atención"
+        $d['CodiCama'] = (string) $actual['CamaActu'];
+    } elseif ($mod['cama']) {
         $camas = camas($d['CodiServ']);
         if (!array_key_exists($d['CodiCama'], $camas)) {
             $e['CodiCama'] = 'Seleccione la cama.';
@@ -319,10 +323,30 @@ function admision_validar(array $mod, array $pac): array
     } elseif (!lista_valida('Parentes', $d['Parentes'])) {
         $e['Parentes'] = 'Parentesco no válido.';
     }
-    if (admision_abierta_de_paciente($pac['TipoDocu'], $pac['NumeUsua'])) {
+    if (!$actual && admision_abierta_de_paciente($pac['TipoDocu'], $pac['NumeUsua'])) {
         $e['general'] = 'El paciente ya tiene una admisión abierta.';
     }
     return [$d, $e];
+}
+
+/**
+ * "Modificar" del encabezado (como SIHOS): actualiza los datos de la admision abierta (datos validados).
+ * No cambia el numero, el paciente, la cama (eso es "Cambio de Atencion") ni el servicio actual si ya hubo traslado.
+ */
+function admision_modificar(array $a, array $mod, array $d, string $login): void
+{
+    [$valoEdad, $unidEdad] = edad_sihos($a['FechNaci'], $d['FechIngr']);
+    // El servicio de ingreso solo se cambia si no ha habido traslado (servicio actual = servicio de ingreso)
+    $servEgre = ($a['ServEgre'] === $a['CodiServ']) ? $d['CodiServ'] : $a['ServEgre'];
+    $st = db()->prepare('UPDATE Admision SET FechIngr = ?, HoraIngr = ?, NumeAuto = ?, NumePoli = ?, CodiServ = ?, ServEgre = ?,
+                                ViaIngre = ?, CausExte = ?, CondUsua = ?, GrupoAte = ?, CodiAdmi = ?, NumeCont = ?, TipoUsua = ?,
+                                TipoAfil = ?, CodiEstr = ?, TipoAcom = ?, NombAcom = ?, TeleAcom = ?, Parentes = ?,
+                                ValoEdad = ?, UnidEdad = ?, FechModi = CURDATE(), HoraModi = CURTIME(), UsuaModi = ?
+                          WHERE CodiInst = ? AND ConsAdmi = ? AND Cerrado = 2 AND Anulado = 2');
+    $st->execute([$d['FechIngr'], $d['HoraIngr'], $d['NumeAuto'], $d['NumePoli'] ?? '', $d['CodiServ'], $servEgre,
+        (int) $d['ViaIngre'], $d['CausExte'], (int) $d['CondUsua'], $d['GrupoAte'], $d['CodiAdmi'], $d['NumeCont'],
+        (int) $d['TipoUsua'], $d['TipoAfil'], $d['CodiEstr'], (int) $d['TipoAcom'], $d['NombAcom'] ?: null,
+        $d['TeleAcom'] ?: null, (int) $d['Parentes'], $valoEdad, $unidEdad, $login, CODI_INST, $a['ConsAdmi']]);
 }
 
 /** Crea la admision (datos validados). Devuelve el numero temporal. */
